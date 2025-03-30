@@ -1,3 +1,4 @@
+[@@@ocaml.warning "-32"]
 open Yojson.Basic.Util
 
 type lit_value = 
@@ -6,7 +7,7 @@ type lit_value =
 
 type ast_body =
   | LIT of lit_value
-  | NAM of string
+  (* | NAM of string *)
   (* | APP of ast_node * ast_node array
   | LOG of string * ast_node * ast_node
   | BINOP of string * ast_node * ast_node
@@ -29,14 +30,14 @@ and ast_node = {
   body: ast_body;
 }
 
-type symbol = string
+(* type symbol = string *)
 
-type load_variable = { sym: symbol; pos: int }
+(* type load_variable = { sym: symbol; pos: int } *)
 
 type instruction =
 | LDC of lit_value             (* Load Constant *)
-| LD of load_variable          (* Load from environment with position *)
-| DONE                         (* Program termination *)
+(*| LD of load_variable          (* Load from environment with position *) *)
+(*| DONE                         (* Program termination *) *)
 
 (* Environment types *)
 type compile_time_state = {
@@ -56,7 +57,6 @@ let compile_comp comp compile_time_state =
   | "lit" -> 
       let instr = match comp.body with
         | LIT lit_value -> LDC lit_value 
-        | _ -> failwith "Expected LIT node"
       in
       let new_compile_time_state = {
         instrs= compile_time_state.instrs @ [instr];
@@ -77,13 +77,13 @@ let parse_literal json =
       | Some i -> LIT (Int i)  (* If it's an integer *)
       | None -> failwith "Invalid literal type"
 
-let rec parse_ast json =
+let parse_ast json =
   let tag = json |> member "tag" |> to_string in
   {
     ast_tag = tag;
     body = match tag with
     | "lit" -> parse_literal json
-    | "nam" -> NAM (json |> member "sym" |> to_string)
+    (* | "nam" -> NAM (json |> member "sym" |> to_string) *)
     (* | "app" -> 
         let fun_node = json |> member "fun" |> parse_ast in
         let args = json |> member "args" |> to_list |> List.map parse_ast |> Array.of_list in
@@ -101,3 +101,17 @@ let compile_program json_str =
   let ast = parse_ast parsed_json in
   let compile_time_state = compile ast initial_compile_time_state in
   compile_time_state.instrs
+
+  let string_of_instruction = function
+  | LDC (Int i) -> Printf.sprintf "LDC(Int %d)" i
+  | LDC (String s) -> Printf.sprintf "LDC(String %s)" s
+  (* | LD {sym; pos} -> Printf.sprintf "LD(%s, %d)" sym pos *)
+  (* | DONE -> "DONE" *)
+  (* | _ -> "random string" *)
+  
+  let () = 
+  let instructions = compile_program "{\"tag\": \"lit\", \"val\": \"bla\"}" in
+  List.iter (fun instr -> 
+    Printf.printf "%s\n" (string_of_instruction instr)
+  ) instructions;
+  ()
