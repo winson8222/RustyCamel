@@ -1,4 +1,6 @@
 (executable
  (public_name vm)
  (name main)
- (libraries vm))
+ (libraries vm yojson ppx_deriving_yojson)
+ (preprocess
+  (pps ppx_deriving_yojson)))
