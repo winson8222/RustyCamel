@@ -3,6 +3,9 @@
         "module": "ESNext",
         "moduleResolution": "bundler",
         "target": "es2023",
-        "sourceMap": true
+        "sourceMap": true,
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "esModuleInterop": true
     }
 }
