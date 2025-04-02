@@ -4,7 +4,7 @@ type lit_value =
   | Int of int
   | String of string 
   | Undefined
-  [@@deriving show]
+[@@deriving show]
 
 type pos_in_env = {
   frame_index: int;
@@ -21,7 +21,8 @@ type compiled_instruction =
   | ASSIGN of { pos: pos_in_env }
   | POP
   | LD of { sym: string ; pos: pos_in_env }
-  [@@deriving show]
+  | DONE
+[@@deriving show]
 
 (* Compile time state *)
 type ct_state = {
@@ -177,4 +178,4 @@ let string_of_instruction = show_compiled_instruction
 let compile_program json_str = 
   let parsed_json = Yojson.Basic.from_string json_str in
   let ct_state = compile parsed_json initial_ct_state in
-  ct_state.instrs
+  ct_state.instrs @ [DONE]

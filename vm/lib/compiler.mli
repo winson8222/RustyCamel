@@ -17,6 +17,7 @@ type compiled_instruction =
   | ASSIGN of { pos: pos_in_env }
   | POP
   | LD of { sym: string ; pos: pos_in_env }
+  | DONE
 
 val string_of_instruction : compiled_instruction -> string
 

@@ -1,6 +1,6 @@
 (library
  (name vm)
-  (modules compiler)
+  (modules compiler runner)
   (libraries yojson ppx_deriving_yojson)
    (preprocess
   (pps ppx_deriving_yojson ppx_deriving.show))
