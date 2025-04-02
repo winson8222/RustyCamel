@@ -4,32 +4,50 @@ type lit_value =
   | Int of int
   | String of string 
   | Undefined
+  [@@deriving show]
 
-(* type load_variable = { sym: symbol; pos: int } *)
+type pos_in_env = {
+  frame_index: int;
+  value_index: int;
+}
+[@@deriving show]
+
 
 type compiled_instruction =
-  | LDC of lit_value             (* Load Constant *)
-  | ENTER_SCOPE of { num : int }            (* int num *)
+  | LDC of lit_value          
+  | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym: string }
-  | ASSIGN of { pos: int }
-  | POP 
-  (*| LD of load_variable          (* Load from environment with position *) *)
-(*| DONE                         (* Program termination *) *)
+  | ASSIGN of { pos: pos_in_env }
+  | POP
+  | LD of { sym: string ; pos: pos_in_env }
+  [@@deriving show]
 
 (* Compile time state *)
 type ct_state = {
   instrs: compiled_instruction list;  (* Symbol table with positions *)
-  ce: string array array ; (* array of array of names *)
+  ce: string list list ;
   wc: int;
 }
 
+(* TODO: Add global compile environment with builtin frames *)
 let initial_ct_state = {
   instrs = [];
-  ce = [||];
+  ce = [];
   wc = 0;
 }
 
+let find_index f ls = 
+  let rec find_index_helper ls f cur_index = 
+    match ls with 
+    | [] -> None 
+    | hd::tl -> 
+      match (f hd) with 
+      | true -> Some  cur_index
+      | false -> find_index_helper tl f (cur_index + 1)
+  in find_index_helper ls f 0
+
+(** Helper functions *)
 let rec scan_for_locals comp = 
   let tag = comp |> member "tag" |> to_string in 
   match tag with 
@@ -44,7 +62,22 @@ let rec scan_for_locals comp =
     )
   | _ -> []
 
+let get_compile_time_environment_pos sym ce = 
+  let rec helper sym ce cur_frame_index cur_val_index = 
+    match ce with 
+    | [] -> failwith "Symbol not found in compile time environment"
+    | cur_frame::tl_frames -> 
+      let maybe_sym_index = find_index (fun x -> String.equal x sym) cur_frame in
+      match maybe_sym_index with 
+      | Some sym_index -> { frame_index = cur_frame_index; value_index = sym_index}
+      | None -> helper sym tl_frames (cur_frame_index + 1) (cur_val_index + 1)
+  in
+  helper sym ce 0 0 
 
+let compile_time_environment_extend frame_vars ce = 
+  [frame_vars] @ ce 
+
+(* Compilation functions *)
 let rec compile_comp comp ct_state = 
   let tag = comp |> member "tag" |> to_string in
   let instrs = ct_state.instrs in
@@ -66,13 +99,14 @@ let rec compile_comp comp ct_state =
     in new_state
   | "blk" -> 
     (let body = member "body" comp in
-     let num_locals =  List.length (scan_for_locals body) in
-     let enter_scope_instr = ENTER_SCOPE { num=num_locals } in
-     let extended_ce = ct_state.ce in
+     let locals = scan_for_locals body in
+     let num_locals =  List.length locals in
+     let extended_ce = compile_time_environment_extend locals ct_state.ce in
      let after_body_state =  compile body { ct_state with 
                                             ce = extended_ce;
                                             wc = wc + 1
                                           } in
+     let enter_scope_instr = ENTER_SCOPE { num=num_locals } in
      let exit_scope_instr = EXIT_SCOPE in
      let new_state = {
        after_body_state with
@@ -92,18 +126,28 @@ let rec compile_comp comp ct_state =
       wc = sec_state.wc + 1;
       ce= sec_state.ce
     } in new_state
-  | "let" ->  
-    (* TODO : Use correct pos *)
-    (let new_instr = ASSIGN { pos= 0 } in
-     let new_state = {
-       ct_state with
-       instrs=instrs @ [new_instr];
-       wc=wc+1
-     }
-     in new_state)
+
   | "seq" -> 
     let stmts = comp |> member "stmts" in
     compile_sequence stmts ct_state 
+  | "let" ->  
+    (
+      let sym = comp |> member "sym" |> to_string in
+      let pos = get_compile_time_environment_pos sym ct_state.ce in
+      let new_instr = ASSIGN { pos=pos } in
+      let new_state = {
+        ct_state with
+        instrs=instrs @ [new_instr];
+        wc=wc+1
+      }
+      in new_state)
+  | "nam" -> 
+    let sym = comp |> to_string in
+    let pos = get_compile_time_environment_pos sym ct_state.ce in
+    { ct_state with
+      instrs = instrs @ [LD { sym=sym; pos=pos }];
+      wc=wc + 1
+    } 
   | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
 
 and compile comp ce = 
@@ -129,17 +173,7 @@ and compile_sequence stmts ct_state =
   | _ -> 
     failwith "Expected a JSON list for sequence compilation"
 
-    let string_of_instruction = function
-  | LDC (Int i) -> Printf.sprintf "LDC(Int %d)" i
-  | LDC (String s) -> Printf.sprintf "LDC(String %s)" s
-  | LDC Undefined -> Printf.sprintf "LDC(Undefined)"
-  | ENTER_SCOPE { num: int } -> Printf.sprintf "ENTER_SCOPE with num %s" (string_of_int num)
-  | EXIT_SCOPE -> Printf.sprintf "EXIT SCOPE"
-  | BINOP { sym : string } ->  Printf.sprintf "BINOP %s" sym
-  | ASSIGN { pos: int } ->  Printf.sprintf "ASSIGN %s" (string_of_int pos)
-  | POP -> Printf.sprintf "POP"
-
-  
+let string_of_instruction = show_compiled_instruction
 let compile_program json_str = 
   let parsed_json = Yojson.Basic.from_string json_str in
   let ct_state = compile parsed_json initial_ct_state in

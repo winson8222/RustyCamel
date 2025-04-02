@@ -4,26 +4,35 @@ type lit_value =
   | String of string 
   | Undefined
 
-(* type load_variable = { sym: symbol; pos: int } *)
+type pos_in_env = {
+  frame_index: int;
+  value_index: int;
+}
 
 type compiled_instruction =
-  | LDC of lit_value             (* Load Constant *)
-  | ENTER_SCOPE of { num : int }            (* int num *)
+  | LDC of lit_value          
+  | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym: string }
-  | ASSIGN of { pos: int }
+  | ASSIGN of { pos: pos_in_env }
   | POP
+  | LD of { sym: string ; pos: pos_in_env }
 
-  
-  val string_of_instruction : compiled_instruction -> string
-  
-  type ct_state = {
-    instrs: compiled_instruction list;  (* Symbol table with positions *)
-    ce: string array array ; (* array of array of names *)
-    wc: int;
-    }
-    
+val string_of_instruction : compiled_instruction -> string
+
+type ct_state = {
+  instrs: compiled_instruction list;  (* Symbol table with positions *)
+  ce: string list list ; (* list of frames—list of syms *)
+  wc: int;
+}
+
+
+val get_compile_time_environment_pos : string -> string list list -> pos_in_env
+
 val compile_sequence : Yojson.Basic.t -> ct_state -> ct_state
 val compile_comp : Yojson.Basic.t -> ct_state -> ct_state
 val compile_program : string -> compiled_instruction list
 val compile : Yojson.Basic.t -> ct_state -> ct_state
+
+
+val compile_time_environment_extend : string list -> string list list -> string list list
