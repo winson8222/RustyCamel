@@ -1,4 +1,6 @@
 # using ANTLR with "SourceAcademy Conductor"
+## manual compile for ts to js
+`tsc src/RustAstCreator.ts --target ES2020 --module ES2020 --sourcemap`
 
 ## starting point:
 Refer to Sam's repository: https://github.com/tsammeow/conductor-runner-example
@@ -151,3 +153,5 @@ run yarn build. if there are no problems, a file dist/index.js will be generated
 this repository has been configured to automatically build your runner and deploy it to github pages upon pushing to the main branch on github. you should be able to find it at https://{your-username}.github.io/{your-repository}/index.js.
 
 enjoy!
+
+
