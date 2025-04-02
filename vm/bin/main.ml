@@ -62,7 +62,7 @@ let rec compile_comp comp compile_time_state =
             instrs = [enter_scope_instr] @ after_body_state.instrs @ [exit_scope_instr]
           } in new_state
         )
-      | _ -> failwith "unexpected"
+      | _ -> failwith "Unexpected json tag"
 
 and compile comp ce = 
   compile_comp comp ce
@@ -72,6 +72,7 @@ let compile_program json_str =
   let compile_time_state = compile parsed_json initial_compile_time_state in
   compile_time_state.instrs
 
+  (* For printing instruction *)
   let string_of_instruction = function
   | LDC (Int i) -> Printf.sprintf "LDC(Int %d)" i
   | LDC (String s) -> Printf.sprintf "LDC(String %s)" s
