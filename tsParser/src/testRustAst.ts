@@ -1,3 +1,4 @@
+import { normalizeRustAst } from './astToJSON.js';
 import { RustAstCreator } from './RustAstCreator.js';
 
 // Example Rust code snippets
@@ -58,19 +59,20 @@ rustExamples.forEach((code, index) => {
 
     try {
         const ast = creator.createAst(code);
-        console.log(JSON.stringify(ast, null, 2));
+        const json = normalizeRustAst(ast);
+        console.log(JSON.stringify(json));
     } catch (error) {
         console.error('Error parsing code:', error);
     }
 });
 
-// Test with file input
-console.log('\nTesting with file input:');
-creator.createAstFromFile('./test.rs')
-    .then(ast => {
-        console.log('AST from file:');
-        console.log(JSON.stringify(ast, null, 2));
-    })
-    .catch(error => {
-        console.error('Error parsing file:', error);
-    }); 
+// // Test with file input
+// console.log('\nTesting with file input:');
+// creator.createAstFromFile('./test.rs')
+//     .then(ast => {
+//         console.log('AST from file:');
+//         console.log(JSON.stringify(ast, null, 2));
+//     })
+//     .catch(error => {
+//         console.error('Error parsing file:', error);
+//     }); 
