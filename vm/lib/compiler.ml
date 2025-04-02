@@ -25,14 +25,14 @@ type compiled_instruction =
 [@@deriving show]
 
 (* Compile time state *)
-type ct_state = {
+type state = {
   instrs: compiled_instruction list;  (* Symbol table with positions *)
   ce: string list list ;
   wc: int;
 }
 
 (* TODO: Add global compile environment with builtin frames *)
-let initial_ct_state = {
+let initial_state = {
   instrs = [];
   ce = [];
   wc = 0;
@@ -79,10 +79,10 @@ let compile_time_environment_extend frame_vars ce =
   [frame_vars] @ ce 
 
 (* Compilation functions *)
-let rec compile_comp comp ct_state = 
+let rec compile_comp comp state = 
   let tag = comp |> member "tag" |> to_string in
-  let instrs = ct_state.instrs in
-  let wc = ct_state.wc in
+  let instrs = state.instrs in
+  let wc = state.wc in
   match tag with 
   | "lit" -> 
     let value = member "val" comp in
@@ -93,17 +93,17 @@ let rec compile_comp comp ct_state =
       | _ -> failwith "Invalid literal type"
     ) in
     let new_state= {
-      ct_state with
+      state with
       instrs = instrs @ [new_instr];
-      wc = ct_state.wc + 1
+      wc = state.wc + 1
     } 
     in new_state
   | "blk" -> 
     (let body = member "body" comp in
      let locals = scan_for_locals body in
      let num_locals =  List.length locals in
-     let extended_ce = compile_time_environment_extend locals ct_state.ce in
-     let after_body_state =  compile body { ct_state with 
+     let extended_ce = compile_time_environment_extend locals state.ce in
+     let after_body_state =  compile body { state with 
                                             ce = extended_ce;
                                             wc = wc + 1
                                           } in
@@ -119,7 +119,7 @@ let rec compile_comp comp ct_state =
     let frst = member "frst" comp in 
     let scnd = member "scnd" comp in 
     let sym = member "sym" comp |> to_string in 
-    let frst_state = compile frst ct_state in
+    let frst_state = compile frst state in
     let sec_state = compile scnd frst_state in 
     let new_instr = BINOP { sym=sym } in
     let new_state = {
@@ -130,22 +130,22 @@ let rec compile_comp comp ct_state =
 
   | "seq" -> 
     let stmts = comp |> member "stmts" in
-    compile_sequence stmts ct_state 
+    compile_sequence stmts state 
   | "let" ->  
     (
       let sym = comp |> member "sym" |> to_string in
-      let pos = get_compile_time_environment_pos sym ct_state.ce in
+      let pos = get_compile_time_environment_pos sym state.ce in
       let new_instr = ASSIGN { pos=pos } in
       let new_state = {
-        ct_state with
+        state with
         instrs=instrs @ [new_instr];
         wc=wc+1
       }
       in new_state)
   | "nam" -> 
     let sym = comp |> to_string in
-    let pos = get_compile_time_environment_pos sym ct_state.ce in
-    { ct_state with
+    let pos = get_compile_time_environment_pos sym state.ce in
+    { state with
       instrs = instrs @ [LD { sym=sym; pos=pos }];
       wc=wc + 1
     } 
@@ -154,17 +154,17 @@ let rec compile_comp comp ct_state =
 and compile comp ce = 
   compile_comp comp ce
 
-and compile_sequence stmts ct_state = 
+and compile_sequence stmts state = 
   match stmts with
   | `List [] -> 
-    { ct_state with 
-      instrs = ct_state.instrs @ [LDC Undefined]; 
-      wc = ct_state.wc + 1 
+    { state with 
+      instrs = state.instrs @ [LDC Undefined]; 
+      wc = state.wc + 1 
     }
   | `List [single] -> 
-    compile single ct_state
+    compile single state
   | `List (hd::tl) ->
-    let aft_hd_state = compile hd ct_state in
+    let aft_hd_state = compile hd state in
     let aft_hd_with_pop_state = { 
       aft_hd_state with 
       instrs = aft_hd_state.instrs @ [POP];
@@ -177,5 +177,5 @@ and compile_sequence stmts ct_state =
 let string_of_instruction = show_compiled_instruction
 let compile_program json_str = 
   let parsed_json = Yojson.Basic.from_string json_str in
-  let ct_state = compile parsed_json initial_ct_state in
-  ct_state.instrs @ [DONE]
+  let state = compile parsed_json initial_state in
+  state.instrs @ [DONE]
