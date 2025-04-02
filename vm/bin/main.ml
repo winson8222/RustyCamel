@@ -13,6 +13,7 @@ type compiled_instruction =
   | EXIT_SCOPE
   | BINOP of { sym: string }
   | ASSIGN of { pos: int }
+  | POP 
 
 (*| LD of load_variable          (* Load from environment with position *) *)
 (*| DONE                         (* Program termination *) *)
@@ -43,17 +44,7 @@ let rec scan_for_locals comp =
     | _ -> failwith "Unexpected case. Sequence stmts should be a list"
   )
   | _ -> []
-(* 
-let rec compile_sequence seq ct_state = 
-  match seq with 
-  | [] -> LDC Undefined
-  | s -> compile s ct_state 
-  (* | `List  hd::tl ->
-    let aft_hd_state = compile hd ct_state in
-    compile_sequence tl { aft_hd_state with instrs=aft_hd_state.instrs @ [POP]; wc=aft_hd_state.wc + 1} *)
-   *)
-    
-(* Compiler functions *)
+
 let rec compile_comp comp ct_state = 
   let tag = comp |> member "tag" |> to_string in
   let instrs = ct_state.instrs in
@@ -110,14 +101,35 @@ let rec compile_comp comp ct_state =
       wc=wc+1
     }
     in new_state)
-  (* | "seq" -> 
+  | "seq" -> 
     let stmts = comp |> member "stmts" in
-    compile_sequence stmts ct_state  *)
-  | _ -> failwith "Unexpected json tag"
+    compile_sequence stmts ct_state 
+  | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
 
 and compile comp ce = 
   compile_comp comp ce
 
+and compile_sequence stmts ct_state = 
+  match stmts with 
+  | `List stmts_val -> (
+        match stmts_val with 
+        | [] -> { ct_state with instrs = ct_state.instrs @ [LDC Undefined]; wc = ct_state.wc + 1}
+        | hd::tl -> (
+          let aft_hd_state = compile hd ct_state in 
+
+          match tl with 
+          | [] -> aft_hd_state
+          | _ -> 
+            let aft_hd_state_with_pop = {
+              aft_hd_state with
+              instrs=aft_hd_state.instrs @ [POP];
+              wc = aft_hd_state.wc + 1
+            } in 
+          let new_state = compile_sequence (`List tl) aft_hd_state_with_pop
+        in new_state)
+    )
+      | _ -> failwith "Unexpected"
+      
 let compile_program json_str = 
   let parsed_json = Yojson.Basic.from_string json_str in
   let ct_state = compile parsed_json initial_ct_state in
@@ -132,10 +144,11 @@ let string_of_instruction = function
   | EXIT_SCOPE -> Printf.sprintf "EXIT SCOPE"
   | BINOP { sym : string } ->  Printf.sprintf "BINOP %s" sym
   | ASSIGN { pos: int } ->  Printf.sprintf "ASSIGN %s" (string_of_int pos)
+  | POP -> Printf.sprintf "POP"
 
 
 let () = 
-  let test_json = "{\"tag\": \"blk\", \"body\": {\"tag\": \"seq\", \"stmts\": [{\"tag\": \"let\", \"sym\": \"y\", \"expr\": {\"tag\": \"lit\", \"val\": 4}}, {\"tag\": \"binop\", \"sym\": \"*\", \"frst\": {\"tag\": \"nam\", \"sym\": \"y\"}, \"scnd\": {\"tag\": \"lit\", \"val\": 2}}]}}" in
+  let test_json = "{\"tag\": \"blk\", \"body\": {\"tag\": \"seq\", \"stmts\": [{\"tag\": \"let\", \"sym\": \"y\", \"expr\": {\"tag\": \"lit\", \"val\": 4}}, {\"tag\": \"binop\", \"sym\": \"*\", \"frst\": {\"tag\": \"lit\", \"val\": \"3\"}, \"scnd\": {\"tag\": \"lit\", \"val\": 2}}]}}" in
   let instructions = compile_program test_json in
   List.iter (fun instr -> 
       Printf.printf "%s\n" (string_of_instruction instr)

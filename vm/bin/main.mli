@@ -12,6 +12,7 @@ type compiled_instruction =
   | EXIT_SCOPE
   | BINOP of { sym: string }
   | ASSIGN of { pos: int }
+  | POP
 
   
   val string_of_instruction : compiled_instruction -> string
@@ -22,7 +23,7 @@ type compiled_instruction =
     wc: int;
     }
     
-    (* val compile_sequence : Yojson.Basic.t -> ct_state -> ct_state *)
-  val compile_comp : Yojson.Basic.t -> ct_state -> ct_state
-  val compile_program : string -> compiled_instruction list
+val compile_sequence : Yojson.Basic.t -> ct_state -> ct_state
+val compile_comp : Yojson.Basic.t -> ct_state -> ct_state
+val compile_program : string -> compiled_instruction list
 val compile : Yojson.Basic.t -> ct_state -> ct_state
