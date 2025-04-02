@@ -22,29 +22,6 @@ import {
     IfExprContext
 } from './parser/src/RustParser.js';
 
-export class RustAstCreator {
-    private visitor: RustAstVisitor;
-
-    constructor() {
-        this.visitor = new RustAstVisitor();
-    }
-
-    createAst(input: string): any {
-        const inputStream = CharStream.fromString(input);
-        const lexer = new RustLexer(inputStream);
-        const tokenStream = new CommonTokenStream(lexer);
-        const parser = new RustParser(tokenStream);
-        const tree = parser.program();
-        const ast = tree.accept(this.visitor);
-        // return normalizeRustAst(ast);
-        return ast;
-    }
-
-    async createAstFromFile(filePath: string): Promise<any> {
-        const content = await readFile(filePath, 'utf-8');
-        return this.createAst(content);
-    }
-}
 
 class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisitor<any> {
     // visitChildren(node: any): any {
@@ -385,3 +362,27 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         return null;
     }
 } 
+
+export class RustAstCreator {
+    private visitor: RustAstVisitor;
+
+    constructor() {
+        this.visitor = new RustAstVisitor();
+    }
+
+    createAst(input: string): any {
+        const inputStream = CharStream.fromString(input);
+        const lexer = new RustLexer(inputStream);
+        const tokenStream = new CommonTokenStream(lexer);
+        const parser = new RustParser(tokenStream);
+        const tree = parser.program();
+        const ast = tree.accept(this.visitor);
+        // return normalizeRustAst(ast);
+        return ast;
+    }
+
+    async createAstFromFile(filePath: string): Promise<any> {
+        const content = await readFile(filePath, 'utf-8');
+        return this.createAst(content);
+    }
+}
