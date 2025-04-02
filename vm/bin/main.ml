@@ -14,8 +14,7 @@ type compiled_instruction =
   | BINOP of { sym: string }
   | ASSIGN of { pos: int }
   | POP 
-
-(*| LD of load_variable          (* Load from environment with position *) *)
+  (*| LD of load_variable          (* Load from environment with position *) *)
 (*| DONE                         (* Program termination *) *)
 
 (* Compile time state *)
@@ -38,11 +37,11 @@ let rec scan_for_locals comp =
     let sym = comp |> member "sym" |> to_string in
     [sym]
   | "seq" ->  (
-    let value = comp |> member "stmts" in
-    match value with 
-    | `List stmts -> List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
-    | _ -> failwith "Unexpected case. Sequence stmts should be a list"
-  )
+      let value = comp |> member "stmts" in
+      match value with 
+      | `List stmts -> List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
+      | _ -> failwith "Unexpected case. Sequence stmts should be a list"
+    )
   | _ -> []
 
 let rec compile_comp comp ct_state = 
@@ -66,7 +65,7 @@ let rec compile_comp comp ct_state =
     in new_state
   | "blk" -> 
     (let body = member "body" comp in
-    let num_locals =  List.length (scan_for_locals body) in
+     let num_locals =  List.length (scan_for_locals body) in
      let enter_scope_instr = ENTER_SCOPE { num=num_locals } in
      let extended_ce = ct_state.ce in
      let after_body_state =  compile body { ct_state with 
@@ -95,12 +94,12 @@ let rec compile_comp comp ct_state =
   | "let" ->  
     (* TODO : Use correct pos *)
     (let new_instr = ASSIGN { pos= 0 } in
-    let new_state = {
-      ct_state with
-      instrs=instrs @ [new_instr];
-      wc=wc+1
-    }
-    in new_state)
+     let new_state = {
+       ct_state with
+       instrs=instrs @ [new_instr];
+       wc=wc+1
+     }
+     in new_state)
   | "seq" -> 
     let stmts = comp |> member "stmts" in
     compile_sequence stmts ct_state 
@@ -110,26 +109,25 @@ and compile comp ce =
   compile_comp comp ce
 
 and compile_sequence stmts ct_state = 
-  match stmts with 
-  | `List stmts_val -> (
-        match stmts_val with 
-        | [] -> { ct_state with instrs = ct_state.instrs @ [LDC Undefined]; wc = ct_state.wc + 1}
-        | hd::tl -> (
-          let aft_hd_state = compile hd ct_state in 
+  match stmts with
+  | `List [] -> 
+    { ct_state with 
+      instrs = ct_state.instrs @ [LDC Undefined]; 
+      wc = ct_state.wc + 1 
+    }
+  | `List [single] -> 
+    compile single ct_state
+  | `List (hd::tl) ->
+    let aft_hd_state = compile hd ct_state in
+    let aft_hd_with_pop_state = { 
+      aft_hd_state with 
+      instrs = aft_hd_state.instrs @ [POP];
+      wc = aft_hd_state.wc + 1 
+    } in
+    compile_sequence (`List tl) aft_hd_with_pop_state
+  | _ -> 
+    failwith "Expected a JSON list for sequence compilation"
 
-          match tl with 
-          | [] -> aft_hd_state
-          | _ -> 
-            let aft_hd_state_with_pop = {
-              aft_hd_state with
-              instrs=aft_hd_state.instrs @ [POP];
-              wc = aft_hd_state.wc + 1
-            } in 
-          let new_state = compile_sequence (`List tl) aft_hd_state_with_pop
-        in new_state)
-    )
-      | _ -> failwith "Unexpected"
-      
 let compile_program json_str = 
   let parsed_json = Yojson.Basic.from_string json_str in
   let ct_state = compile parsed_json initial_ct_state in
