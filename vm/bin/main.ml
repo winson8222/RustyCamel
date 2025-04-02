@@ -1,4 +1,4 @@
-[@@@ocaml.warning "-32"]
+
 open Yojson.Basic.Util
 
 type lit_value = 
@@ -110,7 +110,7 @@ let compile_program json_str =
   (* | _ -> "random string" *)
   
   let () = 
-  let instructions = compile_program "{\"tag\": \"lit\", \"val\": \"bla\"}" in
+  let instructions = compile_program "{\"tag\": \"lit\", \"val\": \"1\"}" in
   List.iter (fun instr -> 
     Printf.printf "%s\n" (string_of_instruction instr)
   ) instructions;
