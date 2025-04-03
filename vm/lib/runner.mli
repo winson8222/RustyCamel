@@ -3,7 +3,7 @@ type vm_value =
   | VNumber of int
   | VString of string
   | VUndefined
-  | VAddress of int
+  | VAddress of int32
 
 type vm_error =
   | TypeError of string
