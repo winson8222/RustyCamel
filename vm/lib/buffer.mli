@@ -1,6 +1,7 @@
 type t 
 
 (* Check the BigArray 'kind' *)
+(* address: int*)
 val create : int ->t
 val get_int32_at_offset : t ->  int -> int32
 val set_int32_at_offset: t -> int -> int32 -> unit
