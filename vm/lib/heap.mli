@@ -6,7 +6,7 @@ type config = {
   tag_offset: int; 
   size_offset: int;
   forwarding_address_offset: int;
-  to_space: int;
+  (* to_space: int; *)
   free: int ref;
 } 
 

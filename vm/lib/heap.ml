@@ -7,7 +7,7 @@ type config = {
   tag_offset: int; 
   size_offset: int;
   forwarding_address_offset: int;
-  to_space: int;
+  (* to_space: int; *)
   free: int ref;
 } 
 
@@ -25,7 +25,7 @@ let initial_config = {
   tag_offset=0;
   size_offset=2;
   forwarding_address_offset=0;
-  to_space=to_space;
+  (* to_space=to_space; *)
   free= ref to_space
 }
 
