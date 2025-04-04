@@ -3,9 +3,14 @@ open Vm.Compiler
 
 
 let () = 
-  let test_json = "{\"tag\": \"blk\", \"body\": {\"tag\": \"seq\", \"stmts\": [{\"tag\": \"let\", \"sym\": \"y\", \"expr\": {\"tag\": \"lit\", \"val\": 4}}, {\"tag\": \"binop\", \"sym\": \"*\", \"frst\": {\"tag\": \"lit\", \"val\": \"3\"}, \"scnd\": {\"tag\": \"lit\", \"val\": 2}}]}}" in
+  let test_json = "{\"tag\": \"blk\", \"body\": {\"tag\": \"lit\", \"val\": 1}}" in
   let instructions = compile_program test_json in
   List.iter (fun instr -> 
       Printf.printf "%s\n" (string_of_instruction instr)
     ) instructions;
-  ()
+  Printf.printf "starting runner\n";
+  let program_result = Vm.Runner.run instructions in
+  match program_result with 
+  | Ok res -> Printf.printf "%s\n" (Vm.Runner.string_of_vm_value res)
+  | Error e -> Printf.printf "%s\n" (Vm.Runner.string_of_vm_error e);
+    ()
