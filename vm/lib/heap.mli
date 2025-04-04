@@ -35,12 +35,20 @@ val heap_get_child : t -> address:int -> child_index:int -> float
 val heap_set_child : t -> address:int -> child_index:int -> value:float -> unit
 
 val heap_get_tag : t -> int -> node_tag
-
-val heap_get_size : t -> int -> int
 val heap_set_tag : t -> int -> node_tag -> unit
 
+val heap_get_size : t -> int -> int
 val heap_set_size : t -> int -> int -> unit
+
+val heap_get_num_children : t -> int -> int 
+
+
 
 val heap_allocate : t -> size:int -> tag:node_tag -> int
 
 val debug_print_bytes : t -> int -> int -> unit
+
+val heap_set_frame_children_to_unassigned : t -> frame_addr:int -> num_children:int -> unit
+
+val heap_allocate_environment : t -> num_frames:int -> int
+val heap_allocate_blockframe: t -> env_addr:int  -> int
