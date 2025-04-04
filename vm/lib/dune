@@ -3,5 +3,5 @@
   (modules compiler runner buffer heap)
   (libraries yojson ppx_deriving_yojson)
    (preprocess
-  (pps ppx_deriving_yojson ppx_deriving.show))
+  (pps ppx_deriving_yojson ppx_deriving.show ppx_deriving.enum))
  )
