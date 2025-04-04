@@ -26,7 +26,6 @@ type node_tag =
 val initial_config: config
 val create :  t (* TODO: Take in heap size as arg *)
 
-
 val heap_env_extend : t -> int -> int (* returns new address of the head env *)
 
 val heap_get_word : t -> int -> float

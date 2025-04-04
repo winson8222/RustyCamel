@@ -50,15 +50,15 @@ let heap_get_word state address =
   let addr_byte = address * state.config.word_size in
   get_float64_at_offset state.buffer addr_byte
 
-let heap_set_word state address x =
+let heap_set_word state ~address ~word =
   let addr_byte = address * state.config.word_size in
-  set_float64_at_offset state.buffer addr_byte x
+  set_float64_at_offset state.buffer addr_byte word
 
-let heap_get_child state address child_index =
+let heap_get_child state ~address ~child_index =
   heap_get_word state (address + 1 + child_index) 
 
-let heap_set_child state address child_index value =
-  heap_set_word state (address + 1 + child_index)  value
+let heap_set_child state ~address ~child_index ~value =
+  heap_set_word state ~address:(address + 1 + child_index) ~word:value
 
 let heap_get_tag state address =
   let addr_byte = address * state.config.word_size in
@@ -98,7 +98,7 @@ let create =
     if cur_addr >= heap_size_words then
       ()  (* Base case: reached end of heap *)
     else (
-      heap_set_word state prev_addr (Float.of_int cur_addr);
+      heap_set_word state ~address:prev_addr ~word:(Float.of_int cur_addr);
       set_free_pointers state cur_addr (cur_addr + state.config.word_size)
     )
   in
