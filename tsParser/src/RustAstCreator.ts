@@ -22,32 +22,43 @@ import {
     IfExprContext
 } from './parser/src/RustParser.js';
 
+// Ownership types
+type OwnershipType = 'owned' | 'borrowed' | 'mutable_borrowed';
+type Mutability = 'mutable' | 'immutable';
+
+interface OwnershipInfo {
+    ownership: OwnershipType;
+    mutability: Mutability;
+}
+
+class SymbolTable {
+    private table: Map<string, OwnershipInfo>;
+    private parent: SymbolTable | null;
+
+    constructor(parent: SymbolTable | null = null) {
+        this.table = new Map();
+        this.parent = parent;
+    }
+
+    addSymbol(name: string, ownership: OwnershipInfo) {
+        this.table.set(name, ownership);
+    }
+
+    getSymbol(name: string): OwnershipInfo | undefined {
+        const info = this.table.get(name);
+        if (info) return info;
+        if (this.parent) return this.parent.getSymbol(name);
+        return undefined;
+    }
+}
 
 class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisitor<any> {
-    // visitChildren(node: any): any {
-    //     console.log("Visiting children of:", node.constructor.name);
-    //     const result: any = {
-    //         type: node.constructor.name,
-    //         children: []
-    //     };
+    private symbolTable: SymbolTable;
 
-    //     for (let i = 0; i < node.getChildCount(); i++) {
-    //         const child = node.getChild(i);
-    //         if (child) {
-    //             const childResult = this.visit(child);
-    //             if (childResult !== null) {
-    //                 result.children.push(childResult);
-    //             }
-    //         }
-    //     }
-
-    //     // If there are no children, include the text content
-    //     if (result.children.length === 0 && node.getText()) {
-    //         result.text = node.getText();
-    //     }
-
-    //     return result;
-    // }
+    constructor() {
+        super();
+        this.symbolTable = new SymbolTable();
+    }
 
     visitProgram(ctx: any): any {
         console.log("Visiting Program");
@@ -69,7 +80,7 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         } else if (ctx.block()) {
             return this.visit(ctx.block());
         } else if (ctx.expr()) {
-            return this.visit(ctx.expr()); // ← this line is catching it
+            return this.visit(ctx.expr());
         } else if (ctx.returnExpr()) {
             return this.visit(ctx.returnExpr());
         }
@@ -78,22 +89,45 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
 
     visitLetDecl(ctx: any): any {
         console.log("Visiting Let Declaration");
+        const isMutable = ctx.MUT() !== null;
+        const name = ctx.IDENTIFIER().getText();
+        const ownershipInfo: OwnershipInfo = {
+            ownership: 'owned',
+            mutability: isMutable ? 'mutable' : 'immutable'
+        };
+        this.symbolTable.addSymbol(name, ownershipInfo);
+        
         return {
             type: 'LetDecl',
-            name: ctx.IDENTIFIER().getText(),
-            value: ctx.expr() ? this.visit(ctx.expr()) : null
+            name: name,
+            value: ctx.expr() ? this.visit(ctx.expr()) : null,
+            ownership: ownershipInfo
         };
     }
 
     visitFnDecl(ctx: any): any {
         console.log("Visiting Function Declaration");
-        return {
+        const oldTable = this.symbolTable;
+        this.symbolTable = new SymbolTable(oldTable);
+        
+        // Get parameters with their ownership information
+        const params = ctx.paramList() ? this.visit(ctx.paramList()) : [];
+        
+        // Add parameters to symbol table
+        params.forEach((param: any) => {
+            this.symbolTable.addSymbol(param.name, param.ownership);
+        });
+        
+        const result = {
             type: 'FnDecl',
             name: ctx.IDENTIFIER().getText(),
-            params: ctx.paramList() ? this.visit(ctx.paramList()) : [],
+            params: params,
             returnType: ctx.returnType() ? this.visit(ctx.returnType()) : null,
             body: this.visit(ctx.block())
         };
+        
+        this.symbolTable = oldTable;
+        return result;
     }
 
     visitParamList(ctx: any): any {
@@ -101,13 +135,33 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         return ctx.param().map((param: any) => this.visit(param));
     }
 
-
     visitParam(ctx: any): any {
         console.log("Visiting Parameter");
+        const name = ctx.IDENTIFIER().getText();
+        const isRef = ctx.REF() !== null;
+        const isMutable = ctx.MUT() !== null;
+        
+        let ownershipInfo: OwnershipInfo;
+        
+        if (isRef) {
+            // Reference parameter
+            ownershipInfo = {
+                ownership: isMutable ? 'mutable_borrowed' : 'borrowed',
+                mutability: isMutable ? 'mutable' : 'immutable'
+            };
+        } else {
+            // Owned parameter
+            ownershipInfo = {
+                ownership: 'owned',
+                mutability: isMutable ? 'mutable' : 'immutable'
+            };
+        }
+        
         return {
             type: 'Param',
-            name: ctx.IDENTIFIER().getText(),
-            paramType: this.visit(ctx.typeExpr())
+            name: name,
+            paramType: this.visit(ctx.typeExpr()),
+            ownership: ownershipInfo
         };
     }
 
@@ -127,11 +181,15 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
 
     visitBlock(ctx: any): any {
         console.log("Visiting Block");
-
-
-    
+        // Create new scope
+        const oldTable = this.symbolTable;
+        this.symbolTable = new SymbolTable(oldTable);
+        
         const statements = ctx.statement().map((stmt: any) => this.visit(stmt));
-    
+        
+        // Restore old scope
+        this.symbolTable = oldTable;
+        
         return {
             type: 'Block',
             statements: statements
@@ -205,11 +263,7 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
                 expr: this.visit(ctx.exprUnary())
             };
         } else if (ctx instanceof BorrowExprContext) {
-            return {
-                type: 'BorrowExpr',
-                mutable: ctx.getText().includes('mut'),
-                expr: this.visit(ctx.exprUnary())
-            };
+            return this.visit(ctx.exprUnary());
         } else if (ctx instanceof UnaryToAtomContext) {
             return this.visit(ctx.exprAtom());
         }
@@ -235,23 +289,34 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         } else if (ctx instanceof LiteralExprContext) {
             return this.visit(ctx.literal());
         } else if (ctx instanceof IdentExprContext) {
+            const name = ctx.IDENTIFIER().getText();
+            const ownershipInfo = this.symbolTable.getSymbol(name);
             return {
                 type: 'IdentExpr',
-                name: ctx.IDENTIFIER().getText()
+                name: name,
+                ownership: ownershipInfo || {
+                    ownership: 'owned',
+                    mutability: 'immutable'
+                }
             };
         }
         return null;
-    
     }
 
     visitIdentExpr(ctx: IdentExprContext): any {
         console.log("Visiting Identifier Expression");
+        const name = ctx.IDENTIFIER().getText();
+        const ownershipInfo = this.symbolTable.getSymbol(name);
+        
         return {
             type: 'IdentExpr',
-            name: ctx.IDENTIFIER().getText()
+            name: name,
+            ownership: ownershipInfo || {
+                ownership: 'owned',
+                mutability: 'immutable'
+            }
         };
     }
-
 
     visitUnaryToAtom(ctx: UnaryToAtomContext): any {
         console.log("Visiting UnaryToAtom");
@@ -301,9 +366,6 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         };
     }
 
-
- 
-    
     visitUnaryNegation(ctx: UnaryNegationContext): any {
         console.log("Visiting Unary Negation");
         return {
@@ -322,9 +384,13 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
     
     visitBorrowExpr(ctx: BorrowExprContext): any {
         console.log("Visiting Borrow Expression");
+        const isMutable = ctx.getText().includes('mut');
         return {
             type: 'BorrowExpr',
-            mutable: ctx.getText().includes('mut'),
+            ownership: {
+                ownership: isMutable ? 'mutable_borrowed' : 'borrowed',
+                mutability: isMutable ? 'mutable' : 'immutable'
+            },
             expr: this.visit(ctx.exprUnary())
         };
     }
@@ -357,7 +423,6 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         return this.visit(ctx.literal());
     }
     
-
     protected defaultResult(): any {
         return null;
     }

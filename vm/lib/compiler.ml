@@ -18,6 +18,7 @@ type compiled_instruction =
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym: string }
+  | UNOP of { sym: string }
   | ASSIGN of { pos: pos_in_env }
   | POP
   | LD of { sym: string ; pos: pos_in_env }
@@ -127,7 +128,16 @@ let rec compile_comp comp state =
       wc = sec_state.wc + 1;
       ce= sec_state.ce
     } in new_state
-
+  | "unop" ->
+    let frst = member "frst" comp in 
+    let sym = member "sym" comp |> to_string in 
+    let frst_state = compile frst state in
+    let new_instr = UNOP { sym = sym } in
+    let new_state = {
+      instrs = frst_state.instrs @ [new_instr];
+      wc = frst_state.wc + 1;
+      ce = frst_state.ce
+    } in new_state
   | "seq" -> 
     let stmts = comp |> member "stmts" in
     compile_sequence stmts state 
@@ -148,12 +158,42 @@ let rec compile_comp comp state =
     { state with
       instrs = instrs @ [LD { sym=sym; pos=pos }];
       wc=wc + 1
-    } 
+    }
+  | "fun"-> 
+    let params = member "prms" comp in
+    let name = member "name" comp |> to_string in
+    let body = member "body" comp in
+    let assigned_lambda_expr = `Assoc [
+      ("tag", `String "let");
+      ("sym", `String name);
+      ("expr",  `Assoc [
+        ("type", `String "lam");
+        ("prms", params);
+        ("body", body)
+      ] )
+    ] in
+    compile assigned_lambda_expr state 
+  |  
   | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
 
 and compile comp ce = 
   compile_comp comp ce
 
+
+  (* "prms": [
+    {
+      "type": "Param",
+      "name": "n",
+      "paramType": {
+        "type": "BasicType",
+        "name": "i32"
+      },
+      "ownership": {
+        "ownership": "owned",
+        "mutability": "immutable"
+      }
+    }
+  ], *)
 and compile_sequence stmts state = 
   match stmts with
   | `List [] -> 
@@ -173,6 +213,16 @@ and compile_sequence stmts state =
     compile_sequence (`List tl) aft_hd_with_pop_state
   | _ -> 
     failwith "Expected a JSON list for sequence compilation"
+
+
+and compile_func_arg args state = 
+  match args with 
+  | `List [] -> state
+  | `List (hd::tl) -> 
+    let aft_hd_state = compile hd state in
+    compile_func_arg (`List tl) aft_hd_state
+  | _ -> failwith "Expected a JSON list for function argument compilation"
+
 
 let string_of_instruction = show_compiled_instruction
 let compile_program json_str = 

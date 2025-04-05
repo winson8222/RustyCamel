@@ -1,3 +1,5 @@
 (test
  (name test_vm)
- (libraries vm))
+ (libraries vm ounit2)
+ )
+
