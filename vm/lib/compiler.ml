@@ -135,7 +135,7 @@ let rec compile_comp comp state =
       in
       new_state
   | "nam" ->
-      let sym = comp |> to_string in
+      let sym = comp |>  member "sym" |> to_string in
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
   | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
