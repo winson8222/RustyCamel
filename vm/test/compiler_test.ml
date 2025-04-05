@@ -90,6 +90,38 @@ let test_ld_variable () =
   in
   check_instr_list "load variable x" expected result
 
+let test_unary_minus () =
+  let json =
+    {|{"tag": "blk", "body": {"tag": "unop", "sym": "-unary", "frst": {"tag": "lit", "val": 3}}}|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 0 };
+      LDC (Int 3);
+      UNOP { sym = "-unary" };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "unary minus operation" expected result
+
+let test_unary_not () =
+  let json =
+    {|{"tag": "blk", "body": {"tag": "unop", "sym": "!", "frst": {"tag": "lit", "val": true}}}|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 0 };
+      LDC (Boolean true);
+      UNOP { sym = "!" };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "unary not operation" expected result
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -104,5 +136,7 @@ let () =
           test_case "Sequence of two expressions" `Quick test_seq_two_exprs;
           test_case "Block with let" `Quick test_blk_with_let;
           test_case "Load variable" `Quick test_ld_variable;
+          test_case "Unary minus" `Quick test_unary_minus;
+          test_case "Unary not" `Quick test_unary_not;
         ] );
     ]

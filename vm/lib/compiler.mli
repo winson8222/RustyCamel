@@ -5,9 +5,9 @@ type compiled_instruction =
   | LDC of lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
-  | BINOP of { sym: string }
-  | UNOP of { sym: string }
-  | ASSIGN of { pos: pos_in_env }
+  | BINOP of { sym : string }
+  | UNOP of { sym : string }
+  | ASSIGN of { pos : pos_in_env }
   | POP
   | LD of { sym : string; pos : pos_in_env }
   | DONE

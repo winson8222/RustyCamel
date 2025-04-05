@@ -200,7 +200,7 @@ let heap_allocate_number state number =
 
 let heap_allocate_string state str =
   let len_string = String.length str in
-  let addr = heap_allocate state ~size:(len_string+1) ~tag:String_tag in
+  let addr = heap_allocate state ~size:(len_string + 1) ~tag:String_tag in
   let rec helper_set_char char_index =
     if char_index >= len_string then ()
     else

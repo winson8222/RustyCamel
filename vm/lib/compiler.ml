@@ -9,9 +9,9 @@ type compiled_instruction =
   | LDC of lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
-  | BINOP of { sym: string }
-  | UNOP of { sym: string }
-  | ASSIGN of { pos: pos_in_env }
+  | BINOP of { sym : string }
+  | UNOP of { sym : string }
+  | ASSIGN of { pos : pos_in_env }
   | POP
   | LD of { sym : string; pos : pos_in_env }
   | DONE
@@ -83,6 +83,7 @@ let rec compile_comp comp state =
         match value with
         | `Int i -> LDC (Int i)
         | `String s -> LDC (String s)
+        | `Bool b -> LDC (Boolean b)
         | _ -> failwith "Invalid literal type"
       in
       let new_state =
@@ -125,15 +126,19 @@ let rec compile_comp comp state =
       in
       new_state
   | "unop" ->
-    let frst = member "frst" comp in 
-    let sym = member "sym" comp |> to_string in 
-    let frst_state = compile frst state in
-    let new_instr = UNOP { sym = sym } in
-    let new_state = {
-      instrs = frst_state.instrs @ [new_instr];
-      wc = frst_state.wc + 1;
-      ce = frst_state.ce
-    } in new_state  | "seq" ->
+      let frst = member "frst" comp in
+      let sym = member "sym" comp |> to_string in
+      let frst_state = compile frst state in
+      let new_instr = UNOP { sym } in
+      let new_state =
+        {
+          instrs = frst_state.instrs @ [ new_instr ];
+          wc = frst_state.wc + 1;
+          ce = frst_state.ce;
+        }
+      in
+      new_state
+  | "seq" ->
       let stmts = comp |> member "stmts" in
       compile_sequence stmts state
   | "let" ->
@@ -145,37 +150,29 @@ let rec compile_comp comp state =
       in
       new_state
   | "nam" ->
-      let sym = comp |>  member "sym" |> to_string in
+      let sym = comp |> member "sym" |> to_string in
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
-      let new_instr = ASSIGN { pos=pos } in
-      let new_state = {
-        state with
-        instrs=instrs @ [new_instr];
-        wc=wc+1
-      }
-      in new_state
-  | "fun"-> 
-    let params = member "prms" comp in
-    let name = member "name" comp |> to_string in
-    let body = member "body" comp in
-    let assigned_lambda_expr = `Assoc [
-      ("tag", `String "let");
-      ("sym", `String name);
-      ("expr",  `Assoc [
-        ("type", `String "lam");
-        ("prms", params);
-        ("body", body)
-      ] )
-    ] in
-    compile assigned_lambda_expr state 
-  |  
+  | "fun" ->
+      let params = member "prms" comp in
+      let name = member "name" comp |> to_string in
+      let body = member "body" comp in
+      let assigned_lambda_expr =
+        `Assoc
+          [
+            ("tag", `String "let");
+            ("sym", `String name);
+            ( "expr",
+              `Assoc
+                [ ("type", `String "lam"); ("prms", params); ("body", body) ] );
+          ]
+      in
+      compile assigned_lambda_expr state
   | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
 
 and compile comp ce = compile_comp comp ce
 
-
-  (* "prms": [
+(* "prms": [
     {
       "type": "Param",
       "name": "n",
@@ -189,7 +186,7 @@ and compile comp ce = compile_comp comp ce
       }
     }
   ], *)
-and compile_sequence stmts state = 
+and compile_sequence stmts state =
   match stmts with
   | `List [] ->
       {
@@ -210,19 +207,13 @@ and compile_sequence stmts state =
       compile_sequence (`List tl) aft_hd_with_pop_state
   | _ -> failwith "Expected a JSON list for sequence compilation"
 
-
-
-
-
-
-and compile_func_arg args state = 
+(* and compile_func_arg args state = 
   match args with 
   | `List [] -> state
   | `List (hd::tl) -> 
     let aft_hd_state = compile hd state in
     compile_func_arg (`List tl) aft_hd_state
-  | _ -> failwith "Expected a JSON list for function argument compilation"
-
+  | _ -> failwith "Expected a JSON list for function argument compilation" *)
 
 let string_of_instruction = show_compiled_instruction
 
