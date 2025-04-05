@@ -57,7 +57,7 @@ let test_blk_with_let () =
     "body": {
       "tag": "seq",
       "stmts": [
-        { "tag": "let", "sym": "x" }
+        { "tag": "let", "sym": "x", "expr": { "tag": "lit", "val": 4 } }
       ]
     }
   }|}
@@ -122,6 +122,61 @@ let test_unary_not () =
   in
   check_instr_list "unary not operation" expected result
 
+let test_function_no_params () =
+  let json =
+    {|{"tag": "blk", "body": {"tag": "fun", "sym": "f", "prms": [], "body": {"tag": "ret", "expr": {"tag": "lit", "val": 1}}}}|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 0; addr = 3 };
+      GOTO 7;
+      LDC (Int 1);
+      RESET;
+      LDC Undefined;
+      RESET;
+      ASSIGN { pos = { frame_index = 1; value_index = 0 } };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "function declaration with no parameters" expected result
+
+let test_function_with_params () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "fun",
+        "sym": "f",
+        "prms": [
+          {"name": "x", "paramType": {"type": "i32"}},
+          {"name": "y", "paramType": {"type": "i32"}}
+        ],
+        "retType": "i32",
+        "body": {"tag": "ret", "expr": {"tag": "lit", "val": 1}}
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 7;
+      LDC (Int 1);
+      RESET;
+      LDC Undefined;
+      RESET;
+      ASSIGN { pos = { frame_index = 1; value_index = 0 } };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "function declaration with parameters and types" expected
+    result
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -138,5 +193,8 @@ let () =
           test_case "Load variable" `Quick test_ld_variable;
           test_case "Unary minus" `Quick test_unary_minus;
           test_case "Unary not" `Quick test_unary_not;
+          test_case "Function with no parameters" `Quick test_function_no_params;
+          test_case "Function with parameters and types" `Quick
+            test_function_with_params;
         ] );
     ]
