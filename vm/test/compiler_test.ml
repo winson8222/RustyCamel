@@ -211,6 +211,122 @@ let test_function_with_params () =
   check_instr_list "function declaration with parameters and types" expected
     result
 
+let test_function_with_binop () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "fun",
+        "sym": "f",
+        "prms": [
+          { "name": "x", "paramType": { "type": "i32" } },
+          { "name": "y", "paramType": { "type": "i32" } }
+        ],
+        "retType": "i32",
+        "body": {
+          "tag": "seq",
+          "stmts": [{
+            "tag": "ret",
+            "expr": {
+              "tag": "binop",
+              "sym": "+",
+              "frst": { "tag": "nam", "sym": "x" },
+              "scnd": { "tag": "nam", "sym": "y" }
+            }
+          }]
+        }
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 9;
+      LD { sym = "x"; pos = { frame_index = 2; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 2; value_index = 1 } };
+      BINOP { sym = "+" };
+      RESET;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 1; value_index = 0 };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "function with binop parameters" expected result
+
+let test_function_with_block_and_const () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "fun",
+        "sym": "f",
+        "prms": [
+          {
+            "name": "x",
+            "paramType": { "type": "i32" }
+          },
+          {
+            "name": "y",
+            "paramType": { "type": "i32" }
+          }
+        ],
+        "retType": "i32",
+        "body": {
+          "tag": "blk",
+          "body": {
+            "tag": "seq",
+            "stmts": [
+              {
+                "tag": "const",
+                "sym": "z",
+                "expr": {
+                  "tag": "lit",
+                  "val": 0
+                }
+              },
+              {
+                "tag": "ret",
+                "expr": {
+                  "tag": "binop",
+                  "sym": "+",
+                  "frst": { "tag": "nam", "sym": "x" },
+                  "scnd": { "tag": "nam", "sym": "y" }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 14;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 2; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 2; value_index = 1 } };
+      BINOP { sym = "+" };
+      RESET;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 1; value_index = 0 };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "function with block and const" expected result
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -230,5 +346,7 @@ let () =
           test_case "Function with no parameters" `Quick test_function_no_params;
           test_case "Function with parameters and types" `Quick
             test_function_with_params;
+          test_case "function with binop parameters" `Quick test_function_with_binop;
+          test_case "function with block and const" `Quick test_function_with_block_and_const;
         ] );
     ]

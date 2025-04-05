@@ -118,8 +118,11 @@ let rec compile_comp comp state =
       let frst = member "frst" comp in
       let scnd = member "scnd" comp in
       let sym = member "sym" comp |> to_string in
+      let _ = Printf.printf "binop before first: wc=%d\n" state.wc in
       let frst_state = compile frst state in
+      let _ = Printf.printf "binop after first: wc=%d\n" frst_state.wc in
       let sec_state = compile scnd frst_state in
+      let _ = Printf.printf "binop after second: wc=%d\n" sec_state.wc in
       let new_instr = BINOP { sym } in
       let new_state =
         {
@@ -128,6 +131,7 @@ let rec compile_comp comp state =
           ce = sec_state.ce;
         }
       in
+      let _ = Printf.printf "binop final: wc=%d\n" new_state.wc in
       new_state
   | "unop" ->
       let frst = member "frst" comp in
@@ -167,29 +171,34 @@ let rec compile_comp comp state =
       let sym = comp |> member "sym" |> to_string in
       let pos = get_compile_time_environment_pos sym state.ce in
       let new_state =
-          { state with instrs = state.instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
+          { state with instrs = state.instrs @ [ LD { sym; pos } ]; wc = state.wc + 1 }
       in
       new_state
   | "lam" ->
       let prms = member "prms" comp in
       let arity = match prms with `List l -> List.length l | _ -> 0 in
       let loadFuncInstr = LDF {arity = arity; addr = wc + 2} in
-      let state_after_ldf = {state with instrs = state.instrs @ [loadFuncInstr]; wc = wc + 1} in
-      let gotoInstrIndex = wc in
-      let state_after_ldf_goto = {state_after_ldf with instrs = state_after_ldf.instrs @ [GOTO 0]; wc = state_after_ldf.wc + 1} in
+      let gotoInstrIndex = wc in (* Index where GOTO will be *)
+      let state_after_ldf_goto = {
+        state with
+        instrs = state.instrs @ [loadFuncInstr; GOTO 0];  (* add LDF, then GOTO 0 placeholder *)
+        wc = wc + 2
+      } in
 
       (* extend compile-time environment and compile body *)
       let extended_ce = compile_time_environment_extend (List.map (fun p -> member "name" p |> to_string) (to_list prms)) state.ce in
+      let _ = Printf.printf "before body wc: %d\n" state_after_ldf_goto.wc in
       let after_body_state = compile (member "body" comp) {state_after_ldf_goto with ce = extended_ce} in
+      let _ = Printf.printf "after_body_state wc: %d\n" after_body_state.wc in
       
       (* add undefined and reset *)
       let final_state = {after_body_state with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in
       
-      (* find the index of the GOTO instruction and update it to point to the current wc, cannot direct access*)
+      (* Update GOTO to point to instruction after the function body *)
       let updated_instrs = 
         List.mapi (fun i instr -> 
-          if i = gotoInstrIndex (* index of GOTO *)
-          then GOTO (final_state.wc + 1)  (* Point to instruction after the function body *)
+          if i = gotoInstrIndex
+          then GOTO (final_state.wc)  (* Point to after all function instructions *)
           else instr) 
         final_state.instrs in
       let new_state = {final_state with instrs = updated_instrs; wc = final_state.wc}
@@ -221,11 +230,11 @@ let rec compile_comp comp state =
               then TAILCALL 
               else instr) 
             state_after_expr.instrs in
-          let new_state = {state_after_expr with instrs = new_instrs; wc = wc + 1} in
+          let new_state = {state_after_expr with instrs = new_instrs; wc = state_after_expr.wc + 1} in
           new_state
       | _ -> 
           let reset_instr = RESET in
-          let new_state = {state_after_expr with instrs = state_after_expr.instrs @ [reset_instr]; wc = wc + 1} in
+          let new_state = {state_after_expr with instrs = state_after_expr.instrs @ [reset_instr]; wc = state_after_expr.wc + 1} in
           new_state)
   | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
 
