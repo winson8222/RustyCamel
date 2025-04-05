@@ -213,7 +213,7 @@ let heap_allocate_string state str =
 
 let heap_allocate_value state lit_value =
   match lit_value with
-  | Compiler.Int i -> heap_allocate_number state (Float.of_int i)
+  | Value.Int i -> heap_allocate_number state (Float.of_int i)
   | String s -> heap_allocate_string state s
   | Boolean b -> (
       match b with
