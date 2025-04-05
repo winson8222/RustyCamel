@@ -124,7 +124,7 @@ let test_unary_not () =
 
 let test_function_no_params () =
   let json =
-    {|{"tag": "blk", "body": {"tag": "fun", "sym": "f", "prms": [], "body": {"tag": "ret", "expr": {"tag": "lit", "val": 1}}}}|}
+    {|{"tag": "blk", "body": {"tag": "fun", "sym": "f", "prms": [], "body": {"tag": "seq", "stmts": [{"tag": "ret", "expr": {"tag": "lit", "val": 1}}]}}}}|}
   in
   let result = compile_program json in
   let expected =
@@ -155,7 +155,7 @@ let test_function_with_params () =
           {"name": "y", "paramType": {"type": "i32"}}
         ],
         "retType": "i32",
-        "body": {"tag": "ret", "expr": {"tag": "lit", "val": 1}}
+        "body": {"tag": "seq", "stmts": [{"tag": "ret", "expr": {"tag": "lit", "val": 1}}]}
       }
     }|}
   in

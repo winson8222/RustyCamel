@@ -199,9 +199,9 @@ let rec compile_comp comp state =
           [
             ("tag", `String "let");
             ("sym", `String name);
-            ( "expr",
+            ("expr",
               `Assoc
-                [ ("type", `String "lam"); ("prms", params); ("body", body) ] );
+                [ ("tag", `String "lam"); ("prms", params); ("body", body) ] );
           ]
       in
       compile assigned_lambda_expr state
