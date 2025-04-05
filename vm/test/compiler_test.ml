@@ -160,7 +160,7 @@ let test_function_no_params () =
       EXIT_SCOPE;
       LDC Undefined;
       RESET;
-      ASSIGN {frame_index = 1; value_index = 0 };
+      ASSIGN {frame_index = 2; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
@@ -213,7 +213,7 @@ let test_function_with_params () =
       EXIT_SCOPE;
       LDC Undefined;
       RESET;
-      ASSIGN { frame_index = 1; value_index = 0 };
+      ASSIGN { frame_index = 2; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]

@@ -95,24 +95,33 @@ let rec compile_comp comp state =
       in
       new_state
   | "blk" ->
+      let _ = Printf.printf "\n[Block Initial] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state.instrs)) in
       let body = member "body" comp in
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
       let extended_ce = compile_time_environment_extend locals state.ce in
-      let after_body_state =
-        compile body { state with ce = extended_ce; wc = wc + 1 }
-      in
+      
+      (* First add ENTER_SCOPE *)
       let enter_scope_instr = ENTER_SCOPE { num = num_locals } in
+      let state_after_enter = {
+        instrs = state.instrs @ [enter_scope_instr];
+        wc = wc + 1;
+        ce = extended_ce
+      } in
+      let _ = Printf.printf "\n[Block After ENTER_SCOPE] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state_after_enter.instrs)) in
+
+      (* Then compile body *)
+      let after_body_state = compile body state_after_enter in
+      let _ = Printf.printf "\n[Block After Body] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction after_body_state.instrs)) in
+
+      (* Finally add EXIT_SCOPE *)
       let exit_scope_instr = EXIT_SCOPE in
-      let new_state =
-        {
-          after_body_state with
-          wc = after_body_state.wc + 1;
-          instrs =
-            [ enter_scope_instr ] @ after_body_state.instrs
-            @ [ exit_scope_instr ];
-        }
-      in
+      let new_state = {
+        after_body_state with
+        instrs = after_body_state.instrs @ [exit_scope_instr];
+        wc = after_body_state.wc + 1
+      } in
+      let _ = Printf.printf "\n[Block Final] instructions: %s\n\n" (String.concat ", " (List.map show_compiled_instruction new_state.instrs)) in
       new_state
   | "binop" ->
       let frst = member "frst" comp in
@@ -171,23 +180,27 @@ let rec compile_comp comp state =
       in
       new_state
   | "lam" ->
+      let _ = Printf.printf "\n[Initial state] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state.instrs)) in
       let prms = member "prms" comp in
       let arity = match prms with `List l -> List.length l | _ -> 0 in
       let loadFuncInstr = LDF {arity = arity; addr = wc + 2} in
-      let gotoInstrIndex = wc in (* Index where GOTO will be *)
+      let gotoInstrIndex = wc + 1 in (* Index where GOTO will be *)
       let state_after_ldf_goto = {
         state with
-        instrs = state.instrs @ [loadFuncInstr; GOTO 0];  (* add LDF, then GOTO 0 placeholder *)
+        instrs = instrs @ [loadFuncInstr; GOTO 0];  (* add LDF, then GOTO 0 placeholder *)
         wc = wc + 2
       } in
+      let _ = Printf.printf "\n[After LDF+GOTO] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state_after_ldf_goto.instrs)) in
 
       (* extend compile-time environment and compile body *)
       let param_names = List.map (fun p -> member "name" p |> to_string) (to_list prms) in
       let extended_ce = compile_time_environment_extend param_names state.ce in
       let after_body_state = compile (member "body" comp) {state_after_ldf_goto with ce = extended_ce} in
+      let _ = Printf.printf "\n[After body compilation] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction after_body_state.instrs)) in
       
       (* add undefined and reset *)
       let final_state = {after_body_state with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in
+      let _ = Printf.printf "\n[After adding Undefined+RESET] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction final_state.instrs)) in
       
       (* Update GOTO to point to instruction after the function body *)
       let updated_instrs = 
@@ -196,10 +209,11 @@ let rec compile_comp comp state =
           then GOTO (final_state.wc)  (* Point to after all function instructions *)
           else instr) 
         final_state.instrs in
-      let new_state = {final_state with instrs = updated_instrs; wc = final_state.wc}
-      in
+      let new_state = {final_state with instrs = updated_instrs; wc = final_state.wc} in
+      let _ = Printf.printf "\n[Final state] instructions: %s\n\n" (String.concat ", " (List.map show_compiled_instruction new_state.instrs)) in
       new_state
   | "fun" ->
+      let _ = Printf.printf "\n[Fun Initial] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state.instrs)) in
       let params = member "prms" comp in
       let name = member "sym" comp |> to_string in
       let body = member "body" comp in
@@ -213,7 +227,9 @@ let rec compile_comp comp state =
                 [ ("tag", `String "lam"); ("prms", params); ("body", body) ] );
           ]
       in
-      compile assigned_lambda_expr state
+      let final_state = compile assigned_lambda_expr state in
+      let _ = Printf.printf "\n[Fun Final] instructions: %s\n\n" (String.concat ", " (List.map show_compiled_instruction final_state.instrs)) in
+      final_state
   | "ret" ->
       let expr = member "expr" comp in
       let state_after_expr = compile expr state in
