@@ -18,18 +18,21 @@ type t = {
   rts : int list ref;
 }
 
-let initial_state =
-  {
-    heap = Heap.create;
-    pc = ref 0;
-    os = ref [];
-    env_addr = ref 0;
-    rts = ref [];
-  }
-
 let string_of_vm_value = show_vm_value
 let string_of_vm_error = show_vm_error
-let create = initial_state
+
+let create () =
+  let initial_state =
+    {
+      heap = Heap.create;
+      pc = ref 0;
+      os = ref [];
+      env_addr = ref 0;
+      rts = ref [];
+    }
+  in
+  Printf.printf "initialized pc: %d\n" !(initial_state.pc);
+  initial_state
 
 let vm_value_of_address state addr =
   let heap = state.heap in
@@ -83,18 +86,19 @@ let execute_instruction state instr =
               (Compiler.string_of_instruction other)))
 
 (** Main VM execution loop *)
-let run instrs =
+let run state instrs =
   let rec run_helper state =
     let pc = !(state.pc) in
     Printf.printf "pc:%d\n" pc;
 
     match List.nth_opt instrs pc with
-    | None -> Error (TypeError "Invalid program counter")
+    | None -> Error (TypeError (Printf.sprintf "Invalid program counter:%d" pc))
     | Some instr -> (
         match execute_instruction state instr with
         | Ok res -> (
             state.pc := pc + 1;
+            Printf.printf "instr:%s" (string_of_instruction instr);
             match instr with DONE -> Ok res | _ -> run_helper state)
         | Error e -> Error e (* Early exit in case of error *))
   in
-  run_helper initial_state
+  run_helper state

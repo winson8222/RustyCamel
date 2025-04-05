@@ -10,7 +10,8 @@ let () =
     (fun instr -> Printf.printf "%s\n" (string_of_instruction instr))
     instructions;
   Printf.printf "starting runner\n";
-  let program_result = Vm.Runner.run instructions in
+  let runner = Vm.Runner.create () in
+  let program_result = Vm.Runner.run runner instructions in
   match program_result with
   | Ok res -> Printf.printf "%s\n" (Vm.Runner.string_of_vm_value res)
   | Error e ->
