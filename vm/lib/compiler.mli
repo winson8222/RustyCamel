@@ -2,6 +2,7 @@
 type lit_value = 
   | Int of int
   | String of string 
+  | Boolean of bool
   | Undefined
 
 type pos_in_env = {
