@@ -23,7 +23,7 @@ let _sample_let_and_nam =
 let _sample_instrs =
   [
     ENTER_SCOPE { num = 1 };
-    ASSIGN { pos = { frame_index = 0; value_index = 0 } };
+    ASSIGN { frame_index = 0; value_index = 0 };
     POP;
     LDC (String "3");
     LDC (Int 2);

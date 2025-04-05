@@ -7,7 +7,7 @@ type compiled_instruction =
   | EXIT_SCOPE
   | BINOP of { sym : string }
   | UNOP of { sym : string }
-  | ASSIGN of { pos : pos_in_env }
+  | ASSIGN of pos_in_env
   | POP
   | LD of { sym : string; pos : pos_in_env }
   | LDF of { arity : int; addr : int }

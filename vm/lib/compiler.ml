@@ -11,7 +11,7 @@ type compiled_instruction =
   | EXIT_SCOPE
   | BINOP of { sym : string }
   | UNOP of { sym : string }
-  | ASSIGN of { pos : pos_in_env }
+  | ASSIGN of pos_in_env
   | POP
   | LD of { sym : string; pos : pos_in_env }
   | LDF of { arity : int; addr : int }
@@ -149,7 +149,7 @@ let rec compile_comp comp state =
       let sym = comp |> member "sym" |> to_string in
       let state_after_expr = compile (member "expr" comp) state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
-      let new_instr = ASSIGN { pos } in
+      let new_instr = ASSIGN pos in
       let new_state =
         { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
       in
@@ -158,7 +158,7 @@ let rec compile_comp comp state =
       let sym = comp |> member "sym" |> to_string in
       let state_after_expr = compile (member "expr" comp) state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
-      let new_instr = ASSIGN { pos } in
+      let new_instr = ASSIGN pos in
       let new_state =
         { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
       in

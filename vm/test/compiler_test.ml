@@ -67,7 +67,7 @@ let test_blk_with_let () =
     [
       ENTER_SCOPE { num = 1 };
       LDC (Int 4);
-      ASSIGN { pos = { frame_index = 0; value_index = 0 } };
+      ASSIGN {frame_index = 0; value_index = 0};
       EXIT_SCOPE;
       DONE;
     ]
@@ -83,7 +83,7 @@ let test_ld_variable () =
     [
       ENTER_SCOPE { num = 1 };
       LDC (Int 4);
-      ASSIGN { pos = { frame_index = 0; value_index = 0 } };
+      ASSIGN {frame_index = 0; value_index = 0};
       POP;
       LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
@@ -155,7 +155,7 @@ let test_function_no_params () =
       RESET;
       LDC Undefined;
       RESET;
-      ASSIGN { pos = { frame_index = 1; value_index = 0 } };
+      ASSIGN {frame_index = 1; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
@@ -203,7 +203,7 @@ let test_function_with_params () =
       RESET;
       LDC Undefined;
       RESET;
-      ASSIGN { pos = { frame_index = 1; value_index = 0 } };
+      ASSIGN { frame_index = 1; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
