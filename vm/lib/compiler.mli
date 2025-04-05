@@ -10,6 +10,9 @@ type compiled_instruction =
   | ASSIGN of { pos : pos_in_env }
   | POP
   | LD of { sym : string; pos : pos_in_env }
+  | LDF of { arity : int; addr : int }
+  | GOTO of int
+  | RESET
   | DONE
 
 val string_of_instruction : compiled_instruction -> string

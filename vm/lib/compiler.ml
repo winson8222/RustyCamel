@@ -14,6 +14,9 @@ type compiled_instruction =
   | ASSIGN of { pos : pos_in_env }
   | POP
   | LD of { sym : string; pos : pos_in_env }
+  | LDF of { arity : int; addr : int }
+  | GOTO of int
+  | RESET
   | DONE
 [@@deriving show]
 
@@ -143,19 +146,53 @@ let rec compile_comp comp state =
       compile_sequence stmts state
   | "let" ->
       let sym = comp |> member "sym" |> to_string in
-      let pos = get_compile_time_environment_pos sym state.ce in
+      let state_after_expr = compile (member "expr" comp) state in
+      let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN { pos } in
       let new_state =
-        { state with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
+        { state_after_expr with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
+      in
+      new_state
+  | "const" ->
+      let sym = comp |> member "sym" |> to_string in
+      let state_after_expr = compile (member "expr" comp) state in
+      let pos = get_compile_time_environment_pos sym state_after_expr.ce in
+      let new_instr = ASSIGN { pos } in
+      let new_state =
+        { state_after_expr with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
       in
       new_state
   | "nam" ->
       let sym = comp |> member "sym" |> to_string in
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
+  | "lam" ->
+      let prms = member "prms" comp in
+      let arity = match prms with `List l -> List.length l | _ -> 0 in
+      let loadFuncInstr = LDF {arity = arity; addr = wc + 1} in
+      let gotoInstr = GOTO 0 in 
+      let gotoInstrIndex = wc + 1 in(* will update addr after compiling body *)
+      let state_after_ldf_goto = {state with instrs = instrs @ [loadFuncInstr; gotoInstr]; wc = wc + 2} in
+      
+      (* extend compile-time environment and compile body *)
+      let extended_ce = compile_time_environment_extend (List.map (fun p -> member "name" p |> to_string) (to_list prms)) state.ce in
+      let after_body_state = compile (member "body" comp) {state_after_ldf_goto with ce = extended_ce} in
+      
+      (* add undefined and reset *)
+      let final_instrs = after_body_state.instrs @ [LDC Undefined; RESET] in
+      
+      (* find the index of the GOTO instruction and update it to point to the current wc, cannot direct access*)
+      let updated_instrs = 
+        List.mapi (fun i instr -> 
+          if i = gotoInstrIndex (* index of GOTO *)
+          then GOTO (List.length final_instrs) 
+          else instr) 
+        final_instrs in
+      
+      {after_body_state with instrs = updated_instrs; wc = after_body_state.wc + 2}
   | "fun" ->
       let params = member "prms" comp in
-      let name = member "name" comp |> to_string in
+      let name = member "sym" comp |> to_string in
       let body = member "body" comp in
       let assigned_lambda_expr =
         `Assoc
