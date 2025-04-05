@@ -66,6 +66,7 @@ let test_blk_with_let () =
   let expected =
     [
       ENTER_SCOPE { num = 1 };
+      LDC (Int 4);
       ASSIGN { pos = { frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
       DONE;
@@ -81,6 +82,7 @@ let test_ld_variable () =
   let expected =
     [
       ENTER_SCOPE { num = 1 };
+      LDC (Int 4);
       ASSIGN { pos = { frame_index = 0; value_index = 0 } };
       POP;
       LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
@@ -124,7 +126,24 @@ let test_unary_not () =
 
 let test_function_no_params () =
   let json =
-    {|{"tag": "blk", "body": {"tag": "fun", "sym": "f", "prms": [], "body": {"tag": "seq", "stmts": [{"tag": "ret", "expr": {"tag": "lit", "val": 1}}]}}}}|}
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "fun",
+        "sym": "f",
+        "prms": [],
+        "body": {
+          "tag": "seq",
+          "stmts": [{
+            "tag": "ret",
+            "expr": {
+              "tag": "lit",
+              "val": 1
+            }
+          }]
+        }
+      }
+    }|}
   in
   let result = compile_program json in
   let expected =
@@ -151,11 +170,26 @@ let test_function_with_params () =
         "tag": "fun",
         "sym": "f",
         "prms": [
-          {"name": "x", "paramType": {"type": "i32"}},
-          {"name": "y", "paramType": {"type": "i32"}}
+          {
+            "name": "x",
+            "paramType": { "type": "i32" }
+          },
+          {
+            "name": "y",
+            "paramType": { "type": "i32" }
+          }
         ],
         "retType": "i32",
-        "body": {"tag": "seq", "stmts": [{"tag": "ret", "expr": {"tag": "lit", "val": 1}}]}
+        "body": {
+          "tag": "seq",
+          "stmts": [{
+            "tag": "ret",
+            "expr": {
+              "tag": "lit",
+              "val": 1
+            }
+          }]
+        }
       }
     }|}
   in

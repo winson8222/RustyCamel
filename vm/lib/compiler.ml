@@ -17,6 +17,7 @@ type compiled_instruction =
   | LDF of { arity : int; addr : int }
   | GOTO of int
   | RESET
+  | TAILCALL
   | DONE
 [@@deriving show]
 
@@ -150,7 +151,7 @@ let rec compile_comp comp state =
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN { pos } in
       let new_state =
-        { state_after_expr with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
+        { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
       in
       new_state
   | "const" ->
@@ -159,37 +160,41 @@ let rec compile_comp comp state =
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN { pos } in
       let new_state =
-        { state_after_expr with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
+        { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
       in
       new_state
   | "nam" ->
       let sym = comp |> member "sym" |> to_string in
       let pos = get_compile_time_environment_pos sym state.ce in
-      { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
+      let new_state =
+          { state with instrs = state.instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
+      in
+      new_state
   | "lam" ->
       let prms = member "prms" comp in
       let arity = match prms with `List l -> List.length l | _ -> 0 in
-      let loadFuncInstr = LDF {arity = arity; addr = wc + 1} in
-      let gotoInstr = GOTO 0 in 
-      let gotoInstrIndex = wc + 1 in(* will update addr after compiling body *)
-      let state_after_ldf_goto = {state with instrs = instrs @ [loadFuncInstr; gotoInstr]; wc = wc + 2} in
-      
+      let loadFuncInstr = LDF {arity = arity; addr = wc + 2} in
+      let state_after_ldf = {state with instrs = state.instrs @ [loadFuncInstr]; wc = wc + 1} in
+      let gotoInstrIndex = wc in
+      let state_after_ldf_goto = {state_after_ldf with instrs = state_after_ldf.instrs @ [GOTO 0]; wc = state_after_ldf.wc + 1} in
+
       (* extend compile-time environment and compile body *)
       let extended_ce = compile_time_environment_extend (List.map (fun p -> member "name" p |> to_string) (to_list prms)) state.ce in
       let after_body_state = compile (member "body" comp) {state_after_ldf_goto with ce = extended_ce} in
       
       (* add undefined and reset *)
-      let final_instrs = after_body_state.instrs @ [LDC Undefined; RESET] in
+      let final_state = {after_body_state with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in
       
       (* find the index of the GOTO instruction and update it to point to the current wc, cannot direct access*)
       let updated_instrs = 
         List.mapi (fun i instr -> 
           if i = gotoInstrIndex (* index of GOTO *)
-          then GOTO (List.length final_instrs) 
+          then GOTO (final_state.wc + 1)  (* Point to instruction after the function body *)
           else instr) 
-        final_instrs in
-      
-      {after_body_state with instrs = updated_instrs; wc = after_body_state.wc + 2}
+        final_state.instrs in
+      let new_state = {final_state with instrs = updated_instrs; wc = final_state.wc}
+      in
+      new_state
   | "fun" ->
       let params = member "prms" comp in
       let name = member "sym" comp |> to_string in
@@ -205,6 +210,23 @@ let rec compile_comp comp state =
           ]
       in
       compile assigned_lambda_expr state
+  | "ret" ->
+      let expr = member "expr" comp in
+      let state_after_expr = compile expr state in
+      (match member "tag" expr |> to_string with
+      | "app" ->
+          let new_instrs = 
+            List.mapi (fun i instr -> 
+              if i = List.length state_after_expr.instrs - 1 
+              then TAILCALL 
+              else instr) 
+            state_after_expr.instrs in
+          let new_state = {state_after_expr with instrs = new_instrs; wc = wc + 1} in
+          new_state
+      | _ -> 
+          let reset_instr = RESET in
+          let new_state = {state_after_expr with instrs = state_after_expr.instrs @ [reset_instr]; wc = wc + 1} in
+          new_state)
   | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
 
 and compile comp ce = compile_comp comp ce

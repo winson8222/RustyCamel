@@ -13,6 +13,7 @@ type compiled_instruction =
   | LDF of { arity : int; addr : int }
   | GOTO of int
   | RESET
+  | TAILCALL
   | DONE
 
 val string_of_instruction : compiled_instruction -> string
