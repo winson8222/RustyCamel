@@ -10,9 +10,10 @@ type compiled_instruction =
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym : string }
-  | ASSIGN of { pos : pos_in_env }
+  | ASSIGN of  pos_in_env 
   | POP
   | LD of { sym : string; pos : pos_in_env }
+  | RESET
   | DONE
 [@@deriving show]
 
@@ -71,7 +72,7 @@ let get_compile_time_environment_pos sym ce =
 let compile_time_environment_extend frame_vars ce = [ frame_vars ] @ ce
 
 (* Compilation functions *)
-let rec compile_comp comp state =
+let rec compile comp state =
   let tag = comp |> member "tag" |> to_string in
   let instrs = state.instrs in
   let wc = state.wc in
@@ -103,7 +104,7 @@ let rec compile_comp comp state =
           after_body_state with
           wc = after_body_state.wc + 1;
           instrs =
-            [ enter_scope_instr ] @ after_body_state.instrs
+            (enter_scope_instr :: after_body_state.instrs)
             @ [ exit_scope_instr ];
         }
       in
@@ -129,18 +130,31 @@ let rec compile_comp comp state =
   | "let" ->
       let sym = comp |> member "sym" |> to_string in
       let pos = get_compile_time_environment_pos sym state.ce in
-      let new_instr = ASSIGN { pos } in
+      let new_instr = ASSIGN pos in
       let new_state =
         { state with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
       in
       new_state
   | "nam" ->
-      let sym = comp |>  member "sym" |> to_string in
+      let sym = comp |> member "sym" |> to_string in
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
-  | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
+  | "ret" ->
+      let expr = comp |> member "expr" in
+      (* compile instruction which potentially loads into OS *)
+      let expr_state = compile expr state in
+      { state with instrs = expr_state.instrs @ [ RESET ] }
+      (* | "fun" -> 
+        (
+          let sym = comp |> member "sym" |> to_string in 
+          let prms = comp |> member "prms" in
+          let body = comp |> member "body" in 
+          let sym_pos = get_compile_time_environment_pos sym state.ce in
+          let new_instr = ASSIGN { pos=sym_pos } in
+          let new_state = { state with instrs = instrs @ [new_instr]; wc = wc + 1} *)
 
-and compile comp ce = compile_comp comp ce
+      (* ) *)
+  | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
 
 and compile_sequence stmts state =
   match stmts with

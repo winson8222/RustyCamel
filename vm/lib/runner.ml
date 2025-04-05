@@ -47,12 +47,19 @@ let vm_value_of_address state addr =
   | _ -> failwith "Unexpected tag"
 
 (* PC is modified by the caller, this function only modifies the rest: heap, os, env_addr *)
+let pop_stack stack_ref =
+  match !stack_ref with
+  | hd :: tl ->
+      stack_ref := tl;
+      Ok hd
+  | [] -> Error (TypeError "Stack underflow")
 
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
   let heap = state.heap in
   let env_addr = !(state.env_addr) in
   let os = !(state.os) in
+
   match instr with
   | DONE -> (
       match !(state.os) with
@@ -79,6 +86,32 @@ let execute_instruction state instr =
       let value_addr = Heap.heap_allocate_value heap lit_value in
       state.os := value_addr :: os;
       Ok VUndefined
+  | ASSIGN pos ->
+      let val_addr = List.hd !(state.os) in
+      Heap.heap_set_env_val_addr_at_pos heap ~env_addr
+        ~frame_index:pos.frame_index ~val_index:pos.value_index ~val_addr;
+      Ok VUndefined
+  | LD { sym = _; pos } ->
+      let value_addr =
+        Heap.heap_get_env_val_addr_at_pos heap ~env_addr
+          ~frame_index:pos.frame_index ~val_index:pos.value_index
+      in
+      state.os := value_addr :: !(state.os);
+      Ok VUndefined
+  | RESET -> (
+      match !(state.rts) with
+      | [] -> Error (TypeError "Runtime stack empty during RESET")
+      | frame_addr :: rest ->
+          state.rts := rest;
+          if Heap.is_callframe heap frame_addr then (
+            let reset_pc = Heap.heap_get_callframe_pc heap frame_addr in
+            let reset_env_addr = Heap.heap_get_callframe_env heap frame_addr in
+            state.pc := reset_pc;
+            state.env_addr := reset_env_addr;
+            Ok VUndefined)
+          else Ok VUndefined)
+  | POP -> (
+      match pop_stack state.os with Ok _ -> Ok VUndefined | Error e -> Error e)
   | other ->
       Error
         (TypeError

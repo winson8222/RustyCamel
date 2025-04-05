@@ -6,9 +6,10 @@ type compiled_instruction =
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym : string }
-  | ASSIGN of { pos : pos_in_env }
+  | ASSIGN of  pos_in_env 
   | POP
   | LD of { sym : string; pos : pos_in_env }
+  | RESET
   | DONE
 
 val string_of_instruction : compiled_instruction -> string
@@ -21,7 +22,6 @@ type state = {
 
 val get_compile_time_environment_pos : string -> string list list -> pos_in_env
 val compile_sequence : Yojson.Basic.t -> state -> state
-val compile_comp : Yojson.Basic.t -> state -> state
 val compile_program : string -> compiled_instruction list
 val compile : Yojson.Basic.t -> state -> state
 
