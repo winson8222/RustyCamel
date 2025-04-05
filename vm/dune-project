@@ -19,7 +19,7 @@
  (name vm)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml yojson ppx_deriving_yojson)
+ (depends ocaml yojson ppx_deriving_yojson (alcotest :with-test))
  (tags
   ("add topics" "to describe" your project)))
 
