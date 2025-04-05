@@ -67,7 +67,7 @@ let test_blk_with_let () =
     [
       ENTER_SCOPE { num = 1 };
       LDC (Int 4);
-      ASSIGN {frame_index = 0; value_index = 0};
+      ASSIGN { frame_index = 0; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
@@ -83,7 +83,7 @@ let test_ld_variable () =
     [
       ENTER_SCOPE { num = 1 };
       LDC (Int 4);
-      ASSIGN {frame_index = 0; value_index = 0};
+      ASSIGN { frame_index = 0; value_index = 0 };
       POP;
       LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
@@ -160,7 +160,7 @@ let test_function_no_params () =
       EXIT_SCOPE;
       LDC Undefined;
       RESET;
-      ASSIGN {frame_index = 0; value_index = 0 };
+      ASSIGN { frame_index = 0; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
@@ -361,7 +361,9 @@ let () =
           test_case "Function with no parameters" `Quick test_function_no_params;
           test_case "Function with parameters and types" `Quick
             test_function_with_params;
-          test_case "function with binop parameters" `Quick test_function_with_binop;
-          test_case "function with block and const" `Quick test_function_with_block_and_const;
+          test_case "function with binop parameters" `Quick
+            test_function_with_binop;
+          test_case "function with block and const" `Quick
+            test_function_with_block_and_const;
         ] );
     ]
