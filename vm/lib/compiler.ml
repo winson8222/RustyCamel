@@ -57,21 +57,22 @@ let rec scan_for_locals comp =
       | _ -> failwith "Unexpected case. Sequence stmts should be a list")
   | _ -> []
 
-  let get_compile_time_environment_pos sym ce =
-    let rec helper sym ce cur_frame_index =
-      match ce with
-      | [] -> failwith "Symbol not found in compile time environment"
-      | cur_frame :: tl_frames -> (
-          let maybe_sym_index =
-            find_index (fun x -> String.equal x sym) cur_frame
-          in
-          match maybe_sym_index with
-          | Some sym_index ->
-              { frame_index = cur_frame_index; value_index = sym_index }
-          | None -> helper sym tl_frames (cur_frame_index + 1)
-          )
+let get_compile_time_environment_pos sym ce =
+  let reversed_ce = List.rev ce in
+  let rec helper sym ce cur_frame_index  =
+    match ce with
+    | [] -> failwith "Symbol not found in compile time environment"
+    | cur_frame :: tl_frames -> (
+        let maybe_sym_index =
+          find_index (fun x -> String.equal x sym) cur_frame
+        in
+        match maybe_sym_index with
+        | Some sym_index ->
+            { frame_index = cur_frame_index; value_index = sym_index }
+        | None -> helper sym tl_frames (cur_frame_index + 1)
+        )
   in
-  helper sym ce 0
+  helper sym reversed_ce 0 
 
 let compile_time_environment_extend frame_vars ce = [ frame_vars ] @ ce
 

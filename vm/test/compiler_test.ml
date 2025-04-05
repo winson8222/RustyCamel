@@ -160,7 +160,7 @@ let test_function_no_params () =
       EXIT_SCOPE;
       LDC Undefined;
       RESET;
-      ASSIGN {frame_index = 2; value_index = 0 };
+      ASSIGN {frame_index = 0; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
@@ -213,7 +213,7 @@ let test_function_with_params () =
       EXIT_SCOPE;
       LDC Undefined;
       RESET;
-      ASSIGN { frame_index = 2; value_index = 0 };
+      ASSIGN { frame_index = 0; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
@@ -265,7 +265,7 @@ let test_function_with_binop () =
       EXIT_SCOPE;
       LDC Undefined;
       RESET;
-      ASSIGN { frame_index = 1; value_index = 0 };
+      ASSIGN { frame_index = 0; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
@@ -326,7 +326,7 @@ let test_function_with_block_and_const () =
       GOTO 14;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
-      ASSIGN { frame_index = 0; value_index = 0 };
+      ASSIGN { frame_index = 2; value_index = 0 };
       POP;
       LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
       LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
@@ -335,7 +335,7 @@ let test_function_with_block_and_const () =
       EXIT_SCOPE;
       LDC Undefined;
       RESET;
-      ASSIGN { frame_index = 1; value_index = 0 };
+      ASSIGN { frame_index = 0; value_index = 0 };
       EXIT_SCOPE;
       DONE;
     ]
