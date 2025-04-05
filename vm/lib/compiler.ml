@@ -57,21 +57,21 @@ let rec scan_for_locals comp =
       | _ -> failwith "Unexpected case. Sequence stmts should be a list")
   | _ -> []
 
-let get_compile_time_environment_pos sym ce =
-  let rec helper sym ce cur_frame_index cur_val_index =
-    match ce with
-    | [] -> failwith "Symbol not found in compile time environment"
-    | cur_frame :: tl_frames -> (
-        let maybe_sym_index =
-          find_index (fun x -> String.equal x sym) cur_frame
-        in
-        match maybe_sym_index with
-        | Some sym_index ->
-            { frame_index = cur_frame_index; value_index = sym_index }
-        | None -> helper sym tl_frames (cur_frame_index + 1) (cur_val_index + 1)
-        )
+  let get_compile_time_environment_pos sym ce =
+    let rec helper sym ce cur_frame_index =
+      match ce with
+      | [] -> failwith "Symbol not found in compile time environment"
+      | cur_frame :: tl_frames -> (
+          let maybe_sym_index =
+            find_index (fun x -> String.equal x sym) cur_frame
+          in
+          match maybe_sym_index with
+          | Some sym_index ->
+              { frame_index = cur_frame_index; value_index = sym_index }
+          | None -> helper sym tl_frames (cur_frame_index + 1)
+          )
   in
-  helper sym ce 0 0
+  helper sym ce 0
 
 let compile_time_environment_extend frame_vars ce = [ frame_vars ] @ ce
 
@@ -118,11 +118,8 @@ let rec compile_comp comp state =
       let frst = member "frst" comp in
       let scnd = member "scnd" comp in
       let sym = member "sym" comp |> to_string in
-      let _ = Printf.printf "binop before first: wc=%d\n" state.wc in
       let frst_state = compile frst state in
-      let _ = Printf.printf "binop after first: wc=%d\n" frst_state.wc in
       let sec_state = compile scnd frst_state in
-      let _ = Printf.printf "binop after second: wc=%d\n" sec_state.wc in
       let new_instr = BINOP { sym } in
       let new_state =
         {
@@ -131,7 +128,6 @@ let rec compile_comp comp state =
           ce = sec_state.ce;
         }
       in
-      let _ = Printf.printf "binop final: wc=%d\n" new_state.wc in
       new_state
   | "unop" ->
       let frst = member "frst" comp in
@@ -186,10 +182,9 @@ let rec compile_comp comp state =
       } in
 
       (* extend compile-time environment and compile body *)
-      let extended_ce = compile_time_environment_extend (List.map (fun p -> member "name" p |> to_string) (to_list prms)) state.ce in
-      let _ = Printf.printf "before body wc: %d\n" state_after_ldf_goto.wc in
+      let param_names = List.map (fun p -> member "name" p |> to_string) (to_list prms) in
+      let extended_ce = compile_time_environment_extend param_names state.ce in
       let after_body_state = compile (member "body" comp) {state_after_ldf_goto with ce = extended_ce} in
-      let _ = Printf.printf "after_body_state wc: %d\n" after_body_state.wc in
       
       (* add undefined and reset *)
       let final_state = {after_body_state with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in

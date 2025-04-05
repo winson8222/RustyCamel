@@ -133,14 +133,17 @@ let test_function_no_params () =
         "sym": "f",
         "prms": [],
         "body": {
-          "tag": "seq",
-          "stmts": [{
-            "tag": "ret",
-            "expr": {
-              "tag": "lit",
-              "val": 1
-            }
-          }]
+          "tag": "blk",
+          "body": {
+            "tag": "seq",
+            "stmts": [{
+              "tag": "ret",
+              "expr": {
+                "tag": "lit",
+                "val": 1
+              }
+            }]
+          }
         }
       }
     }|}
@@ -150,9 +153,11 @@ let test_function_no_params () =
     [
       ENTER_SCOPE { num = 1 };
       LDF { arity = 0; addr = 3 };
-      GOTO 7;
+      GOTO 9;
+      ENTER_SCOPE { num = 0 };
       LDC (Int 1);
       RESET;
+      EXIT_SCOPE;
       LDC Undefined;
       RESET;
       ASSIGN {frame_index = 1; value_index = 0 };
@@ -181,14 +186,17 @@ let test_function_with_params () =
         ],
         "retType": "i32",
         "body": {
-          "tag": "seq",
-          "stmts": [{
-            "tag": "ret",
-            "expr": {
-              "tag": "lit",
-              "val": 1
-            }
-          }]
+          "tag": "blk",
+          "body": {
+            "tag": "seq",
+            "stmts": [{
+              "tag": "ret",
+              "expr": {
+                "tag": "lit",
+                "val": 1
+              }
+            }]
+          }
         }
       }
     }|}
@@ -198,9 +206,11 @@ let test_function_with_params () =
     [
       ENTER_SCOPE { num = 1 };
       LDF { arity = 2; addr = 3 };
-      GOTO 7;
+      GOTO 9;
+      ENTER_SCOPE { num = 0 };
       LDC (Int 1);
       RESET;
+      EXIT_SCOPE;
       LDC Undefined;
       RESET;
       ASSIGN { frame_index = 1; value_index = 0 };
@@ -224,16 +234,19 @@ let test_function_with_binop () =
         ],
         "retType": "i32",
         "body": {
-          "tag": "seq",
-          "stmts": [{
-            "tag": "ret",
-            "expr": {
-              "tag": "binop",
-              "sym": "+",
-              "frst": { "tag": "nam", "sym": "x" },
-              "scnd": { "tag": "nam", "sym": "y" }
-            }
-          }]
+          "tag": "blk",
+          "body": {
+            "tag": "seq",
+            "stmts": [{
+              "tag": "ret",
+              "expr": {
+                "tag": "binop",
+                "sym": "+",
+                "frst": { "tag": "nam", "sym": "x" },
+                "scnd": { "tag": "nam", "sym": "y" }
+              }
+            }]
+          }
         }
       }
     }|}
@@ -243,11 +256,13 @@ let test_function_with_binop () =
     [
       ENTER_SCOPE { num = 1 };
       LDF { arity = 2; addr = 3 };
-      GOTO 9;
-      LD { sym = "x"; pos = { frame_index = 2; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 2; value_index = 1 } };
+      GOTO 11;
+      ENTER_SCOPE { num = 0 };
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "+" };
       RESET;
+      EXIT_SCOPE;
       LDC Undefined;
       RESET;
       ASSIGN { frame_index = 1; value_index = 0 };
@@ -311,10 +326,10 @@ let test_function_with_block_and_const () =
       GOTO 14;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
-      ASSIGN { frame_index = 3; value_index = 0 };
+      ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 2; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 2; value_index = 1 } };
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "+" };
       RESET;
       EXIT_SCOPE;
