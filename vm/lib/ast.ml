@@ -3,11 +3,12 @@ type ast_node =
   | Variable of string
   | Block of ast_node
   | Sequence of ast_node list
-  | Let of { sym : string; expr: ast_node }
+  | Let of { sym : string; expr : ast_node }
   | Ld of string
-  | Const of { sym : string; expr: ast_node }
-  | BinOp of { sym : string; frst : ast_node; scnd : ast_node }
-  | Function of { sym : string; params : string list; body : ast_node }
+  | Const of { sym : string; expr : ast_node }
+  | Binop of { sym : string; frst : ast_node; scnd : ast_node }
+  | Unop of { sym : string; frst : ast_node }
+  | Lam of { prms : string list; body : ast_node }
   | Nam of string
   | Ret of ast_node
 [@@deriving show]
@@ -21,21 +22,49 @@ let rec of_json json =
       match value with
       | `Int i -> Literal (Int i)
       | `String s -> Literal (String s)
+      | `Bool b -> Literal (Boolean b)
       | _ -> failwith "Invalid literal")
   | "blk" -> Block (of_json (member "body" json))
   | "seq" ->
       let stmts = json |> member "stmts" |> to_list in
       Sequence (List.map of_json stmts)
-  | "let" -> Let { sym = json |> member "sym" |> to_string;
-  expr = json |> member "expr" |> of_json  }
-  | "const" -> Const { sym = json |> member "sym" |> to_string;
-  expr = json |> member "expr" |> of_json   }
+  | "let" ->
+      Let
+        {
+          sym = json |> member "sym" |> to_string;
+          expr =
+            (match json |> member "lit" with
+            | `Null -> json |> member "expr" |> of_json
+            | lit -> of_json lit);
+        }
+  | "const" ->
+      Const
+        {
+          sym = json |> member "sym" |> to_string;
+          expr = json |> member "expr" |> of_json;
+        }
   | "binop" ->
-      BinOp
+      Binop
         {
           sym = json |> member "sym" |> to_string;
           frst = of_json (member "frst" json);
           scnd = of_json (member "scnd" json);
         }
+  | "unop" ->
+      Unop
+        {
+          sym = json |> member "sym" |> to_string;
+          frst = of_json (member "frst" json);
+        }
   | "nam" -> Nam (member "sym" json |> to_string)
+  | "fun" ->
+      let sym = json |> member "sym" |> to_string in
+      let prms = json |> member "prms" |> to_list |> List.map to_string in
+      let body = json |> member "body" |> of_json in
+      let lambda_expr = Lam { prms; body } in
+      Let { sym; expr = lambda_expr }
+  | "lam" ->
+      let prms = json |> member "prms" |> to_list |> List.map to_string in
+      let body = json |> member "body" |> of_json in
+      Lam { prms; body }
   | tag -> failwith ("Unknown tag: " ^ tag)

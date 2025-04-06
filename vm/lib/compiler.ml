@@ -41,9 +41,8 @@ let find_index f ls =
 let rec scan_for_locals node =
   let open Ast in
   match node with
-  | Let { sym; _ }
-  | Const { sym; _ }
-  | Function { sym; params = _; body = _ } ->
+  | Let { sym; _ } | Const { sym; _ } 
+    ->
       [ sym ]
   | Sequence stmts ->
       List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
@@ -79,76 +78,64 @@ let rec compile node state =
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
       let extended_ce = compile_time_environment_extend locals state.ce in
-      
+
       (* First add ENTER_SCOPE *)
       let enter_scope_instr = ENTER_SCOPE { num = num_locals } in
-      let state_after_enter = {
-        instrs = state.instrs @ [enter_scope_instr];
-        wc = wc + 1;
-        ce = extended_ce
-      } in
+      let state_after_enter =
+        {
+          instrs = state.instrs @ [ enter_scope_instr ];
+          wc = wc + 1;
+          ce = extended_ce;
+        }
+      in
 
       (* Then compile body *)
-      let after_body_state = compile body state_after_enter in
+      let state_after_body = compile body state_after_enter in
 
       (* Finally add EXIT_SCOPE *)
       let exit_scope_instr = EXIT_SCOPE in
-        {
-          after_body_state with
-          wc = after_body_state.wc + 1;
-          instrs =
-            [ enter_scope_instr ] @ after_body_state.instrs
-            @ [ exit_scope_instr ];
-        }
-  | BinOp { sym; frst; scnd} ->
+      {
+        state_after_body with
+        wc = state_after_body.wc + 1;
+        instrs = state_after_body.instrs @ [ exit_scope_instr ];
+      }
+  | Binop { sym; frst; scnd } ->
       let frst_state = compile frst state in
       let sec_state = compile scnd frst_state in
       let new_instr = BINOP { sym } in
-        {
-          instrs = sec_state.instrs @ [ new_instr ];
-          wc = sec_state.wc + 1;
-          ce = sec_state.ce;
-        }
-  | Sequence stmts ->
-      compile_sequence stmts state
+      {
+        instrs = sec_state.instrs @ [ new_instr ];
+        wc = sec_state.wc + 1;
+        ce = sec_state.ce;
+      }
+  | Unop { sym; frst } ->
+      let state_aft_frst = compile frst state in
+      let new_instr = UNOP { sym } in
+      {
+        instrs = state_aft_frst.instrs @ [ new_instr ];
+        wc = state_aft_frst.wc + 1;
+        ce = state_aft_frst.ce;
+      }
+  | Sequence stmts -> compile_sequence stmts state
   | Let { sym; expr } ->
-    let state_after_expr = compile expr state in
+      let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
-        { state with instrs = state_after_expr.instrs @ [ new_instr ]; wc = wc + 1 }
+      {
+        state with
+        instrs = state_after_expr.instrs @ [ new_instr ];
+        wc = wc + 1;
+      }
+      (* TODO: | Lam { prms; body} -> 
+        let state_aft_body = compile body state in 
+        let new_instr =  *)
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
-  (* | Ret expr -> *)
-      (* compile instruction which potentially loads into OS *)
-      (* let expr_state = compile expr state in
-      { state with instrs = expr_state.instrs @ [ RESET ] } *)
-      (* | "fun" -> 
-        (
-          let sym = comp |> member "sym" |> to_string in 
-          let prms = comp |> member "prms" in
-          let body = comp |> member "body" in 
-          let sym_pos = get_compile_time_environment_pos sym state.ce in
-          let new_instr = ASSIGN { pos=sym_pos } in
-          let new_state = { state with instrs = instrs @ [new_instr]; wc = wc + 1} *)
+  | other ->
+      failwith
+        (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))
 
-      (* ) *)
-  | other -> failwith (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other ))
-
-(* "prms": [
-    {
-      "type": "Param",
-      "name": "n",
-      "paramType": {
-        "type": "BasicType",
-        "name": "i32"
-      },
-      "ownership": {
-        "ownership": "owned",
-        "mutability": "immutable"
-      }
-    }
-  ], *)
 and compile_sequence stmts state =
   match stmts with
   | [] ->
@@ -168,13 +155,6 @@ and compile_sequence stmts state =
         }
       in
       compile_sequence tl aft_hd_with_pop_state
-(* and compile_func_arg args state = 
-  match args with 
-  | `List [] -> state
-  | `List (hd::tl) -> 
-    let aft_hd_state = compile hd state in
-    compile_func_arg (`List tl) aft_hd_state
-  | _ -> failwith "Expected a JSON list for function argument compilation" *)
 
 let string_of_instruction = show_compiled_instruction
 
