@@ -9,6 +9,7 @@ type ast_node =
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
   | Lam of { prms : string list; body : ast_node }
+  | Fun of { sym : string; prms : string list; body : ast_node }
   | Nam of string
   | Ret of ast_node
 [@@deriving show]
@@ -61,8 +62,7 @@ let rec of_json json =
       let sym = json |> member "sym" |> to_string in
       let prms = json |> member "prms" |> to_list |> List.map to_string in
       let body = json |> member "body" |> of_json in
-      let lambda_expr = Lam { prms; body } in
-      Let { sym; expr = lambda_expr }
+      Fun { sym; prms; body }
   | "lam" ->
       let prms = json |> member "prms" |> to_list |> List.map to_string in
       let body = json |> member "body" |> of_json in

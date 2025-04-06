@@ -41,9 +41,7 @@ let find_index f ls =
 let rec scan_for_locals node =
   let open Ast in
   match node with
-  | Let { sym; _ } | Const { sym; _ } 
-    ->
-      [ sym ]
+  | Let { sym; _ } | Const { sym; _ } -> [ sym ]
   | Sequence stmts ->
       List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
   | _ -> []
@@ -126,9 +124,11 @@ let rec compile node state =
         instrs = state_after_expr.instrs @ [ new_instr ];
         wc = wc + 1;
       }
-      (* TODO: | Lam { prms; body} -> 
+  (* TODO: | Lam { prms; body} -> 
         let state_aft_body = compile body state in 
         let new_instr =  *)
+  | Fun { sym; prms; body } ->
+      compile (Let { sym; expr = Lam { prms; body } }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
