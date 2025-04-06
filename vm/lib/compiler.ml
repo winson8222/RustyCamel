@@ -5,9 +5,10 @@ type compiled_instruction =
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym : string }
-  | ASSIGN of { pos : pos_in_env }
+  | ASSIGN of  pos_in_env 
   | POP
   | LD of { sym : string; pos : pos_in_env }
+  | RESET
   | DONE
 [@@deriving show]
 
@@ -84,7 +85,7 @@ let rec compile node state =
           after_body_state with
           wc = after_body_state.wc + 1;
           instrs =
-            [ enter_scope_instr ] @ after_body_state.instrs
+            (enter_scope_instr :: after_body_state.instrs)
             @ [ exit_scope_instr ];
         }
       in
@@ -102,7 +103,7 @@ let rec compile node state =
       compile_sequence stmts state
   | Let { sym } ->
       let pos = get_compile_time_environment_pos sym state.ce in
-      let new_instr = ASSIGN {pos} in
+      let new_instr = ASSIGN pos in
         { state with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in

@@ -66,7 +66,7 @@ let test_blk_with_let () =
   let expected =
     [
       ENTER_SCOPE { num = 1 };
-      ASSIGN { pos = { frame_index = 0; value_index = 0 } };
+      ASSIGN { frame_index = 0; value_index = 0 } ;
       EXIT_SCOPE;
       DONE;
     ]
@@ -81,9 +81,9 @@ let test_ld_variable () =
   let expected =
     [
       ENTER_SCOPE { num = 1 };
-      ASSIGN { pos = { frame_index = 0; value_index = 0 } };
+      ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { sym = "x"; pos ={ frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
       DONE;
     ]

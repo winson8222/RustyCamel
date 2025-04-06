@@ -56,6 +56,9 @@ let heap_set_word state ~address ~word =
 let heap_get_child state ~address ~child_index =
   heap_get_word state (address + 1 + child_index)
 
+let heap_get_child_as_int state ~address ~child_index =
+  Float.to_int (heap_get_child state ~address ~child_index)
+
 let heap_set_child state ~address ~child_index ~value =
   heap_set_word state ~address:(address + 1 + child_index) ~word:value
 
@@ -118,6 +121,24 @@ let heap_allocate_canonical_values : t -> unit =
   state.canonical_values <-
     { unassigned_addr; undefined_addr; true_addr; false_addr }
 
+let callframe_pc_offset = 2
+
+let heap_set_two_bytes_in_word_at_offset state ~addr ~offset ~value =
+  let buffer_offset = (addr * state.config.word_size) + offset in
+  Buffer.set_uint16_at_offset state.buffer buffer_offset value
+
+let heap_get_two_bytes_in_word_at_offset state ~addr ~offset =
+  let buffer_offset = (addr * state.config.word_size) + offset in
+  Buffer.get_uint16_at_offset state.buffer buffer_offset
+
+let heap_allocate_callframe state ~pc ~env_addr =
+  let addr = heap_allocate state ~size:2 ~tag:Callframe_tag in
+  heap_set_two_bytes_in_word_at_offset state ~addr ~offset:callframe_pc_offset
+    ~value:pc;
+  heap_set_child state ~address:addr ~child_index:0
+    ~value:(Float.of_int env_addr);
+  addr
+
 let create =
   let rec set_free_pointers state prev_addr cur_addr =
     if cur_addr >= heap_size_words then () (* Base case: reached end of heap *)
@@ -154,6 +175,21 @@ let heap_allocate_blockframe state ~env_addr =
 
 let heap_allocate_environment state ~num_frames =
   heap_allocate state ~size:(num_frames + 1) ~tag:Environment_tag
+
+let heap_set_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index
+    ~val_addr =
+  let frame_addr =
+    heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
+  in
+  ignore
+    (heap_set_child state ~address:frame_addr ~child_index:val_index
+       ~value:(Float.of_int val_addr))
+
+let heap_get_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index =
+  let frame_addr =
+    heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
+  in
+  Float.to_int (heap_get_child state ~address:frame_addr ~child_index:val_index)
 
 let helper_copy_env_frames state ~old_env_addr ~new_env_addr =
   let num_children = heap_get_num_children state old_env_addr in
@@ -200,7 +236,7 @@ let heap_allocate_number state number =
 
 let heap_allocate_string state str =
   let len_string = String.length str in
-  let addr = heap_allocate state ~size:(len_string+1) ~tag:String_tag in
+  let addr = heap_allocate state ~size:(len_string + 1) ~tag:String_tag in
   let rec helper_set_char char_index =
     if char_index >= len_string then ()
     else
@@ -235,3 +271,17 @@ let heap_get_string_value state addr =
       String.make 1 char ^ helper (cur_index + 1)
   in
   helper 0
+
+let is_callframe state addr =
+  let tag = heap_get_tag state addr in
+  match tag with Callframe_tag -> true | _ -> false
+
+let heap_get_callframe_pc state addr =
+  let pc =
+    heap_get_two_bytes_in_word_at_offset state ~addr ~offset:callframe_pc_offset
+  in
+  pc
+
+let heap_get_callframe_env state addr =
+  let env_addr = heap_get_child state ~address:addr ~child_index:0 in
+  Float.to_int env_addr
