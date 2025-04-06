@@ -3,9 +3,9 @@ type ast_node =
   | Variable of string
   | Block of ast_node
   | Sequence of ast_node list
-  | Let of { sym : string }
+  | Let of { sym : string; expr: ast_node }
   | Ld of string
-  | Const of { sym : string }
+  | Const of { sym : string; expr: ast_node }
   | BinOp of { sym : string; frst : ast_node; scnd : ast_node }
   | Function of { sym : string; params : string list; body : ast_node }
   | Nam of string
@@ -26,8 +26,10 @@ let rec of_json json =
   | "seq" ->
       let stmts = json |> member "stmts" |> to_list in
       Sequence (List.map of_json stmts)
-  | "let" -> Let { sym = json |> member "sym" |> to_string }
-  | "const" -> Const { sym = json |> member "sym" |> to_string }
+  | "let" -> Let { sym = json |> member "sym" |> to_string;
+  expr = json |> member "expr" |> of_json  }
+  | "const" -> Const { sym = json |> member "sym" |> to_string;
+  expr = json |> member "expr" |> of_json   }
   | "binop" ->
       BinOp
         {

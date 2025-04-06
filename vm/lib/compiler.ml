@@ -5,10 +5,14 @@ type compiled_instruction =
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym : string }
-  | ASSIGN of  pos_in_env 
+  | UNOP of { sym : string }
+  | ASSIGN of pos_in_env
   | POP
   | LD of { sym : string; pos : pos_in_env }
+  | LDF of { arity : int; addr : int }
+  | GOTO of int
   | RESET
+  | TAILCALL
   | DONE
 [@@deriving show]
 
@@ -37,8 +41,8 @@ let find_index f ls =
 let rec scan_for_locals node =
   let open Ast in
   match node with
-  | Let { sym }
-  | Const { sym }
+  | Let { sym; _ }
+  | Const { sym; _ }
   | Function { sym; params = _; body = _ } ->
       [ sym ]
   | Sequence stmts ->
@@ -75,21 +79,27 @@ let rec compile node state =
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
       let extended_ce = compile_time_environment_extend locals state.ce in
-      let after_body_state =
-        compile body { state with ce = extended_ce; wc = wc + 1 }
-      in
+      
+      (* First add ENTER_SCOPE *)
       let enter_scope_instr = ENTER_SCOPE { num = num_locals } in
+      let state_after_enter = {
+        instrs = state.instrs @ [enter_scope_instr];
+        wc = wc + 1;
+        ce = extended_ce
+      } in
+
+      (* Then compile body *)
+      let after_body_state = compile body state_after_enter in
+
+      (* Finally add EXIT_SCOPE *)
       let exit_scope_instr = EXIT_SCOPE in
-      let new_state =
         {
           after_body_state with
           wc = after_body_state.wc + 1;
           instrs =
-            (enter_scope_instr :: after_body_state.instrs)
+            [ enter_scope_instr ] @ after_body_state.instrs
             @ [ exit_scope_instr ];
         }
-      in
-      new_state
   | BinOp { sym; frst; scnd} ->
       let frst_state = compile frst state in
       let sec_state = compile scnd frst_state in
@@ -101,10 +111,11 @@ let rec compile node state =
         }
   | Sequence stmts ->
       compile_sequence stmts state
-  | Let { sym } ->
-      let pos = get_compile_time_environment_pos sym state.ce in
+  | Let { sym; expr } ->
+    let state_after_expr = compile expr state in
+      let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
-        { state with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
+        { state with instrs = state_after_expr.instrs @ [ new_instr ]; wc = wc + 1 }
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
@@ -124,6 +135,20 @@ let rec compile node state =
       (* ) *)
   | other -> failwith (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other ))
 
+(* "prms": [
+    {
+      "type": "Param",
+      "name": "n",
+      "paramType": {
+        "type": "BasicType",
+        "name": "i32"
+      },
+      "ownership": {
+        "ownership": "owned",
+        "mutability": "immutable"
+      }
+    }
+  ], *)
 and compile_sequence stmts state =
   match stmts with
   | [] ->
@@ -143,6 +168,13 @@ and compile_sequence stmts state =
         }
       in
       compile_sequence tl aft_hd_with_pop_state
+(* and compile_func_arg args state = 
+  match args with 
+  | `List [] -> state
+  | `List (hd::tl) -> 
+    let aft_hd_state = compile hd state in
+    compile_func_arg (`List tl) aft_hd_state
+  | _ -> failwith "Expected a JSON list for function argument compilation" *)
 
 let string_of_instruction = show_compiled_instruction
 

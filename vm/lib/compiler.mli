@@ -5,10 +5,14 @@ type compiled_instruction =
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym : string }
-  | ASSIGN of  pos_in_env 
+  | UNOP of { sym : string }
+  | ASSIGN of pos_in_env
   | POP
   | LD of { sym : string; pos : pos_in_env }
+  | LDF of { arity : int; addr : int }
+  | GOTO of int
   | RESET
+  | TAILCALL
   | DONE
 
 val string_of_instruction : compiled_instruction -> string
