@@ -12,7 +12,8 @@ type compiled_instruction =
   | LDF of { arity : int; addr : int }
   | GOTO of int
   | RESET
-  | TAILCALL
+  | TAILCALL of int
+  | CALL of int
   | DONE
 [@@deriving show]
 
@@ -160,16 +161,30 @@ let rec compile node state =
   | Ret expr ->
       let state_after_expr = compile expr state in
       (match expr with
-      | App _ ->
+      | App ({ func = _; args }) ->
           let new_instrs = 
             List.mapi (fun i instr -> 
               if i = List.length state_after_expr.instrs - 1 
-              then TAILCALL 
+              then TAILCALL (List.length args)
               else instr) 
             state_after_expr.instrs in
           {state_after_expr with instrs = new_instrs;}
       | _ -> 
           {state_after_expr with instrs = state_after_expr.instrs @ [RESET]; wc = state_after_expr.wc + 1})
+  | App ({ func; args }) ->
+      (* Compile the function expression *)
+      let state_after_fun = compile func state in
+      
+      (* Compile each argument *)
+      let state_after_args = List.fold_left (fun state arg ->
+        compile arg state
+      ) state_after_fun args in
+      
+      (* Add CALL instruction with the number of arguments *)
+      let new_instr = CALL (List.length args) in
+      { state_after_args with 
+        instrs = state_after_args.instrs @ [new_instr]; 
+        wc = state_after_args.wc + 1 }
   | other ->
       failwith
         (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))

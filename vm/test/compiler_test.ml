@@ -1,4 +1,5 @@
 open Vm.Compiler
+open Vm.Value
 
 (* Pretty-printer & equality for compiled_instruction *)
 let pp_instr fmt instr =
@@ -341,6 +342,234 @@ let test_function_with_block_and_const () =
   in
   check_instr_list "function with block and const" expected result
 
+(* Add test case for function application *)
+let test_function_application () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "fun",
+            "sym": "f",
+            "prms": [
+              {
+                "name": "x",
+                "paramType": { "type": "i32", "ownership": "owned" }
+              },
+              {
+                "name": "y",
+                "paramType": { "type": "i32", "ownership": "borrowed" }
+              }
+            ],
+            "retType": { "type": "i32", "ownership": "owned" },
+            "body": {
+              "tag": "blk",
+              "body": {
+                "tag": "ret",
+                "expr": {
+                  "tag": "binop",
+                  "sym": "+",
+                  "frst": { "tag": "nam", "sym": "x" },
+                  "scnd": { "tag": "nam", "sym": "y" }
+                }
+              }
+            }
+          },
+          {
+            "tag": "app",
+            "fun": { "tag": "nam", "sym": "f" },
+            "args": [
+              { "tag": "lit", "val": 33 },
+              { "tag": "lit", "val": 22 }
+            ]
+          }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected = [
+    ENTER_SCOPE { num = 1 };
+    LDF { arity = 2; addr = 3 };
+    GOTO 11;
+    ENTER_SCOPE { num = 0 };
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+    BINOP { sym = "+" };
+    RESET;
+    EXIT_SCOPE;
+    LDC Undefined;
+    RESET;
+    ASSIGN { frame_index = 0; value_index = 0 };
+    POP;
+    LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+    LDC (Int 33);
+    LDC (Int 22);
+    CALL 2;
+    EXIT_SCOPE;
+    DONE
+  ] in
+  check_instr_list "function application" expected result
+
+let test_nested_function_calls () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "fun",
+            "sym": "k",
+            "prms": [
+              {
+                "name": "x",
+                "paramType": { "type": "i32", "ownership": "owned" }
+              }
+            ],
+            "retType": { "type": "i32", "ownership": "owned" },
+            "body": {
+              "tag": "ret",
+              "expr": {
+                "tag": "nam",
+                "sym": "x"
+              }
+            }
+          },
+          {
+            "tag": "fun",
+            "sym": "g",
+            "prms": [
+              {
+                "name": "x",
+                "paramType": { "type": "i32", "ownership": "owned" }
+              }
+            ],
+            "retType": { "type": "i32", "ownership": "owned" },
+            "body": {
+              "tag": "ret",
+              "expr": {
+                "tag": "nam",
+                "sym": "x"
+              }
+            }
+          },
+          {
+            "tag": "fun",
+            "sym": "f",
+            "prms": [
+              {
+                "name": "x",
+                "paramType": { "type": "i32", "ownership": "owned" }
+              },
+              {
+                "name": "y",
+                "paramType": { "type": "i32", "ownership": "borrowed" }
+              }
+            ],
+            "retType": { "type": "i32", "ownership": "owned" },
+            "body": {
+              "tag": "blk",
+              "body": {
+                "tag": "seq",
+                "stmts": [
+                  {
+                    "tag": "const",
+                    "sym": "z",
+                    "expr": {
+                      "tag": "lit",
+                      "val": 0
+                    }
+                  },
+                  {
+                    "tag": "ret",
+                    "expr": {
+                      "tag": "app",
+                      "fun": {
+                        "tag": "nam",
+                        "sym": "g"
+                      },
+                      "args": [
+                        {
+                          "tag": "nam",
+                          "sym": "x"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "tag": "app",
+            "fun": {
+              "tag": "nam",
+              "sym": "f"
+            },
+            "args": [
+              {
+                "tag": "lit",
+                "val": 33
+              },
+              {
+                "tag": "lit",
+                "val": 22
+              }
+            ]
+          }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected = [
+    ENTER_SCOPE { num = 3 };
+    (* Function k *)
+    LDF { arity = 1; addr = 3 };
+    GOTO 7;
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    RESET;
+    LDC Undefined;
+    RESET;
+    ASSIGN { frame_index = 0; value_index = 0 };
+    POP;
+    (* Function g *)
+    LDF { arity = 1; addr = 11 };
+    GOTO 15;
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    RESET;
+    LDC Undefined;
+    RESET;
+    ASSIGN { frame_index = 0; value_index = 1 };
+    POP;
+    (* Function f *)
+    LDF { arity = 2; addr = 19 };
+    GOTO 29;
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 0);
+    ASSIGN { frame_index = 2; value_index = 0 };
+    POP;
+    LD { sym = "g"; pos = { frame_index = 0; value_index = 1 } };
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    TAILCALL 1;
+    EXIT_SCOPE;
+    LDC Undefined;
+    RESET;
+    ASSIGN { frame_index = 0; value_index = 2 };
+    POP;
+    (* Call f(33, 22) *)
+    LD { sym = "f"; pos = { frame_index = 0; value_index = 2 } };
+    LDC (Int 33);
+    LDC (Int 22);
+    CALL 2;
+    EXIT_SCOPE;
+    DONE
+  ] in
+  check_instr_list "nested function calls with tail call" expected result
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -364,5 +593,9 @@ let () =
             test_function_with_binop;
           test_case "function with block and const" `Quick
             test_function_with_block_and_const;
+          test_case "function application" `Quick
+            test_function_application;
+          test_case "nested function calls with tail call" `Quick
+            test_nested_function_calls;
         ] );
     ]

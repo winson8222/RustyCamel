@@ -22,7 +22,7 @@ type ast_node =
   | Fun of { sym : string; prms : param list; ret_type: param_type option; body : ast_node }
   | Nam of string
   | Ret of ast_node
-  | App of ast_node
+  | App of { func : ast_node; args : ast_node list }
 [@@deriving show]
 
 let rec of_json json =
@@ -100,4 +100,8 @@ let rec of_json json =
       let body = json |> member "body" |> of_json in
       Lam { prms; body }
   | "ret" -> Ret (json |> member "expr" |> of_json)
+  | "app" ->
+      let fun_expr = json |> member "fun" |> of_json in
+      let args = json |> member "args" |> to_list |> List.map of_json in
+      App { func = fun_expr; args }
   | tag -> failwith ("Unknown tag: " ^ tag)
