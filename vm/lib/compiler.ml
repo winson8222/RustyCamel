@@ -47,27 +47,18 @@ let rec scan_for_locals node =
   | _ -> []
 
 let get_compile_time_environment_pos sym ce =
-  let _ = Printf.printf "\n[Looking for symbol] %s\n" sym in
-  let _ = Printf.printf "\n[Current environment frames]:\n" in
-  let _ = List.iteri (fun i frame -> 
-    Printf.printf "Frame %d: [%s]\n" i (String.concat "; " frame)
-  ) ce in
   let reversed_ce = List.rev ce in
   let rec helper sym ce cur_frame_index =
     match ce with
     | [] -> failwith "Symbol not found in compile time environment"
     | cur_frame :: tl_frames -> (
-        let _ = Printf.printf "\nChecking frame %d: [%s]\n" cur_frame_index (String.concat "; " cur_frame) in
         let maybe_sym_index =
           find_index (fun x -> String.equal x sym) cur_frame
         in
         match maybe_sym_index with
         | Some sym_index ->
-            let _ = Printf.printf "Found %s at frame %d, index %d\n" sym cur_frame_index sym_index in
             { frame_index = cur_frame_index; value_index = sym_index }
-        | None -> 
-            let _ = Printf.printf "Symbol %s not found in frame %d, moving to next frame\n" sym cur_frame_index in
-            helper sym tl_frames (cur_frame_index + 1))
+        | None -> helper sym tl_frames (cur_frame_index + 1))
   in
   helper sym reversed_ce 0
 
@@ -78,23 +69,11 @@ let rec compile node state =
   let open Ast in
   let instrs = state.instrs in
   let wc = state.wc in
-  let print_state node_type = 
-    Printf.printf "\n[Compiling %s]\n" node_type;
-    Printf.printf "Current wc: %d\n" wc;
-    Printf.printf "Current instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction instrs));
-    Printf.printf "Current environment frames:\n";
-    List.iteri (fun i frame -> 
-      Printf.printf "Frame %d: [%s]\n" i (String.concat "; " frame)
-    ) state.ce;
-    Printf.printf "\n"
-  in
   match node with
   | Literal lit ->
-      print_state "Literal";
       let new_instr = LDC lit in
       { state with instrs = instrs @ [ new_instr ]; wc = state.wc + 1 }
   | Block body ->
-      print_state "Block";
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
       let extended_ce = compile_time_environment_extend locals state.ce in
@@ -120,7 +99,6 @@ let rec compile node state =
         instrs = state_after_body.instrs @ [ exit_scope_instr ];
       }
   | Binop { sym; frst; scnd } ->
-      print_state "Binop";
       let frst_state = compile frst state in
       let sec_state = compile scnd frst_state in
       let new_instr = BINOP { sym } in
@@ -130,7 +108,6 @@ let rec compile node state =
         ce = sec_state.ce;
       }
   | Unop { sym; frst } ->
-      print_state "Unop";
       let state_aft_frst = compile frst state in
       let new_instr = UNOP { sym } in
       {
@@ -139,22 +116,18 @@ let rec compile node state =
         ce = state_aft_frst.ce;
       }
   | Sequence stmts -> 
-      print_state "Sequence";
       compile_sequence stmts state
   | Let { sym; expr } ->
-      print_state "Let";
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
       { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
   | Const { sym; expr } ->
-      print_state "Const";
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
       { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
   | Lam { prms; body } -> 
-      print_state "Lambda";
       let loadFuncInstr = LDF {arity = List.length prms; addr = wc + 2} in
       let gotoInstrIndex = wc + 1 in (* Index where GOTO will be *)
       let state_after_ldf_goto = {
@@ -180,14 +153,11 @@ let rec compile node state =
         final_state.instrs in
       {final_state with instrs = updated_instrs}
   | Fun { sym; prms; ret_type = _; body } ->
-      print_state "Function";
       compile (Let { sym; expr = Lam { prms; body } }) state
   | Nam sym ->
-      print_state "Name";
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
   | Ret expr ->
-      print_state "Return";
       let state_after_expr = compile expr state in
       (match expr with
       | App _ ->
@@ -201,7 +171,6 @@ let rec compile node state =
       | _ -> 
           {state_after_expr with instrs = state_after_expr.instrs @ [RESET]; wc = state_after_expr.wc + 1})
   | other ->
-      print_state "Other";
       failwith
         (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))
 
