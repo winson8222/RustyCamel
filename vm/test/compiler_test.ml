@@ -177,14 +177,14 @@ let test_function_with_params () =
         "prms": [
           {
             "name": "x",
-            "paramType": { "type": "i32" }
+            "paramType": { "type": "i32", "ownership": "owned" }
           },
           {
             "name": "y",
-            "paramType": { "type": "i32" }
+            "paramType": { "type": "i32", "ownership": "borrowed" }
           }
         ],
-        "retType": "i32",
+        "retType": { "type": "i32", "ownership": "owned" },
         "body": {
           "tag": "blk",
           "body": {
@@ -218,8 +218,7 @@ let test_function_with_params () =
       DONE;
     ]
   in
-  check_instr_list "function declaration with parameters and types" expected
-    result
+  check_instr_list "function declaration with parameters and types" expected result
 
 let test_function_with_binop () =
   let json =
@@ -229,10 +228,10 @@ let test_function_with_binop () =
         "tag": "fun",
         "sym": "f",
         "prms": [
-          { "name": "x", "paramType": { "type": "i32" } },
-          { "name": "y", "paramType": { "type": "i32" } }
+          { "name": "x", "paramType": { "type": "i32", "ownership": "owned" } },
+          { "name": "y", "paramType": { "type": "i32", "ownership": "borrowed" } }
         ],
-        "retType": "i32",
+        "retType": { "type": "i32", "ownership": "owned" },
         "body": {
           "tag": "blk",
           "body": {
@@ -282,14 +281,14 @@ let test_function_with_block_and_const () =
         "prms": [
           {
             "name": "x",
-            "paramType": { "type": "i32" }
+            "paramType": { "type": "i32", "ownership": "owned" }
           },
           {
             "name": "y",
-            "paramType": { "type": "i32" }
+            "paramType": { "type": "i32", "ownership": "borrowed" }
           }
         ],
-        "retType": "i32",
+        "retType": { "type": "i32", "ownership": "owned" },
         "body": {
           "tag": "blk",
           "body": {

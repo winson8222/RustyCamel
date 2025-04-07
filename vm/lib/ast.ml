@@ -1,3 +1,13 @@
+type param_type = {
+  type_name: string;
+  ownership: string;
+} [@@deriving show]
+
+type param = {
+  name: string;
+  param_type: param_type;
+} [@@deriving show]
+
 type ast_node =
   | Literal of Value.lit_value
   | Variable of string
@@ -8,10 +18,11 @@ type ast_node =
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
-  | Lam of { prms : string list; body : ast_node }
-  | Fun of { sym : string; prms : string list; body : ast_node }
+  | Lam of { prms : param list; body : ast_node }
+  | Fun of { sym : string; prms : param list; ret_type: param_type option; body : ast_node }
   | Nam of string
   | Ret of ast_node
+  | App of ast_node
 [@@deriving show]
 
 let rec of_json json =
@@ -60,11 +71,33 @@ let rec of_json json =
   | "nam" -> Nam (member "sym" json |> to_string)
   | "fun" ->
       let sym = json |> member "sym" |> to_string in
-      let prms = json |> member "prms" |> to_list |> List.map to_string in
+      let prms = json |> member "prms" |> to_list |> List.map (fun p -> 
+        {
+          name = p |> member "name" |> to_string;
+          param_type = {
+            type_name = p |> member "paramType" |> member "type" |> to_string;
+            ownership = p |> member "paramType" |> member "ownership" |> to_string;
+          };
+        }) in
+      let ret_type = match json |> member "retType" with
+        | `Null -> None
+        | ret_type_json -> Some {
+            type_name = ret_type_json |> member "type" |> to_string;
+            ownership = ret_type_json |> member "ownership" |> to_string;
+          }
+      in
       let body = json |> member "body" |> of_json in
-      Fun { sym; prms; body }
+      Fun { sym; prms; ret_type; body }
   | "lam" ->
-      let prms = json |> member "prms" |> to_list |> List.map to_string in
+      let prms = json |> member "prms" |> to_list |> List.map (fun p -> 
+        {
+          name = p |> member "name" |> to_string;
+          param_type = {
+            type_name = p |> member "paramType" |> member "type" |> to_string;
+            ownership = p |> member "paramType" |> member "ownership" |> to_string;
+          };
+        }) in
       let body = json |> member "body" |> of_json in
       Lam { prms; body }
+  | "ret" -> Ret (json |> member "expr" |> of_json)
   | tag -> failwith ("Unknown tag: " ^ tag)
