@@ -142,7 +142,7 @@ let rec compile node state =
       let after_body_state = compile body {state_after_ldf_goto with ce = extended_ce} in
       
       (* add undefined and reset *)
-      let final_state = {after_body_state with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in
+      let final_state = {state_after_ldf_goto with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in
       
       (* Update GOTO to point to instruction after the function body *)
       let updated_instrs = 
