@@ -9,8 +9,8 @@ type ast_node =
   | BinOp of { sym : string; frst : ast_node; scnd : ast_node }
   | Function of {
       sym : string;
-      params : (string * Types.value_type) list;
-      ret_type : Types.value_type;
+      params : string list;
+      declared_type : Types.value_type;
       body : ast_node;
     }
   | Nam of string

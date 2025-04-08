@@ -22,23 +22,13 @@ type state = {
 (* TODO: Add global compile environment with builtin frames *)
 let initial_state = { instrs = []; ce = []; wc = 0 }
 
-let find_index f ls =
-  let rec find_index_helper ls f cur_index =
-    match ls with
-    | [] -> None
-    | hd :: tl -> (
-        match f hd with
-        | true -> Some cur_index
-        | false -> find_index_helper tl f (cur_index + 1))
-  in
-  find_index_helper ls f 0
 
 (** Helper functions *)
 let rec scan_for_locals node =
   let open Ast in
   match node with
   | Let { sym; _ }
-  | Const { sym }
+  | Const { sym;_ }
   | Function { sym; _ } ->
       [ sym ]
   | Sequence stmts ->
@@ -52,7 +42,7 @@ let get_compile_time_environment_pos sym ce =
     | [] -> failwith "Symbol not found in compile time environment"
     | cur_frame :: tl_frames -> (
         let maybe_sym_index =
-          find_index (fun x -> String.equal x sym) cur_frame
+          Utils.find_index (fun x -> String.equal x sym) cur_frame
         in
         match maybe_sym_index with
         | Some sym_index ->
