@@ -3,13 +3,15 @@ type ref_type = {
   base : value_type; (* TODO: Add lifetime *)
 }
 
+and function_type = { ret : value_type; prms : value_type list }
+
 and value_type =
   | TInt
   | TString
   | TBoolean
   | TUndefined
   | TRef of ref_type
-  | TFunction of value_type list * value_type
+  | TFunction of function_type
   | TArray of value_type * int (* Fixed size arrays *)
 [@@deriving show]
 
