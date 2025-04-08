@@ -1,388 +1,373 @@
-import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { RustLexer } from './parser/src/RustLexer.js';
-import { RustParser } from './parser/src/RustParser.js';
-import { RustVisitor } from './parser/src/RustVisitor.js';
-import { readFile } from 'fs/promises';
-import { normalizeRustAst } from './astToJSON.js';
+import {
+  CharStream,
+  CommonTokenStream,
+  AbstractParseTreeVisitor,
+} from "antlr4ng";
+import { RustLexer } from "./parser/src/RustLexer.js";
+import { RustParser } from "./parser/src/RustParser.js";
+import { RustVisitor } from "./parser/src/RustVisitor.js";
+import { readFile } from "fs/promises";
+import { normalizeRustAst } from "./astToJSON.js";
 
 // Import parser context types
 import {
-    ImplicitReturnContext,
-    ExplicitReturnContext,
-    UnaryNegationContext,
-    UnaryNotContext,
-    BorrowExprContext,
-    UnaryToAtomContext,
-    FunctionCallContext,
-    MacroCallContext,
-    ParensExprContext,
-    LiteralExprContext,
-    IdentExprContext,
-    BlockContext,
-    IfExprContext
-} from './parser/src/RustParser.js';
+  ImplicitReturnContext,
+  ExplicitReturnContext,
+  UnaryNegationContext,
+  UnaryNotContext,
+  BorrowExprContext,
+  UnaryToAtomContext,
+  FunctionCallContext,
+  MacroCallContext,
+  ParensExprContext,
+  LiteralExprContext,
+  IdentExprContext,
+  BlockContext,
+  IfExprContext,
+} from "./parser/src/RustParser.js";
 
+class RustAstVisitor
+  extends AbstractParseTreeVisitor<any>
+  implements RustVisitor<any>
+{
+  visitProgram(ctx: any): any {
+    console.log("Visiting Program");
+    return {
+      type: "Program",
+      statements: ctx.statement().map((stmt: any) => this.visit(stmt)),
+    };
+  }
 
-class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisitor<any> {
-    // visitChildren(node: any): any {
-    //     console.log("Visiting children of:", node.constructor.name);
-    //     const result: any = {
-    //         type: node.constructor.name,
-    //         children: []
-    //     };
+  visitStatement(ctx: any): any {
+    if (ctx.letDecl()) {
+      return this.visit(ctx.letDecl());
+    } else if (ctx.fnDecl()) {
+      return this.visit(ctx.fnDecl());
+    } else if (ctx.whileLoop()) {
+      return this.visit(ctx.whileLoop());
+    } else if (ctx.ifExpr()) {
+      return this.visit(ctx.ifExpr());
+    } else if (ctx.block()) {
+      return this.visit(ctx.block());
+    } else if (ctx.expr()) {
+      return this.visit(ctx.expr());
+    } else if (ctx.returnExpr()) {
+      return this.visit(ctx.returnExpr());
+    }
+    return null;
+  }
 
-    //     for (let i = 0; i < node.getChildCount(); i++) {
-    //         const child = node.getChild(i);
-    //         if (child) {
-    //             const childResult = this.visit(child);
-    //             if (childResult !== null) {
-    //                 result.children.push(childResult);
-    //             }
-    //         }
-    //     }
+  visitLetDecl(ctx: any): any {
+    console.log("Visiting Let Declaration");
+    const name = ctx.IDENTIFIER().getText();
 
-    //     // If there are no children, include the text content
-    //     if (result.children.length === 0 && node.getText()) {
-    //         result.text = node.getText();
-    //     }
+    return {
+      type: "LetDecl",
+      name: name,
+      value: ctx.expr() ? this.visit(ctx.expr()) : null,
+      isMutable: ctx.MUT() !== null,
+      isRef: ctx.REF() !== null,
+    };
+  }
 
-    //     return result;
-    // }
+  visitFnDecl(ctx: any): any {
+    const params = ctx.paramList() ? this.visit(ctx.paramList()) : [];
 
-    visitProgram(ctx: any): any {
-        console.log("Visiting Program");
-        return {
-            type: 'Program',
-            statements: ctx.statement().map((stmt: any) => this.visit(stmt))
-        };
+    const result = {
+      type: "FnDecl",
+      name: ctx.IDENTIFIER().getText(),
+      params: params,
+      returnType: ctx.returnType() ? this.visit(ctx.returnType()) : null,
+      body: this.visit(ctx.block()),
+    };
+
+    return result;
+  }
+
+  visitParamList(ctx: any): any {
+    console.log("Visiting Parameter List");
+    return ctx.param().map((param: any) => this.visit(param));
+  }
+
+  visitParam(ctx: any): any {
+    console.log("Visiting Parameter");
+    const name = ctx.IDENTIFIER().getText();
+    const isRef = ctx.REF() !== null;
+    const isMutable = ctx.MUT() !== null;
+
+    return {
+      type: "Param",
+      name: name,
+      paramType: this.visit(ctx.typeExpr()),
+      isMutable,
+      isRef,
+    };
+  }
+
+  visitReturnType(ctx: any): any {
+    console.log("Visiting Return Type");
+    return this.visit(ctx.typeExpr());
+  }
+
+  visitWhileLoop(ctx: any): any {
+    console.log("Visiting While Loop");
+    return {
+      type: "WhileLoop",
+      condition: this.visit(ctx.expr()),
+      body: this.visit(ctx.block()),
+    };
+  }
+
+  visitBlock(ctx: any): any {
+    console.log("Visiting Block");
+
+    const statements = ctx.statement().map((stmt: any) => this.visit(stmt));
+
+    return {
+      type: "Block",
+      statements: statements,
+    };
+  }
+
+  visitReturnExpr(ctx: any): any {
+    console.log("Visiting Return Expression");
+    if (ctx instanceof ImplicitReturnContext) {
+      return {
+        type: "ReturnExpr",
+        expr: this.visit(ctx.expr()),
+      };
+    } else if (ctx instanceof ExplicitReturnContext) {
+      return {
+        type: "ReturnExpr",
+        expr: this.visit(ctx.expr()),
+      };
+    }
+    return null;
+  }
+
+  visitIfExpr(ctx: IfExprContext): any {
+    console.log("Visiting If Expression");
+    return {
+      type: "IfExpr",
+      condition: this.visit(ctx.expr()),
+      thenBranch: this.visit(ctx.block(0)),
+      elseBranch: ctx.block().length > 1 ? this.visit(ctx.block(1)) : null,
+    };
+  }
+
+  visitExpr(ctx: any): any {
+    console.log("Visiting Expression");
+
+    return this.visit(ctx.exprBinary());
+  }
+
+  visitBinaryExpr(ctx: any): any {
+    console.log("Visiting Binary Expression");
+    if (ctx.exprUnary().length === 1) {
+      return this.visit(ctx.exprUnary(0));
     }
 
-    visitStatement(ctx: any): any {
-        if (ctx.letDecl()) {
-            return this.visit(ctx.letDecl());
-        } else if (ctx.fnDecl()) {
-            return this.visit(ctx.fnDecl());
-        } else if (ctx.whileLoop()) {
-            return this.visit(ctx.whileLoop());
-        } else if (ctx.ifExpr()) {
-            return this.visit(ctx.ifExpr());
-        } else if (ctx.block()) {
-            return this.visit(ctx.block());
-        } else if (ctx.expr()) {
-            return this.visit(ctx.expr()); // ← this line is catching it
-        } else if (ctx.returnExpr()) {
-            return this.visit(ctx.returnExpr());
-        }
-        return null;
+    const left = this.visit(ctx.exprUnary(0));
+    const operators = ctx.binOp();
+    const rightExprs = ctx.exprUnary().slice(1);
+
+    let result = left;
+    for (let i = 0; i < operators.length; i++) {
+      result = {
+        type: "BinaryExpr",
+        left: result,
+        operator: operators[i].getText(),
+        right: this.visit(rightExprs[i]),
+      };
+    }
+    return result;
+  }
+
+  visitExprUnary(ctx: any): any {
+    console.log("Visiting Unary Expression");
+    if (ctx instanceof UnaryNegationContext) {
+      return {
+        type: "UnaryNegation",
+        expr: this.visit(ctx.exprUnary()),
+      };
+    } else if (ctx instanceof UnaryNotContext) {
+      return {
+        type: "UnaryNot",
+        expr: this.visit(ctx.exprUnary()),
+      };
+    } else if (ctx instanceof BorrowExprContext) {
+      return this.visit(ctx.exprUnary());
+    } else if (ctx instanceof UnaryToAtomContext) {
+      return this.visit(ctx.exprAtom());
+    }
+    return null;
+  }
+
+  visitExprAtom(ctx: any): any {
+    console.log("Visiting Expression Atom");
+    if (ctx instanceof FunctionCallContext) {
+      return {
+        type: "FunctionCall",
+        name: ctx.IDENTIFIER().getText(),
+        args: ctx.argList() ? this.visit(ctx.argList()) : [],
+      };
+    } else if (ctx instanceof MacroCallContext) {
+      return {
+        type: "MacroCall",
+        name: ctx.IDENTIFIER().getText(),
+        args: ctx.argList() ? this.visit(ctx.argList()) : [],
+      };
+    } else if (ctx instanceof ParensExprContext) {
+      return this.visit(ctx.expr());
+    } else if (ctx instanceof LiteralExprContext) {
+      return this.visit(ctx.literal());
+    } else if (ctx instanceof IdentExprContext) {
+      const name = ctx.IDENTIFIER().getText();
+      return {
+        type: "IdentExpr",
+        name: name,
+      };
+    }
+    return null;
+  }
+
+  visitIdentExpr(ctx: IdentExprContext): any {
+    console.log("Visiting Identifier Expression");
+    const name = ctx.IDENTIFIER().getText();
+
+    return {
+      type: "IdentExpr",
+      name: name,
+    };
+  }
+
+  visitUnaryToAtom(ctx: UnaryToAtomContext): any {
+    console.log("Visiting UnaryToAtom");
+    return this.visit(ctx.exprAtom());
+  }
+
+  visitArgList(ctx: any): any {
+    console.log("Visiting Argument List");
+    return ctx.expr().map((expr: any) => this.visit(expr));
+  }
+
+  visitRefType(ctx: any): any {
+    console.log("Visiting RefType");
+    return {
+      type: "RefType",
+      isMutable: ctx.MUX() !== null,
+      baseType: ctx.IDENTIFIER().getText(),
+    };
+  }
+
+  visitBasicType(ctx: any): any {
+    console.log("Visiting BasicType");
+    return {
+      type: "BasicType",
+      name: ctx.IDENTIFIER().getText(),
+    };
+  }
+
+  visitLiteral(ctx: any): any {
+    console.log("Visiting Literal");
+    const text = ctx.getText();
+    let value: any = text;
+
+    if (text.match(/^\d+$/)) {
+      value = parseInt(text);
+    } else if (text.match(/^\d+\.\d*$/)) {
+      value = parseFloat(text);
+    } else if (text === "true" || text === "false") {
+      value = text === "true";
+    } else if (text.startsWith('"')) {
+      value = text.slice(1, -1);
     }
 
-    visitLetDecl(ctx: any): any {
-        console.log("Visiting Let Declaration");
-        return {
-            type: 'LetDecl',
-            name: ctx.IDENTIFIER().getText(),
-            value: ctx.expr() ? this.visit(ctx.expr()) : null
-        };
-    }
+    return {
+      type: "Literal",
+      value: value,
+    };
+  }
 
-    visitFnDecl(ctx: any): any {
-        console.log("Visiting Function Declaration");
-        return {
-            type: 'FnDecl',
-            name: ctx.IDENTIFIER().getText(),
-            params: ctx.paramList() ? this.visit(ctx.paramList()) : [],
-            returnType: ctx.returnType() ? this.visit(ctx.returnType()) : null,
-            body: this.visit(ctx.block())
-        };
-    }
+  visitUnaryNegation(ctx: UnaryNegationContext): any {
+    console.log("Visiting Unary Negation");
+    return {
+      type: "UnaryNegation",
+      expr: this.visit(ctx.exprUnary()),
+    };
+  }
 
-    visitParamList(ctx: any): any {
-        console.log("Visiting Parameter List");
-        return ctx.param().map((param: any) => this.visit(param));
-    }
+  visitUnaryNot(ctx: UnaryNotContext): any {
+    console.log("Visiting Unary Not");
+    return {
+      type: "UnaryNot",
+      expr: this.visit(ctx.exprUnary()),
+    };
+  }
 
+  visitBorrowExpr(ctx: BorrowExprContext): any {
+    console.log("Visiting Borrow Expression");
+    return {
+      type: "BorrowExpr",
+      isMutable: ctx.MUT() !== null,
+      isRef: ctx.REF() !== null,
+      expr: this.visit(ctx.exprUnary()),
+    };
+  }
 
-    visitParam(ctx: any): any {
-        console.log("Visiting Parameter");
-        return {
-            type: 'Param',
-            name: ctx.IDENTIFIER().getText(),
-            paramType: this.visit(ctx.typeExpr())
-        };
-    }
+  visitFunctionCall(ctx: FunctionCallContext): any {
+    console.log("Visiting Function Call");
+    return {
+      type: "FunctionCall",
+      name: ctx.IDENTIFIER().getText(),
+      args: ctx.argList() ? this.visit(ctx.argList()) : [],
+    };
+  }
 
-    visitReturnType(ctx: any): any {
-        console.log("Visiting Return Type");
-        return this.visit(ctx.typeExpr());
-    }
+  visitMacroCall(ctx: MacroCallContext): any {
+    console.log("Visiting Macro Call");
+    return {
+      type: "MacroCall",
+      name: ctx.IDENTIFIER().getText(),
+      args: ctx.argList() ? this.visit(ctx.argList()) : [],
+    };
+  }
 
-    visitWhileLoop(ctx: any): any {
-        console.log("Visiting While Loop");
-        return {
-            type: 'WhileLoop',
-            condition: this.visit(ctx.expr()),
-            body: this.visit(ctx.block())
-        };
-    }
+  visitParensExpr(ctx: ParensExprContext): any {
+    console.log("Visiting Parenthesized Expression");
+    return this.visit(ctx.expr());
+  }
 
-    visitBlock(ctx: any): any {
-        console.log("Visiting Block");
+  visitLiteralExpr(ctx: LiteralExprContext): any {
+    console.log("Visiting Literal Expression");
+    return this.visit(ctx.literal());
+  }
 
-
-    
-        const statements = ctx.statement().map((stmt: any) => this.visit(stmt));
-    
-        return {
-            type: 'Block',
-            statements: statements
-        };
-    }
-
-    visitReturnExpr(ctx: any): any {
-        console.log("Visiting Return Expression");
-        if (ctx instanceof ImplicitReturnContext) {
-            return {
-                type: 'ReturnExpr',
-                expr: this.visit(ctx.expr())
-            };
-        } else if (ctx instanceof ExplicitReturnContext) {
-            return {
-                type: 'ReturnExpr',
-                expr: this.visit(ctx.expr())
-            };
-        }
-        return null;
-    }
-
-    visitIfExpr(ctx: IfExprContext): any {
-        console.log("Visiting If Expression");
-        return {
-            type: 'IfExpr',
-            condition: this.visit(ctx.expr()),
-            thenBranch: this.visit(ctx.block(0)),
-            elseBranch: ctx.block().length > 1 ? this.visit(ctx.block(1)) : null
-        };
-    }
-
-    visitExpr(ctx: any): any {
-        console.log("Visiting Expression");
-     
-        return this.visit(ctx.exprBinary());
-    }
-
-    visitBinaryExpr(ctx: any): any {
-        console.log("Visiting Binary Expression");
-        if (ctx.exprUnary().length === 1) {
-            return this.visit(ctx.exprUnary(0));
-        }
-        
-        const left = this.visit(ctx.exprUnary(0));
-        const operators = ctx.binOp();
-        const rightExprs = ctx.exprUnary().slice(1);
-
-        let result = left;
-        for (let i = 0; i < operators.length; i++) {
-            result = {
-                type: 'BinaryExpr',
-                left: result,
-                operator: operators[i].getText(),
-                right: this.visit(rightExprs[i])
-            };
-        }
-        return result;
-    }
-
-    visitExprUnary(ctx: any): any {
-        console.log("Visiting Unary Expression");
-        if (ctx instanceof UnaryNegationContext) {
-            return {
-                type: 'UnaryNegation',
-                expr: this.visit(ctx.exprUnary())
-            };
-        } else if (ctx instanceof UnaryNotContext) {
-            return {
-                type: 'UnaryNot',
-                expr: this.visit(ctx.exprUnary())
-            };
-        } else if (ctx instanceof BorrowExprContext) {
-            return {
-                type: 'BorrowExpr',
-                mutable: ctx.getText().includes('mut'),
-                expr: this.visit(ctx.exprUnary())
-            };
-        } else if (ctx instanceof UnaryToAtomContext) {
-            return this.visit(ctx.exprAtom());
-        }
-        return null;
-    }
-
-    visitExprAtom(ctx: any): any {
-        console.log("Visiting Expression Atom");
-        if (ctx instanceof FunctionCallContext) {
-            return {
-                type: 'FunctionCall',
-                name: ctx.IDENTIFIER().getText(),
-                args: ctx.argList() ? this.visit(ctx.argList()) : []
-            };
-        } else if (ctx instanceof MacroCallContext) {
-            return {
-                type: 'MacroCall',
-                name: ctx.IDENTIFIER().getText(),
-                args: ctx.argList() ? this.visit(ctx.argList()) : []
-            };
-        } else if (ctx instanceof ParensExprContext) {
-            return this.visit(ctx.expr());
-        } else if (ctx instanceof LiteralExprContext) {
-            return this.visit(ctx.literal());
-        } else if (ctx instanceof IdentExprContext) {
-            return {
-                type: 'IdentExpr',
-                name: ctx.IDENTIFIER().getText()
-            };
-        }
-        return null;
-    
-    }
-
-    visitIdentExpr(ctx: IdentExprContext): any {
-        console.log("Visiting Identifier Expression");
-        return {
-            type: 'IdentExpr',
-            name: ctx.IDENTIFIER().getText()
-        };
-    }
-
-
-    visitUnaryToAtom(ctx: UnaryToAtomContext): any {
-        console.log("Visiting UnaryToAtom");
-        return this.visit(ctx.exprAtom());
-    }
-
-    visitArgList(ctx: any): any {
-        console.log("Visiting Argument List");
-        return ctx.expr().map((expr: any) => this.visit(expr));
-    }
-
-    visitRefType(ctx: any): any {
-        console.log("Visiting RefType");
-        return {
-            type: 'RefType',
-            mutable: ctx.getText().includes('mut'),
-            baseType: ctx.IDENTIFIER().getText()
-        };
-    }
-    
-    visitBasicType(ctx: any): any {
-        console.log("Visiting BasicType");
-        return {
-            type: 'BasicType',
-            name: ctx.IDENTIFIER().getText()
-        };
-    }
-
-    visitLiteral(ctx: any): any {
-        console.log("Visiting Literal");
-        const text = ctx.getText();
-        let value: any = text;
-        
-        if (text.match(/^\d+$/)) {
-            value = parseInt(text);
-        } else if (text.match(/^\d+\.\d*$/)) {
-            value = parseFloat(text);
-        } else if (text === 'true' || text === 'false') {
-            value = text === 'true';
-        } else if (text.startsWith('"')) {
-            value = text.slice(1, -1);
-        }
-
-        return {
-            type: 'Literal',
-            value: value
-        };
-    }
-
-
- 
-    
-    visitUnaryNegation(ctx: UnaryNegationContext): any {
-        console.log("Visiting Unary Negation");
-        return {
-            type: 'UnaryNegation',
-            expr: this.visit(ctx.exprUnary())
-        };
-    }
-    
-    visitUnaryNot(ctx: UnaryNotContext): any {
-        console.log("Visiting Unary Not");
-        return {
-            type: 'UnaryNot',
-            expr: this.visit(ctx.exprUnary())
-        };
-    }
-    
-    visitBorrowExpr(ctx: BorrowExprContext): any {
-        console.log("Visiting Borrow Expression");
-        return {
-            type: 'BorrowExpr',
-            mutable: ctx.getText().includes('mut'),
-            expr: this.visit(ctx.exprUnary())
-        };
-    }
-    
-    visitFunctionCall(ctx: FunctionCallContext): any {
-        console.log("Visiting Function Call");
-        return {
-            type: 'FunctionCall',
-            name: ctx.IDENTIFIER().getText(),
-            args: ctx.argList() ? this.visit(ctx.argList()) : []
-        };
-    }
-    
-    visitMacroCall(ctx: MacroCallContext): any {
-        console.log("Visiting Macro Call");
-        return {
-            type: 'MacroCall',
-            name: ctx.IDENTIFIER().getText(),
-            args: ctx.argList() ? this.visit(ctx.argList()) : []
-        };
-    }
-    
-    visitParensExpr(ctx: ParensExprContext): any {
-        console.log("Visiting Parenthesized Expression");
-        return this.visit(ctx.expr());
-    }
-    
-    visitLiteralExpr(ctx: LiteralExprContext): any {
-        console.log("Visiting Literal Expression");
-        return this.visit(ctx.literal());
-    }
-    
-
-    protected defaultResult(): any {
-        return null;
-    }
-} 
+  protected defaultResult(): any {
+    return null;
+  }
+}
 
 export class RustAstCreator {
-    private visitor: RustAstVisitor;
+  private visitor: RustAstVisitor;
 
-    constructor() {
-        this.visitor = new RustAstVisitor();
-    }
+  constructor() {
+    this.visitor = new RustAstVisitor();
+  }
 
-    createAst(input: string): any {
-        const inputStream = CharStream.fromString(input);
-        const lexer = new RustLexer(inputStream);
-        const tokenStream = new CommonTokenStream(lexer);
-        const parser = new RustParser(tokenStream);
-        const tree = parser.program();
-        const ast = tree.accept(this.visitor);
-        // return normalizeRustAst(ast);
-        return ast;
-    }
+  createAst(input: string): any {
+    const inputStream = CharStream.fromString(input);
+    const lexer = new RustLexer(inputStream);
+    const tokenStream = new CommonTokenStream(lexer);
+    const parser = new RustParser(tokenStream);
+    const tree = parser.program();
+    const ast = tree.accept(this.visitor);
+    // return normalizeRustAst(ast);
+    return ast;
+  }
 
-    async createAstFromFile(filePath: string): Promise<any> {
-        const content = await readFile(filePath, 'utf-8');
-        return this.createAst(content);
-    }
+  async createAstFromFile(filePath: string): Promise<any> {
+    const content = await readFile(filePath, "utf-8");
+    return this.createAst(content);
+  }
 }
