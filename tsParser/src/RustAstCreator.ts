@@ -55,13 +55,13 @@ class RustAstVisitor
     }
 
     visitLetDecl(ctx: any): any {
+        // Does not handle this case: let ref x = 10; 
         console.log("Visiting Let Declaration");
         return {
             type: 'LetDecl',
             name: ctx.IDENTIFIER().getText(),
             value: ctx.expr() ? this.visit(ctx.expr()) : null,
             isMutable: ctx.MUT() !== null,
-            isRef: ctx.REF() !== null,
         };
     }
 
@@ -88,8 +88,6 @@ class RustAstVisitor
             type: 'Param',
             name: ctx.IDENTIFIER().getText(),
             paramType: this.visit(ctx.typeExpr()),
-            isMutable: ctx.MUT() !== null,
-            isRef: ctx.REF() !== null,
         };
     }
 
@@ -189,7 +187,7 @@ class RustAstVisitor
         } else if (ctx instanceof BorrowExprContext) {
             return {
                 type: 'BorrowExpr',
-                mutable: ctx.getText().includes('mut'),
+                mutable: ctx.MUT() !== null,
                 expr: this.visit(ctx.exprUnary())
             };
         } else if (ctx instanceof UnaryToAtomContext) {
@@ -283,9 +281,6 @@ class RustAstVisitor
         };
     }
 
-
- 
-    
     visitUnaryNegation(ctx: UnaryNegationContext): any {
         console.log("Visiting Unary Negation");
         return {
