@@ -41,14 +41,25 @@ val heap_set_size : t -> int -> int -> unit
 val heap_get_num_children : t -> int -> int
 val heap_allocate : t -> size:int -> tag:node_tag -> int
 val heap_allocate_number : t -> float -> int
-val heap_allocate_value : t -> Compiler.lit_value -> int
+val heap_allocate_value : t -> Value.lit_value -> int
 
 val heap_set_frame_children_to_unassigned :
   t -> frame_addr:int -> num_children:int -> unit
 
 val heap_allocate_environment : t -> num_frames:int -> int
+
+val heap_set_env_val_addr_at_pos :
+  t -> env_addr:int -> frame_index:int -> val_index:int -> val_addr:int -> unit
+
+val heap_get_env_val_addr_at_pos :
+  t -> env_addr:int -> frame_index:int -> val_index:int -> int
+
+val heap_allocate_callframe : t -> pc:int -> env_addr:int -> int
 val heap_allocate_blockframe : t -> env_addr:int -> int
 val heap_get_blockframe_env : t -> int -> int
 val heap_get_number_value : t -> int -> float
 val heap_get_string_value : t -> int -> string
 val debug_print_bytes : t -> int -> int -> unit
+val is_callframe : t -> int -> bool
+val heap_get_callframe_pc : t -> int -> int
+val heap_get_callframe_env : t -> int -> int

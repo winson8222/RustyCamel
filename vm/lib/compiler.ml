@@ -1,23 +1,14 @@
-open Yojson.Basic.Util
-
-type lit_value = Int of int | String of string | Boolean of bool | Undefined
-[@@deriving show]
-
 type pos_in_env = { frame_index : int; value_index : int } [@@deriving show]
 
 type compiled_instruction =
-  | LDC of lit_value
+  | LDC of Value.lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | BINOP of { sym : string }
-  | UNOP of { sym : string }
-  | ASSIGN of pos_in_env
+  | ASSIGN of  pos_in_env 
   | POP
   | LD of { sym : string; pos : pos_in_env }
-  | LDF of { arity : int; addr : int }
-  | GOTO of int
   | RESET
-  | TAILCALL
   | DONE
 [@@deriving show]
 
@@ -43,23 +34,20 @@ let find_index f ls =
   find_index_helper ls f 0
 
 (** Helper functions *)
-let rec scan_for_locals comp =
-  let tag = comp |> member "tag" |> to_string in
-  match tag with
-  | "let" | "const" | "fun" ->
-      let sym = comp |> member "sym" |> to_string in
+let rec scan_for_locals node =
+  let open Ast in
+  match node with
+  | Let { sym }
+  | Const { sym }
+  | Function { sym; params = _; body = _ } ->
       [ sym ]
-  | "seq" -> (
-      let value = comp |> member "stmts" in
-      match value with
-      | `List stmts ->
-          List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
-      | _ -> failwith "Unexpected case. Sequence stmts should be a list")
+  | Sequence stmts ->
+      List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
   | _ -> []
 
 let get_compile_time_environment_pos sym ce =
   let reversed_ce = List.rev ce in
-  let rec helper sym ce cur_frame_index  =
+  let rec helper sym ce cur_frame_index =
     match ce with
     | [] -> failwith "Symbol not found in compile time environment"
     | cur_frame :: tl_frames -> (
@@ -69,213 +57,83 @@ let get_compile_time_environment_pos sym ce =
         match maybe_sym_index with
         | Some sym_index ->
             { frame_index = cur_frame_index; value_index = sym_index }
-        | None -> helper sym tl_frames (cur_frame_index + 1)
-        )
+        | None -> helper sym tl_frames (cur_frame_index + 1))
   in
-  helper sym reversed_ce 0 
+  helper sym reversed_ce 0
 
 let compile_time_environment_extend frame_vars ce = [ frame_vars ] @ ce
 
 (* Compilation functions *)
-let rec compile_comp comp state =
-  let tag = comp |> member "tag" |> to_string in
+let rec compile node state =
   let instrs = state.instrs in
   let wc = state.wc in
-  match tag with
-  | "lit" ->
-      let value = member "val" comp in
-      let new_instr =
-        match value with
-        | `Int i -> LDC (Int i)
-        | `String s -> LDC (String s)
-        | `Bool b -> LDC (Boolean b)
-        | _ -> failwith "Invalid literal type"
-      in
-      let new_state =
-        { state with instrs = instrs @ [ new_instr ]; wc = state.wc + 1 }
-      in
-      new_state
-  | "blk" ->
-      let _ = Printf.printf "\n[Block Initial] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state.instrs)) in
-      let body = member "body" comp in
+  match node with
+  | Ast.Literal lit ->
+      let new_instr = LDC lit in
+      { state with instrs = instrs @ [ new_instr ]; wc = state.wc + 1 }
+  | Ast.Block body ->
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
       let extended_ce = compile_time_environment_extend locals state.ce in
-      
-      (* First add ENTER_SCOPE *)
+      let after_body_state =
+        compile body { state with ce = extended_ce; wc = wc + 1 }
+      in
       let enter_scope_instr = ENTER_SCOPE { num = num_locals } in
-      let state_after_enter = {
-        instrs = state.instrs @ [enter_scope_instr];
-        wc = wc + 1;
-        ce = extended_ce
-      } in
-      let _ = Printf.printf "\n[Block After ENTER_SCOPE] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state_after_enter.instrs)) in
-
-      (* Then compile body *)
-      let after_body_state = compile body state_after_enter in
-      let _ = Printf.printf "\n[Block After Body] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction after_body_state.instrs)) in
-
-      (* Finally add EXIT_SCOPE *)
       let exit_scope_instr = EXIT_SCOPE in
-      let new_state = {
-        after_body_state with
-        instrs = after_body_state.instrs @ [exit_scope_instr];
-        wc = after_body_state.wc + 1
-      } in
-      let _ = Printf.printf "\n[Block Final] instructions: %s\n\n" (String.concat ", " (List.map show_compiled_instruction new_state.instrs)) in
+      let new_state =
+        {
+          after_body_state with
+          wc = after_body_state.wc + 1;
+          instrs =
+            (enter_scope_instr :: after_body_state.instrs)
+            @ [ exit_scope_instr ];
+        }
+      in
       new_state
-  | "binop" ->
-      let frst = member "frst" comp in
-      let scnd = member "scnd" comp in
-      let sym = member "sym" comp |> to_string in
+  | BinOp { sym; frst; scnd} ->
       let frst_state = compile frst state in
       let sec_state = compile scnd frst_state in
       let new_instr = BINOP { sym } in
-      let new_state =
         {
           instrs = sec_state.instrs @ [ new_instr ];
           wc = sec_state.wc + 1;
           ce = sec_state.ce;
         }
-      in
-      new_state
-  | "unop" ->
-      let frst = member "frst" comp in
-      let sym = member "sym" comp |> to_string in
-      let frst_state = compile frst state in
-      let new_instr = UNOP { sym } in
-      let new_state =
-        {
-          instrs = frst_state.instrs @ [ new_instr ];
-          wc = frst_state.wc + 1;
-          ce = frst_state.ce;
-        }
-      in
-      new_state
-  | "seq" ->
-      let stmts = comp |> member "stmts" in
+  | Sequence stmts ->
       compile_sequence stmts state
-  | "let" ->
-      let sym = comp |> member "sym" |> to_string in
-      let state_after_expr = compile (member "expr" comp) state in
-      let pos = get_compile_time_environment_pos sym state_after_expr.ce in
-      let new_instr = ASSIGN pos in
-      let new_state =
-        { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
-      in
-      new_state
-  | "const" ->
-      let sym = comp |> member "sym" |> to_string in
-      let state_after_expr = compile (member "expr" comp) state in
-      let pos = get_compile_time_environment_pos sym state_after_expr.ce in
-      let new_instr = ASSIGN pos in
-      let new_state =
-        { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
-      in
-      new_state
-  | "nam" ->
-      let sym = comp |> member "sym" |> to_string in
+  | Let { sym } ->
       let pos = get_compile_time_environment_pos sym state.ce in
-      let new_state =
-          { state with instrs = state.instrs @ [ LD { sym; pos } ]; wc = state.wc + 1 }
-      in
-      new_state
-  | "lam" ->
-      let _ = Printf.printf "\n[Initial state] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state.instrs)) in
-      let prms = member "prms" comp in
-      let arity = match prms with `List l -> List.length l | _ -> 0 in
-      let loadFuncInstr = LDF {arity = arity; addr = wc + 2} in
-      let gotoInstrIndex = wc + 1 in (* Index where GOTO will be *)
-      let state_after_ldf_goto = {
-        state with
-        instrs = instrs @ [loadFuncInstr; GOTO 0];  (* add LDF, then GOTO 0 placeholder *)
-        wc = wc + 2
-      } in
-      let _ = Printf.printf "\n[After LDF+GOTO] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state_after_ldf_goto.instrs)) in
+      let new_instr = ASSIGN pos in
+        { state with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
+  | Nam sym ->
+      let pos = get_compile_time_environment_pos sym state.ce in
+      { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
+  (* | Ret expr -> *)
+      (* compile instruction which potentially loads into OS *)
+      (* let expr_state = compile expr state in
+      { state with instrs = expr_state.instrs @ [ RESET ] } *)
+      (* | "fun" -> 
+        (
+          let sym = comp |> member "sym" |> to_string in 
+          let prms = comp |> member "prms" in
+          let body = comp |> member "body" in 
+          let sym_pos = get_compile_time_environment_pos sym state.ce in
+          let new_instr = ASSIGN { pos=sym_pos } in
+          let new_state = { state with instrs = instrs @ [new_instr]; wc = wc + 1} *)
 
-      (* extend compile-time environment and compile body *)
-      let param_names = List.map (fun p -> member "name" p |> to_string) (to_list prms) in
-      let extended_ce = compile_time_environment_extend param_names state.ce in
-      let after_body_state = compile (member "body" comp) {state_after_ldf_goto with ce = extended_ce} in
-      let _ = Printf.printf "\n[After body compilation] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction after_body_state.instrs)) in
-      
-      (* add undefined and reset *)
-      let final_state = {after_body_state with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in
-      let _ = Printf.printf "\n[After adding Undefined+RESET] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction final_state.instrs)) in
-      
-      (* Update GOTO to point to instruction after the function body *)
-      let updated_instrs = 
-        List.mapi (fun i instr -> 
-          if i = gotoInstrIndex
-          then GOTO (final_state.wc)  (* Point to after all function instructions *)
-          else instr) 
-        final_state.instrs in
-      let new_state = {final_state with instrs = updated_instrs; wc = final_state.wc} in
-      let _ = Printf.printf "\n[Final state] instructions: %s\n\n" (String.concat ", " (List.map show_compiled_instruction new_state.instrs)) in
-      new_state
-  | "fun" ->
-      let _ = Printf.printf "\n[Fun Initial] instructions: %s\n" (String.concat ", " (List.map show_compiled_instruction state.instrs)) in
-      let params = member "prms" comp in
-      let name = member "sym" comp |> to_string in
-      let body = member "body" comp in
-      let assigned_lambda_expr =
-        `Assoc
-          [
-            ("tag", `String "let");
-            ("sym", `String name);
-            ("expr",
-              `Assoc
-                [ ("tag", `String "lam"); ("prms", params); ("body", body) ] );
-          ]
-      in
-      let final_state = compile assigned_lambda_expr state in
-      let _ = Printf.printf "\n[Fun Final] instructions: %s\n\n" (String.concat ", " (List.map show_compiled_instruction final_state.instrs)) in
-      final_state
-  | "ret" ->
-      let expr = member "expr" comp in
-      let state_after_expr = compile expr state in
-      (match member "tag" expr |> to_string with
-      | "app" ->
-          let new_instrs = 
-            List.mapi (fun i instr -> 
-              if i = List.length state_after_expr.instrs - 1 
-              then TAILCALL 
-              else instr) 
-            state_after_expr.instrs in
-          let new_state = {state_after_expr with instrs = new_instrs; wc = state_after_expr.wc + 1} in
-          new_state
-      | _ -> 
-          let reset_instr = RESET in
-          let new_state = {state_after_expr with instrs = state_after_expr.instrs @ [reset_instr]; wc = state_after_expr.wc + 1} in
-          new_state)
-  | other -> failwith (Printf.sprintf "Unexpected json tag %s" other)
+      (* ) *)
+  | other -> failwith (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other ))
 
-and compile comp ce = compile_comp comp ce
-
-(* "prms": [
-    {
-      "type": "Param",
-      "name": "n",
-      "paramType": {
-        "type": "BasicType",
-        "name": "i32"
-      },
-      "ownership": {
-        "ownership": "owned",
-        "mutability": "immutable"
-      }
-    }
-  ], *)
 and compile_sequence stmts state =
   match stmts with
-  | `List [] ->
+  | [] ->
       {
         state with
         instrs = state.instrs @ [ LDC Undefined ];
         wc = state.wc + 1;
       }
-  | `List [ single ] -> compile single state
-  | `List (hd :: tl) ->
+  | [ single ] -> compile single state
+  | hd :: tl ->
       let aft_hd_state = compile hd state in
       let aft_hd_with_pop_state =
         {
@@ -284,20 +142,12 @@ and compile_sequence stmts state =
           wc = aft_hd_state.wc + 1;
         }
       in
-      compile_sequence (`List tl) aft_hd_with_pop_state
-  | _ -> failwith "Expected a JSON list for sequence compilation"
-
-(* and compile_func_arg args state = 
-  match args with 
-  | `List [] -> state
-  | `List (hd::tl) -> 
-    let aft_hd_state = compile hd state in
-    compile_func_arg (`List tl) aft_hd_state
-  | _ -> failwith "Expected a JSON list for function argument compilation" *)
+      compile_sequence tl aft_hd_with_pop_state
 
 let string_of_instruction = show_compiled_instruction
 
 let compile_program json_str =
   let parsed_json = Yojson.Basic.from_string json_str in
-  let state = compile parsed_json initial_state in
+  let ast = Ast.of_json parsed_json in
+  let state = compile ast initial_state in
   state.instrs @ [ DONE ]
