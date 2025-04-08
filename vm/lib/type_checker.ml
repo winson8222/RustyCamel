@@ -14,7 +14,8 @@ let is_declaration node = match node with Ast.Let _ -> true | _ -> false
 let get_local_decls block_body =
   let open Ast in
   match block_body with
-  | Let { sym; declared_type; _ } -> [ (sym, declared_type) ]
+  | Let { sym; declared_type; _ } | Const { sym; declared_type; _ } ->
+      [ (sym, declared_type) ] (* TODO: Handle function *)
   | Sequence stmts ->
       List.filter (fun stmt -> is_declaration stmt) stmts
       |> List.map (fun node ->
@@ -43,7 +44,7 @@ let rec type_ast ast_node state =
       | Boolean _ -> Types.TBoolean
       | String _ -> Types.TString
       | Undefined -> Types.TUndefined)
-  | Let { sym; declared_type; expr } ->
+  | Let { declared_type; expr; _ } ->
       let actual_type = type_ast expr state in
       Printf.printf "actual type:%s " (Types.show_value_type actual_type);
       Printf.printf "declared type:%s " (Types.show_value_type declared_type);
@@ -52,8 +53,7 @@ let rec type_ast ast_node state =
           (Printf.sprintf "Type error: expected %s but got %s"
              (Types.show_value_type declared_type)
              (Types.show_value_type actual_type))
-    else Hashtbl.replace state.te sym actual_type;
-      actual_type
+      else actual_type
   | Block body ->
       let decls = get_local_decls body in
       extend_te decls te;

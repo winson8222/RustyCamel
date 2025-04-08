@@ -5,7 +5,7 @@ type ast_node =
   | Sequence of ast_node list
   | Let of { sym : string; declared_type : Types.value_type; expr : ast_node }
   | Ld of string
-  | Const of { sym : string }
+  | Const of { sym : string; declared_type : Types.value_type; expr : ast_node }
   | BinOp of { sym : string; frst : ast_node; scnd : ast_node }
   | Function of {
       sym : string;
@@ -39,7 +39,14 @@ let rec of_json json =
             json |> member "declared_type" |> to_string |> Types.of_string;
           expr = json |> member "expr" |> of_json;
         }
-  | "const" -> Const { sym = json |> member "sym" |> to_string }
+  | "const" ->
+      Const
+        {
+          sym = json |> member "sym" |> to_string;
+          declared_type =
+            json |> member "declared_type" |> to_string |> Types.of_string;
+          expr = json |> member "expr" |> of_json;
+        }
   | "binop" ->
       BinOp
         {
