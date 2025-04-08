@@ -7,8 +7,6 @@ let create () =
   let empty_te = Hashtbl.create guessed_max_var_count_per_scope in
   { te = empty_te; _parent = None }
 
-(* gets the symbols with the declared types *)
-
 let is_declaration node = match node with Ast.Let _ -> true | _ -> false
 
 let get_local_decls block_body =
@@ -46,8 +44,6 @@ let rec type_ast ast_node state =
       | Undefined -> Types.TUndefined)
   | Let { declared_type; expr; _ } ->
       let actual_type = type_ast expr state in
-      Printf.printf "actual type:%s " (Types.show_value_type actual_type);
-      Printf.printf "declared type:%s " (Types.show_value_type declared_type);
       if not (are_types_compatible actual_type declared_type) then
         failwith
           (Printf.sprintf "Type error: expected %s but got %s"
