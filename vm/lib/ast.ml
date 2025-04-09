@@ -12,7 +12,7 @@ type ast_node =
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Nam of string
   | Ret of ast_node
-  | App of { func : ast_node; args : ast_node list }
+  | App of { fun_nam : ast_node; args : ast_node list }
 [@@deriving show]
 
 let rec of_json json =
@@ -61,18 +61,22 @@ let rec of_json json =
   | "nam" -> Nam (member "sym" json |> to_string)
   | "fun" ->
       let sym = json |> member "sym" |> to_string in
-      let prms = json |> member "prms" |> to_list |> List.map (fun p -> p |> member "name" |> to_string) in
+      let prms =
+        json |> member "prms" |> to_list
+        |> List.map (fun p -> p |> member "name" |> to_string)
+      in
       let body = json |> member "body" |> of_json in
       Fun { sym; prms; body }
   | "lam" ->
-      let prms = json |> member "prms" |> to_list |> List.map (fun p -> p |> member "name" |> to_string) in
+      let prms =
+        json |> member "prms" |> to_list
+        |> List.map (fun p -> p |> member "name" |> to_string)
+      in
       let body = json |> member "body" |> of_json in
       Lam { prms; body }
   | "ret" -> Ret (json |> member "expr" |> of_json)
   | "app" ->
-      let fun_expr = json |> member "fun" |> of_json in
+      let fun_nam = json |> member "fun" |> of_json in
       let args = json |> member "args" |> to_list |> List.map of_json in
-      App { func = fun_expr; args }
+      App { fun_nam; args }
   | tag -> failwith ("Unknown tag: " ^ tag)
-
-

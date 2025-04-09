@@ -171,9 +171,9 @@ let rec compile node state =
           {state_after_expr with instrs = new_instrs;}
       | _ -> 
           {state_after_expr with instrs = state_after_expr.instrs @ [RESET]; wc = state_after_expr.wc + 1})
-  | App { func; args } ->
+  | App { fun_nam; args } ->
       (* Compile the function expression *)
-      let state_after_fun = compile func state in
+      let state_after_fun = compile fun_nam state in
       
       (* Compile each argument *)
       let state_after_args = List.fold_left (fun state arg ->
