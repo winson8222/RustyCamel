@@ -6,6 +6,7 @@ type ast_node =
   | While of { pred : ast_node; body : ast_node }
   | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
+  | Assign of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
   | Lam of { prms : string list; body : ast_node }
@@ -85,4 +86,10 @@ let rec of_json json =
       let fun_nam = json |> member "fun" |> of_json in
       let args = json |> member "args" |> to_list |> List.map of_json in
       App { fun_nam; args }
+  | "assmt" ->
+      Assign
+        {
+          sym = json |> member "sym" |> to_string;
+          expr = json |> member "expr" |> of_json;
+        }
   | tag -> failwith ("Unknown tag: " ^ tag)

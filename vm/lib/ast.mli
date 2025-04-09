@@ -6,6 +6,7 @@ type ast_node =
   | While of { pred : ast_node; body : ast_node }
   | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
+  | Assign of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
   | Lam of { prms : string list; body : ast_node }
