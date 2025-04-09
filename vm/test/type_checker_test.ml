@@ -55,6 +55,48 @@ let test_fun_fails () =
   let expected = Error "Return types are not compatible" in
   Alcotest.(check (result unit string)) "test" expected actual
 
+let test_binop_mismatched_operands_fails () =
+  let tc = create () in
+  let open Vm.Ast in
+  let node =
+    Block
+      (Sequence
+         [
+           Binop
+             {
+               sym = "+";
+               frst = Literal (Int 1);
+               scnd = Literal (Boolean false);
+             };
+         ])
+  in
+  let actual = check_type node tc in
+  let expected =
+    Error "Operand types for binop expression are not compatible"
+  in
+  Alcotest.(check (result unit string)) "test" expected actual
+
+let test_binop_matching_operands_succeeds () =
+  let tc = create () in
+  let open Vm.Ast in
+  let node =
+    Block
+      (Sequence
+         [
+           Binop
+             {
+               sym = "+";
+               frst = Literal (Int 1);
+               scnd = Literal (Int 5);
+             };
+         ])
+  in
+  let actual = check_type node tc in
+  let expected =
+    Ok ()
+  in
+  Alcotest.(check (result unit string)) "test" expected actual
+
 let () =
   let open Alcotest in
   run "Type checker Tests"
@@ -65,5 +107,9 @@ let () =
           test_case "Literal int" `Quick test_match_int_succeeds;
           test_case "Function that returns int" `Quick test_fun_succeeds;
           test_case "Function that returns when shouldnt'" `Quick test_fun_fails;
+          test_case "Binop mismatched operands" `Quick
+            test_binop_mismatched_operands_fails;
+            test_case "Binop matching operands" `Quick
+            test_binop_matching_operands_succeeds;
         ] );
     ]

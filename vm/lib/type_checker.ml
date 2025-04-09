@@ -106,6 +106,13 @@ let rec type_ast ast_node context =
           if not (are_types_compatible ret_type er) then
             failwith "Return types are not compatible"
           else ret_type)
+  | Binop { frst; scnd; _ } ->
+      (*TODO: Add sym is valid for operand type*)
+      let frst_type = type_ast frst context in
+      let scnd_type = type_ast scnd context in
+      if not (are_types_compatible frst_type scnd_type) then
+        failwith "Operand types for binop expression are not compatible"
+      else frst_type
   | _ -> Types.TInt
 
 let check_type ast_node context =
