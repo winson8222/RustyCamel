@@ -4,6 +4,7 @@ type compiled_instruction =
   | LDC of Value.lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
+  | JOF of int
   | BINOP of { sym : string }
   | UNOP of { sym : string }
   | ASSIGN of pos_in_env
@@ -185,6 +186,23 @@ let rec compile node state =
       { state_after_args with 
         instrs = state_after_args.instrs @ [new_instr]; 
         wc = state_after_args.wc + 1 }
+  | While { pred; body } ->
+      let start_wc = state.wc in
+      let state_after_pred = compile pred state in
+      let jof_instrs = JOF 0 in
+      let jof_wc = state_after_pred.wc in
+      let state_after_jof = {state_after_pred with instrs = state_after_pred.instrs @ [jof_instrs]; wc = jof_wc + 1} in
+      let state_after_body = compile body state_after_jof in
+      let pop_instrs = POP in
+      let goto_instrs = GOTO start_wc in
+      let state_after_pop_goto = {state_after_body with instrs = state_after_body.instrs @ [pop_instrs; goto_instrs]; wc = state_after_body.wc + 2} in
+      let changed_jof_instrs = List.mapi (fun i instr -> 
+        if i = jof_wc
+        then JOF (state_after_pop_goto.wc)
+        else instr)
+      state_after_pop_goto.instrs in
+      let state_after_pop_goto = {state_after_pop_goto with instrs = changed_jof_instrs @ [LDC Undefined]; wc = state_after_pop_goto.wc + 1} in
+      state_after_pop_goto
   | other ->
       failwith
         (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))

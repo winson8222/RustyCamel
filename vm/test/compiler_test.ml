@@ -532,6 +532,37 @@ let test_nested_function_calls () =
   ] in
   check_instr_list "nested function calls with tail call" expected result
 
+let test_while_loop () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "while",
+        "pred": {
+          "tag": "lit",
+          "val": false
+        },
+        "body": {
+          "tag": "lit",
+          "val": 1
+        }
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected = [
+    ENTER_SCOPE { num = 0 };
+    LDC (Boolean false);
+    JOF 6;
+    LDC (Int 1);
+    POP;
+    GOTO 1;
+    LDC Undefined;
+    EXIT_SCOPE;
+    DONE
+  ] in
+  check_instr_list "while loop with false predicate" expected result
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -554,5 +585,6 @@ let () =
           test_case "function with block and const" `Quick test_function_with_block_and_const;
           test_case "function application" `Quick test_function_application;
           test_case "nested function calls with tail call" `Quick test_nested_function_calls;
+          test_case "while loop" `Quick test_while_loop;
         ] );
     ]
