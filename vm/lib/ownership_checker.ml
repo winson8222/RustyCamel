@@ -6,6 +6,18 @@ type t = { sym_table : symbol_table; _parent : t option }
 
 let guessed_max_var_count_per_scope = 10
 
+let rec lookup_symbol sym state =
+  match Hashtbl.find_opt state.sym_table sym with
+  | Some s -> Some s
+  | None -> (
+      match state._parent with
+      | Some parent -> lookup_symbol sym parent
+      | None -> None)
+
+let extend_scope parent =
+  let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
+  { sym_table; _parent = Some parent }
+
 let create () =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
   (* Example usage of Owned to avoid unused constructor warning *)
@@ -25,7 +37,7 @@ let rec check_ownership ast_node state =
   in
 
   let handle_variable_borrow sym borrow_status =
-    match Hashtbl.find_opt state.sym_table sym with
+    match lookup_symbol sym state with
     | Some status -> check_borrow_is_valid borrow_status status
     | None ->
         Hashtbl.replace state.sym_table sym borrow_status;
@@ -48,5 +60,9 @@ let rec check_ownership ast_node state =
             | Error _ as e -> e)
       in
       check_all stmts
+  | Block body ->
+      let new_state = extend_scope state in
+      let res = check_ownership body new_state in
+      res
   | BorrowExpr _ -> failwith "No support for borrowing of non-variables"
   | _ -> Ok ()
