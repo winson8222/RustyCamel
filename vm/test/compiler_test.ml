@@ -176,16 +176,9 @@ let test_function_with_params () =
         "tag": "fun",
         "sym": "f",
         "prms": [
-          {
-            "name": "x",
-            "paramType": { "type": "i32", "ownership": "owned" }
-          },
-          {
-            "name": "y",
-            "paramType": { "type": "i32", "ownership": "borrowed" }
-          }
+          { "name": "x" },
+          { "name": "y" }
         ],
-        "retType": { "type": "i32", "ownership": "owned" },
         "body": {
           "tag": "blk",
           "body": {
@@ -219,7 +212,7 @@ let test_function_with_params () =
       DONE;
     ]
   in
-  check_instr_list "function declaration with parameters and types" expected result
+  check_instr_list "function declaration with parameters" expected result
 
 let test_function_with_binop () =
   let json =
@@ -229,10 +222,9 @@ let test_function_with_binop () =
         "tag": "fun",
         "sym": "f",
         "prms": [
-          { "name": "x", "paramType": { "type": "i32", "ownership": "owned" } },
-          { "name": "y", "paramType": { "type": "i32", "ownership": "borrowed" } }
+          { "name": "x" },
+          { "name": "y" }
         ],
-        "retType": { "type": "i32", "ownership": "owned" },
         "body": {
           "tag": "blk",
           "body": {
@@ -280,16 +272,9 @@ let test_function_with_block_and_const () =
         "tag": "fun",
         "sym": "f",
         "prms": [
-          {
-            "name": "x",
-            "paramType": { "type": "i32", "ownership": "owned" }
-          },
-          {
-            "name": "y",
-            "paramType": { "type": "i32", "ownership": "borrowed" }
-          }
+          { "name": "x" },
+          { "name": "y" }
         ],
-        "retType": { "type": "i32", "ownership": "owned" },
         "body": {
           "tag": "blk",
           "body": {
@@ -342,7 +327,6 @@ let test_function_with_block_and_const () =
   in
   check_instr_list "function with block and const" expected result
 
-(* Add test case for function application *)
 let test_function_application () =
   let json =
     {|{
@@ -354,16 +338,9 @@ let test_function_application () =
             "tag": "fun",
             "sym": "f",
             "prms": [
-              {
-                "name": "x",
-                "paramType": { "type": "i32", "ownership": "owned" }
-              },
-              {
-                "name": "y",
-                "paramType": { "type": "i32", "ownership": "borrowed" }
-              }
+              { "name": "x" },
+              { "name": "y" }
             ],
-            "retType": { "type": "i32", "ownership": "owned" },
             "body": {
               "tag": "blk",
               "body": {
@@ -424,12 +401,8 @@ let test_nested_function_calls () =
             "tag": "fun",
             "sym": "k",
             "prms": [
-              {
-                "name": "x",
-                "paramType": { "type": "i32", "ownership": "owned" }
-              }
+              { "name": "x" }
             ],
-            "retType": { "type": "i32", "ownership": "owned" },
             "body": {
               "tag": "ret",
               "expr": {
@@ -442,12 +415,8 @@ let test_nested_function_calls () =
             "tag": "fun",
             "sym": "g",
             "prms": [
-              {
-                "name": "x",
-                "paramType": { "type": "i32", "ownership": "owned" }
-              }
+              { "name": "x" }
             ],
-            "retType": { "type": "i32", "ownership": "owned" },
             "body": {
               "tag": "ret",
               "expr": {
@@ -460,16 +429,9 @@ let test_nested_function_calls () =
             "tag": "fun",
             "sym": "f",
             "prms": [
-              {
-                "name": "x",
-                "paramType": { "type": "i32", "ownership": "owned" }
-              },
-              {
-                "name": "y",
-                "paramType": { "type": "i32", "ownership": "borrowed" }
-              }
+              { "name": "x" },
+              { "name": "y" }
             ],
-            "retType": { "type": "i32", "ownership": "owned" },
             "body": {
               "tag": "blk",
               "body": {
@@ -587,15 +549,10 @@ let () =
           test_case "Unary minus" `Quick test_unary_minus;
           test_case "Unary not" `Quick test_unary_not;
           test_case "Function with no parameters" `Quick test_function_no_params;
-          test_case "Function with parameters and types" `Quick
-            test_function_with_params;
-          test_case "function with binop parameters" `Quick
-            test_function_with_binop;
-          test_case "function with block and const" `Quick
-            test_function_with_block_and_const;
-          test_case "function application" `Quick
-            test_function_application;
-          test_case "nested function calls with tail call" `Quick
-            test_nested_function_calls;
+          test_case "Function with parameters" `Quick test_function_with_params;
+          test_case "function with binop parameters" `Quick test_function_with_binop;
+          test_case "function with block and const" `Quick test_function_with_block_and_const;
+          test_case "function application" `Quick test_function_application;
+          test_case "nested function calls with tail call" `Quick test_nested_function_calls;
         ] );
     ]

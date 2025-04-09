@@ -138,12 +138,12 @@ let rec compile node state =
       } in
 
       (* extend compile-time environment and compile body *)
-      let param_names = List.map (fun p -> p.name) prms in
+      let param_names = prms in
       let extended_ce = compile_time_environment_extend param_names state.ce in
       let after_body_state = compile body {state_after_ldf_goto with ce = extended_ce} in
       
       (* add undefined and reset *)
-      let final_state = {after_body_state with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in
+      let final_state = {state_after_ldf_goto with instrs = after_body_state.instrs @ [LDC Undefined; RESET]; wc = after_body_state.wc + 2} in
       
       (* Update GOTO to point to instruction after the function body *)
       let updated_instrs = 
@@ -153,7 +153,7 @@ let rec compile node state =
           else instr) 
         final_state.instrs in
       {final_state with instrs = updated_instrs}
-  | Fun { sym; prms; ret_type = _; body } ->
+  | Fun { sym; prms; body } ->
       compile (Let { sym; expr = Lam { prms; body } }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
@@ -161,7 +161,7 @@ let rec compile node state =
   | Ret expr ->
       let state_after_expr = compile expr state in
       (match expr with
-      | App ({ func = _; args }) ->
+      | App { args; _ } ->
           let new_instrs = 
             List.mapi (fun i instr -> 
               if i = List.length state_after_expr.instrs - 1 
@@ -171,7 +171,7 @@ let rec compile node state =
           {state_after_expr with instrs = new_instrs;}
       | _ -> 
           {state_after_expr with instrs = state_after_expr.instrs @ [RESET]; wc = state_after_expr.wc + 1})
-  | App ({ func; args }) ->
+  | App { func; args } ->
       (* Compile the function expression *)
       let state_after_fun = compile func state in
       
