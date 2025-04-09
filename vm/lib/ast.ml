@@ -10,7 +10,7 @@ type ast_node =
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Nam of string
   | Ret of ast_node
-  | App of { func : ast_node; args : ast_node list }
+  | App of { fun_nam : ast_node; args : ast_node list }
   | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
 
@@ -37,7 +37,7 @@ type typed_ast =
     }
   | Nam of string
   | Ret of typed_ast
-  | App of { func : typed_ast; args : typed_ast list }
+  | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
 
 (* Produces typed ast *)
@@ -108,9 +108,9 @@ let rec of_json json =
       Lam { prms; body }
   | "ret" -> Ret (json |> member "expr" |> of_json)
   | "app" ->
-      let fun_expr = json |> member "fun" |> of_json in
+      let fun_nam = json |> member "fun" |> of_json in
       let args = json |> member "args" |> to_list |> List.map of_json in
-      App { func = fun_expr; args }
+      App { fun_nam; args }
   | tag -> failwith ("Unknown tag: " ^ tag)
 
 let rec strip_types (ast : typed_ast) : ast_node =
@@ -130,5 +130,5 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
   | Nam sym -> Nam sym
   | Ret expr -> Ret (strip_types expr)
-  | App { func; args } ->
-      App { func = strip_types func; args = List.map strip_types args }
+  | App { fun_nam; args } ->
+      App { fun_nam = strip_types fun_nam; args = List.map strip_types args }

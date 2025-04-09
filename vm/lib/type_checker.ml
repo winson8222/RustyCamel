@@ -21,22 +21,25 @@ let rec lookup_table sym state =
       match state.parent with None -> None | Some p -> lookup_table sym p)
   | Some typ -> Some typ
 
-let is_declaration node = match node with Ast.Let _ -> true | _ -> false
+let is_declaration node =
+  let open Ast in
+  match node with Let _ | Const _ | Fun _ -> true | _ -> false
 
 let get_local_decls block_body =
   let open Ast in
+  let get_single_decl node =
+    match node with
+    | Let { sym; declared_type; _ }
+    | Const { sym; declared_type; _ }
+    | Fun { sym; declared_type; _ } ->
+        (sym, declared_type)
+    | _ -> failwith "No declaration for this type"
+  in
   match block_body with
-  | Let { sym; declared_type; _ }
-  | Const { sym; declared_type; _ }
-  | Fun { sym; declared_type; _ } ->
-      [ (sym, declared_type) ]
   | Sequence stmts ->
       List.filter (fun stmt -> is_declaration stmt) stmts
-      |> List.map (fun node ->
-             match node with
-             | Let { sym; declared_type; _ } -> (sym, declared_type)
-             | _ -> failwith "unrecognized")
-  | _ -> []
+      |> List.map (fun node -> get_single_decl node)
+  | _ -> [ get_single_decl block_body ]
 
 let rec extend_te decls te =
   match decls with
@@ -48,8 +51,15 @@ let rec extend_te decls te =
 
 let are_types_compatible t1 t2 = t1 = t2
 
+let lookup_fun_type sym state =
+  match lookup_table sym state with
+  | Some (TFunction value) -> value
+  | Some other ->
+      failwith
+        (Printf.sprintf "Unexpected type: %s" (Types.show_value_type other))
+  | None -> failwith "No sym found in type env"
+
 let rec type_ast ast_node context =
-  let te = context.te in
   let open Ast in
   match ast_node with
   | Literal lit -> (
@@ -68,7 +78,13 @@ let rec type_ast ast_node context =
       else actual_type
   | Block body ->
       let decls = get_local_decls body in
-      extend_te decls te;
+      Printf.printf "decls: %s"
+        (String.concat ", "
+           (List.map
+              (fun (sym, typ) ->
+                Printf.sprintf "(%s, %s)" sym (Types.show_value_type typ))
+              decls));
+      extend_te decls context.te;
       type_ast body context
   | Sequence stmts ->
       let rec check_sequence stmts =
@@ -85,11 +101,7 @@ let rec type_ast ast_node context =
       in
       check_sequence stmts
   | Fun { sym; body; _ } ->
-      let fun_type =
-        match lookup_table sym context with
-        | Some (Types.TFunction value) -> value
-        | _ -> failwith "Expect sym"
-      in
+      let fun_type = lookup_fun_type sym context in
       let fun_context = { context with expected_return = Some fun_type.ret } in
       let body_type = type_ast body fun_context in
       if not (are_types_compatible fun_type.ret body_type) then
@@ -113,6 +125,27 @@ let rec type_ast ast_node context =
       if not (are_types_compatible frst_type scnd_type) then
         failwith "Operand types for binop expression are not compatible"
       else frst_type
+  | App { fun_nam; args } ->
+      let fun_sym =
+        match fun_nam with
+        | Nam n -> n
+        | _ -> failwith "Fun should be of type Nam"
+      in
+      let fun_type = lookup_fun_type fun_sym context in
+      let declared_prm_types = fun_type.prms in
+      let args_types = List.map (fun arg -> type_ast arg context) args in
+
+      let rec check_all_types prms args =
+        match (prms, args) with
+        | [], [] -> ()
+        | prm :: rest_prms, arg :: rest_args ->
+            if not (are_types_compatible prm arg) then
+              failwith "Types of arg and parm are not compatible"
+            else check_all_types rest_prms rest_args
+        | _ -> failwith "mismatched length between args and parms"
+      in
+      check_all_types declared_prm_types args_types;
+      fun_type.ret
   | _ -> Types.TInt
 
 let check_type ast_node context =

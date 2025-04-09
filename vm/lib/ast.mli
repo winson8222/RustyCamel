@@ -10,10 +10,9 @@ type ast_node =
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Nam of string
   | Ret of ast_node
-  | App of { func : ast_node; args : ast_node list }
+  | App of { fun_nam : ast_node; args : ast_node list }
   | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
-
 
 
 type typed_ast =
@@ -35,7 +34,7 @@ type typed_ast =
     }
   | Nam of string
   | Ret of typed_ast
-  | App of { func : typed_ast; args : typed_ast list }
+  | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
 
 

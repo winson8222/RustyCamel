@@ -55,6 +55,48 @@ let test_fun_fails () =
   let expected = Error "Return types are not compatible" in
   Alcotest.(check (result unit string)) "test" expected actual
 
+let test_fun_compatible_prms_args_succeeds () =
+  let tc = create () in
+  let open Vm.Ast in
+  let node =
+    Block
+      (Sequence
+         [
+           Fun
+             {
+               sym = "f";
+               prms = [ "a" ];
+               declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+               body = Ret (Literal (Int 1));
+             };
+           App { fun_nam = Nam "f"; args = [ Literal (Int 1) ] };
+         ])
+  in
+  let actual = check_type node tc in
+  let expected = Ok () in
+  Alcotest.(check (result unit string)) "test" expected actual
+
+let test_fun_uncompatible_prms_args_fails () =
+  let tc = create () in
+  let open Vm.Ast in
+  let node =
+    Block
+      (Sequence
+         [
+           Fun
+             {
+               sym = "f";
+               prms = [ "a" ];
+               declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+               body = Ret (Literal (Int 1));
+             };
+           App { fun_nam = Nam "f"; args = [ Literal (Boolean true) ] };
+         ])
+  in
+  let actual = check_type node tc in
+  let expected = Error "Types of arg and parm are not compatible" in
+  Alcotest.(check (result unit string)) "test" expected actual
+
 let test_binop_mismatched_operands_fails () =
   let tc = create () in
   let open Vm.Ast in
@@ -82,19 +124,10 @@ let test_binop_matching_operands_succeeds () =
   let node =
     Block
       (Sequence
-         [
-           Binop
-             {
-               sym = "+";
-               frst = Literal (Int 1);
-               scnd = Literal (Int 5);
-             };
-         ])
+         [ Binop { sym = "+"; frst = Literal (Int 1); scnd = Literal (Int 5) } ])
   in
   let actual = check_type node tc in
-  let expected =
-    Ok ()
-  in
+  let expected = Ok () in
   Alcotest.(check (result unit string)) "test" expected actual
 
 let () =
@@ -109,7 +142,11 @@ let () =
           test_case "Function that returns when shouldnt'" `Quick test_fun_fails;
           test_case "Binop mismatched operands" `Quick
             test_binop_mismatched_operands_fails;
-            test_case "Binop matching operands" `Quick
+          test_case "Binop matching operands" `Quick
             test_binop_matching_operands_succeeds;
+          test_case "compatible prms args fun" `Quick
+            test_fun_compatible_prms_args_succeeds;
+          test_case "uncompatible prms args" `Quick
+            test_fun_uncompatible_prms_args_fails;
         ] );
     ]
