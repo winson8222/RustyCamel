@@ -37,7 +37,7 @@ let find_index f ls =
 let rec scan_for_locals node =
   let open Ast in
   match node with
-  | Let { sym }
+  | Let { sym; _ }
   | Const { sym }
   | Function { sym; params = _; body = _ } ->
       [ sym ]
@@ -101,7 +101,7 @@ let rec compile node state =
         }
   | Sequence stmts ->
       compile_sequence stmts state
-  | Let { sym } ->
+  | Let { sym; _ } ->
       let pos = get_compile_time_environment_pos sym state.ce in
       let new_instr = ASSIGN pos in
         { state with instrs = instrs @ [ new_instr ]; wc = wc + 1 }
