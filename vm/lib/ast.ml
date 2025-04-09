@@ -97,9 +97,7 @@ let rec of_json json =
         |> List.map (fun p -> p |> member "name" |> to_string)
       in
       let body = json |> member "body" |> of_json in
-      let declared_type =
-        json |> member "declared_type" |> Types.of_json
-      in
+      let declared_type = json |> member "declared_type" |> Types.of_json in
       Fun { sym; prms; body; declared_type }
   | "lam" ->
       let prms =
@@ -121,28 +119,16 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Variable sym -> Variable sym
   | Block body -> Block (strip_types body)
   | Sequence stmts -> Sequence (List.map strip_types stmts)
-  | Let { sym; expr; _ } ->
-      Let { sym; expr = strip_types expr }
-      (* Strip type from the expression in the Let *)
-  | Ld sym ->
-      Variable sym (* Ld in typed_ast corresponds to Variable in core_ast *)
-  | Const { sym; expr; _ } ->
-      Let { sym; expr = strip_types expr }
-      (* Const also corresponds to Let in core_ast *)
+  | Let { sym; expr; _ } -> Let { sym; expr = strip_types expr }
+  | Ld sym -> Variable sym
+  | Const { sym; expr; _ } -> Let { sym; expr = strip_types expr }
   | Binop { sym; frst; scnd } ->
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
-      (* Strip types from operands in the Binop *)
-  | Unop { sym; frst } ->
-      Unop { sym; frst = strip_types frst }
-      (* Strip type from operand in the Unop *)
+  | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
   | Lam { prms; body } ->
       Fun { sym = "anonymous"; prms; body = strip_types body }
-      (* Convert Lam to Function *)
-  | Fun { sym; prms; body; _ } ->
-      Fun { sym; prms; body = strip_types body } (* Fun to Function *)
-  | Nam sym -> Nam sym (* Just return the name (no type info) *)
-  | Ret expr ->
-      Ret (strip_types expr) (* Return with stripped type expression *)
+  | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
+  | Nam sym -> Nam sym
+  | Ret expr -> Ret (strip_types expr)
   | App { func; args } ->
       App { func = strip_types func; args = List.map strip_types args }
-(* Strip types from the function and arguments in the App *)
