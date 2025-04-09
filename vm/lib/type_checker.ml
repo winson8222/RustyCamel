@@ -28,7 +28,7 @@ let get_local_decls block_body =
   match block_body with
   | Let { sym; declared_type; _ }
   | Const { sym; declared_type; _ }
-  | Function { sym; declared_type; _ } ->
+  | Fun { sym; declared_type; _ } ->
       [ (sym, declared_type) ]
   | Sequence stmts ->
       List.filter (fun stmt -> is_declaration stmt) stmts
@@ -84,7 +84,7 @@ let rec type_ast ast_node context =
             check_sequence rest
       in
       check_sequence stmts
-  | Function { sym; body; _ } ->
+  | Fun { sym; body; _ } ->
       let fun_type =
         match lookup_table sym context with
         | Some (Types.TFunction value) -> value

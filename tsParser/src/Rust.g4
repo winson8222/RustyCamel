@@ -16,7 +16,7 @@ statement
 
 // === Let Declaration ===
 letDecl
-    : 'let' 'mut'? IDENTIFIER (':' typeExpr)? ('=' expr)?
+    : 'let' MUT? IDENTIFIER (':' typeExpr)? ('=' expr)?
     ;
 
 // === Function Declaration ===
@@ -54,7 +54,7 @@ exprBinary
 exprUnary
     : '-' exprUnary                    #UnaryNegation
     | '!' exprUnary                    #UnaryNot
-    | '&' 'mut'? exprUnary             #BorrowExpr
+    | REF MUT? exprUnary               #BorrowExpr
     | exprAtom                         #UnaryToAtom
     ;
 
@@ -72,7 +72,7 @@ binOp: '+' | '-' | '*' | '/' | '==' | '!=' | '<' | '<=' | '>' | '>=';
 
 // === Types ===
 typeExpr
-    : '&' 'mut'? IDENTIFIER            #RefType
+    : REF MUT? IDENTIFIER              #RefType
     | IDENTIFIER                       #BasicType
     ;
 
@@ -86,6 +86,8 @@ literal
     ;
 
 // === Lexer Rules ===
+MUT: 'mut';
+REF: '&';
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;
 
 INT: [0-9]+;

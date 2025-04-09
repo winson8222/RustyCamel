@@ -26,10 +26,10 @@ let test_fun_succeeds () =
   let open Vm.Ast in
   let node =
     Block
-      (Function
+      (Fun
          {
            sym = "f";
-           params = [ "a" ];
+           prms = [ "a" ];
            declared_type = TFunction { ret = TInt; prms = [ TInt ] };
            body = Ret (Literal (Int 1));
          })
@@ -38,23 +38,22 @@ let test_fun_succeeds () =
   let expected = Ok () in
   Alcotest.(check (result unit string)) "test" expected actual
 
-  let test_fun_fails () =
-    let tc = create () in
-    let open Vm.Ast in
-    let node =
-      Block
-        (Function
-           {
-             sym = "f";
-             params = [ "a" ];
-             declared_type = TFunction { ret = TUndefined; prms = [ TInt ] };
-             body = Ret (Literal (Int 1));
-           })
-    in
-    let actual = check_type node tc in
-    let expected = Error  "Return types are not compatible" in
-    Alcotest.(check (result unit string)) "test" expected actual
-  
+let test_fun_fails () =
+  let tc = create () in
+  let open Vm.Ast in
+  let node =
+    Block
+      (Fun
+         {
+           sym = "f";
+           prms = [ "a" ];
+           declared_type = TFunction { ret = TUndefined; prms = [ TInt ] };
+           body = Ret (Literal (Int 1));
+         })
+  in
+  let actual = check_type node tc in
+  let expected = Error "Return types are not compatible" in
+  Alcotest.(check (result unit string)) "test" expected actual
 
 let () =
   let open Alcotest in
