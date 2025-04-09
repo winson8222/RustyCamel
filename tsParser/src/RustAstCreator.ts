@@ -23,39 +23,17 @@ import {
 } from './parser/src/RustParser.js';
 
 
-class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisitor<any> {
-    // visitChildren(node: any): any {
-    //     console.log("Visiting children of:", node.constructor.name);
-    //     const result: any = {
-    //         type: node.constructor.name,
-    //         children: []
-    //     };
-
-    //     for (let i = 0; i < node.getChildCount(); i++) {
-    //         const child = node.getChild(i);
-    //         if (child) {
-    //             const childResult = this.visit(child);
-    //             if (childResult !== null) {
-    //                 result.children.push(childResult);
-    //             }
-    //         }
-    //     }
-
-    //     // If there are no children, include the text content
-    //     if (result.children.length === 0 && node.getText()) {
-    //         result.text = node.getText();
-    //     }
-
-    //     return result;
-    // }
-
-    visitProgram(ctx: any): any {
-        console.log("Visiting Program");
-        return {
-            type: 'Program',
-            statements: ctx.statement().map((stmt: any) => this.visit(stmt))
-        };
-    }
+class RustAstVisitor
+  extends AbstractParseTreeVisitor<any>
+  implements RustVisitor<any>
+{
+  visitProgram(ctx: any): any {
+    console.log("Visiting Program");
+    return {
+      type: "Program",
+      statements: ctx.statement().map((stmt: any) => this.visit(stmt)),
+    };
+  }
 
     visitStatement(ctx: any): any {
         if (ctx.letDecl()) {
@@ -69,7 +47,7 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         } else if (ctx.block()) {
             return this.visit(ctx.block());
         } else if (ctx.expr()) {
-            return this.visit(ctx.expr()); // ← this line is catching it
+            return this.visit(ctx.expr()); 
         } else if (ctx.returnExpr()) {
             return this.visit(ctx.returnExpr());
         }
@@ -77,11 +55,13 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
     }
 
     visitLetDecl(ctx: any): any {
+        // Does not handle this case: let ref x = 10; 
         console.log("Visiting Let Declaration");
         return {
             type: 'LetDecl',
             name: ctx.IDENTIFIER().getText(),
-            value: ctx.expr() ? this.visit(ctx.expr()) : null
+            value: ctx.expr() ? this.visit(ctx.expr()) : null,
+            isMutable: ctx.MUT() !== null,
         };
     }
 
@@ -107,7 +87,7 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         return {
             type: 'Param',
             name: ctx.IDENTIFIER().getText(),
-            paramType: this.visit(ctx.typeExpr())
+            paramType: this.visit(ctx.typeExpr()),
         };
     }
 
@@ -207,7 +187,7 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         } else if (ctx instanceof BorrowExprContext) {
             return {
                 type: 'BorrowExpr',
-                mutable: ctx.getText().includes('mut'),
+                mutable: ctx.MUT() !== null,
                 expr: this.visit(ctx.exprUnary())
             };
         } else if (ctx instanceof UnaryToAtomContext) {
@@ -267,7 +247,7 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         console.log("Visiting RefType");
         return {
             type: 'RefType',
-            mutable: ctx.getText().includes('mut'),
+            isMutable: ctx.MUT() !== null,
             baseType: ctx.IDENTIFIER().getText()
         };
     }
@@ -301,9 +281,6 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         };
     }
 
-
- 
-    
     visitUnaryNegation(ctx: UnaryNegationContext): any {
         console.log("Visiting Unary Negation");
         return {
@@ -324,7 +301,7 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
         console.log("Visiting Borrow Expression");
         return {
             type: 'BorrowExpr',
-            mutable: ctx.getText().includes('mut'),
+            isMutable: ctx.MUT() !== null,
             expr: this.visit(ctx.exprUnary())
         };
     }
@@ -358,31 +335,31 @@ class RustAstVisitor extends AbstractParseTreeVisitor<any> implements RustVisito
     }
     
 
-    protected defaultResult(): any {
-        return null;
-    }
-} 
+  protected defaultResult(): any {
+    return null;
+  }
+}
 
 export class RustAstCreator {
-    private visitor: RustAstVisitor;
+  private visitor: RustAstVisitor;
 
-    constructor() {
-        this.visitor = new RustAstVisitor();
-    }
+  constructor() {
+    this.visitor = new RustAstVisitor();
+  }
 
-    createAst(input: string): any {
-        const inputStream = CharStream.fromString(input);
-        const lexer = new RustLexer(inputStream);
-        const tokenStream = new CommonTokenStream(lexer);
-        const parser = new RustParser(tokenStream);
-        const tree = parser.program();
-        const ast = tree.accept(this.visitor);
-        // return normalizeRustAst(ast);
-        return ast;
-    }
+  createAst(input: string): any {
+    const inputStream = CharStream.fromString(input);
+    const lexer = new RustLexer(inputStream);
+    const tokenStream = new CommonTokenStream(lexer);
+    const parser = new RustParser(tokenStream);
+    const tree = parser.program();
+    const ast = tree.accept(this.visitor);
+    // return normalizeRustAst(ast);
+    return ast;
+  }
 
-    async createAstFromFile(filePath: string): Promise<any> {
-        const content = await readFile(filePath, 'utf-8');
-        return this.createAst(content);
-    }
+  async createAstFromFile(filePath: string): Promise<any> {
+    const content = await readFile(filePath, "utf-8");
+    return this.createAst(content);
+  }
 }
