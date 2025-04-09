@@ -3,6 +3,7 @@ type ast_node =
   | Variable of string
   | Block of ast_node
   | Sequence of ast_node list
+  | While of { pred : ast_node; body : ast_node }
   | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
@@ -73,6 +74,12 @@ let rec of_json json =
       in
       let body = json |> member "body" |> of_json in
       Lam { prms; body }
+  | "while" ->
+      While
+        {
+          pred = json |> member "pred" |> of_json;
+          body = json |> member "body" |> of_json;
+        }
   | "ret" -> Ret (json |> member "expr" |> of_json)
   | "app" ->
       let fun_nam = json |> member "fun" |> of_json in
