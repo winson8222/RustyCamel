@@ -15,11 +15,25 @@ let create () =
     expected_return = None;
   }
 
+(* Adds new empty frame*)
+let extend_env (state : t) =
+  {
+    te = Hashtbl.create guessed_max_var_count_per_scope;
+    parent = Some state;
+    expected_return = None;
+  }
+
 let rec lookup_table sym state =
   match Hashtbl.find_opt state.te sym with
   | None -> (
       match state.parent with None -> None | Some p -> lookup_table sym p)
   | Some typ -> Some typ
+
+let rec lookup_fun sym state =
+  match lookup_table sym state with
+  | Some (TFunction value) -> value
+  | None -> failwith "No function found with the given sym in type env"
+  | Some _ -> failwith "Function type is in an unexpected format"
 
 let is_declaration node =
   let open Ast in
@@ -41,12 +55,12 @@ let get_local_decls block_body =
       |> List.map (fun node -> get_single_decl node)
   | _ -> [ get_single_decl block_body ]
 
-let rec extend_te decls te =
+let rec put_decls_in_table decls te =
   match decls with
   | hd :: tl ->
       let sym, declared_type = hd in
       Hashtbl.replace te sym declared_type;
-      extend_te tl te
+      put_decls_in_table tl te
   | [] -> ()
 
 let are_types_compatible t1 t2 = t1 = t2
@@ -59,7 +73,7 @@ let lookup_fun_type sym state =
         (Printf.sprintf "Unexpected type: %s" (Types.show_value_type other))
   | None -> failwith "No sym found in type env"
 
-let rec type_ast ast_node context =
+let rec type_ast (ast_node : Ast.typed_ast) (state : t) =
   let open Ast in
   match ast_node with
   | Literal lit -> (
@@ -69,7 +83,7 @@ let rec type_ast ast_node context =
       | String _ -> Types.TString
       | Undefined -> Types.TUndefined)
   | Let { declared_type; expr; _ } ->
-      let actual_type = type_ast expr context in
+      let actual_type = type_ast expr state in
       if not (are_types_compatible actual_type declared_type) then
         failwith
           (Printf.sprintf "Type error: expected %s but got %s"
@@ -84,26 +98,38 @@ let rec type_ast ast_node context =
               (fun (sym, typ) ->
                 Printf.sprintf "(%s, %s)" sym (Types.show_value_type typ))
               decls));
-      extend_te decls context.te;
-      type_ast body context
+      let new_state = extend_env state in
+      put_decls_in_table decls new_state.te;
+      type_ast body new_state
   | Sequence stmts ->
       let rec check_sequence stmts =
         match stmts with
         | [] -> Types.TUndefined
-        | [ stmt ] -> type_ast stmt context
+        | [ stmt ] -> type_ast stmt state
         | Ret expr :: rest ->
             if rest <> [] then
               failwith "Unreachable code after return statement"
-            else type_ast (Ret expr) context
+            else type_ast (Ret expr) state
         | stmt :: rest ->
-            let _ = type_ast stmt context in
+            let _ = type_ast stmt state in
             check_sequence rest
       in
       check_sequence stmts
-  | Fun { sym; body; _ } ->
-      let fun_type = lookup_fun_type sym context in
-      let fun_context = { context with expected_return = Some fun_type.ret } in
-      let body_type = type_ast body fun_context in
+  | Fun { body; declared_type; prms; _ } ->
+      let fun_type =
+        match declared_type with
+        | TFunction value -> value
+        | _ -> failwith "unexpected. Should be a function"
+      in
+      let param_declarations =
+        try List.map2 (fun name typ -> (name, typ)) prms fun_type.prms
+        with Invalid_argument _ ->
+          failwith "Mismatched number of parameters and type declarations"
+      in
+      let new_state = extend_env state in
+      put_decls_in_table param_declarations new_state.te;
+      let fun_state = { new_state with expected_return = Some fun_type.ret } in
+      let body_type = type_ast body fun_state in
       if not (are_types_compatible fun_type.ret body_type) then
         failwith
           (Printf.sprintf "Function should return %s but returns %s"
@@ -111,8 +137,8 @@ let rec type_ast ast_node context =
              (Types.show_value_type body_type))
       else body_type
   | Ret expr -> (
-      let ret_type = type_ast expr context in
-      match context.expected_return with
+      let ret_type = type_ast expr state in
+      match state.expected_return with
       | None -> failwith "Return statement outside of expected return"
       | Some er ->
           if not (are_types_compatible ret_type er) then
@@ -120,8 +146,8 @@ let rec type_ast ast_node context =
           else ret_type)
   | Binop { frst; scnd; _ } ->
       (*TODO: Add sym is valid for operand type*)
-      let frst_type = type_ast frst context in
-      let scnd_type = type_ast scnd context in
+      let frst_type = type_ast frst state in
+      let scnd_type = type_ast scnd state in
       if not (are_types_compatible frst_type scnd_type) then
         failwith "Operand types for binop expression are not compatible"
       else frst_type
@@ -131,9 +157,9 @@ let rec type_ast ast_node context =
         | Nam n -> n
         | _ -> failwith "Fun should be of type Nam"
       in
-      let fun_type = lookup_fun_type fun_sym context in
+      let fun_type = lookup_fun_type fun_sym state in
       let declared_prm_types = fun_type.prms in
-      let args_types = List.map (fun arg -> type_ast arg context) args in
+      let args_types = List.map (fun arg -> type_ast arg state) args in
 
       let rec check_all_types prms args =
         match (prms, args) with
@@ -148,8 +174,8 @@ let rec type_ast ast_node context =
       fun_type.ret
   | _ -> Types.TInt
 
-let check_type ast_node context =
+let check_type ast_node state =
   try
-    let _ = type_ast ast_node context in
+    let _ = type_ast ast_node state in
     Ok ()
   with Failure msg -> Error msg
