@@ -1,16 +1,13 @@
 open Vm.Ownership_checker
 
-let borrow_err =
-  "Borrow is invalid as the variable has been moved/borrowed in other places"
-
 let test_succeeds () =
   let checker = create () in
   let open Vm.Ast in
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1) };
-        BorrowExpr { is_mutable = false; expr = Variable "x" };
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        BorrowExpr { is_mutable = false; expr = Nam "x" };
       ]
   in
   let result = check_ownership node checker in
@@ -24,13 +21,13 @@ let test_multiple_mutable_borrows_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1) };
-        BorrowExpr { is_mutable = true; expr = Variable "x" };
-        BorrowExpr { is_mutable = true; expr = Variable "x" };
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        BorrowExpr { is_mutable = true; expr = Nam "x" };
+        BorrowExpr { is_mutable = true; expr = Nam "x" };
       ]
   in
   let result = check_ownership node checker in
-  let expected = Error borrow_err in
+  let expected = Error (make_borrow_err_msg "x") in
 
   Alcotest.(check (result unit string)) "test" expected result
 
@@ -40,13 +37,13 @@ let test_mut_and_immut_borrows_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1) };
-        BorrowExpr { is_mutable = true; expr = Variable "x" };
-        BorrowExpr { is_mutable = false; expr = Variable "x" };
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        BorrowExpr { is_mutable = true; expr = Nam "x" };
+        BorrowExpr { is_mutable = false; expr = Nam "x" };
       ]
   in
   let result = check_ownership node checker in
-  let expected = Error borrow_err in
+  let expected = Error (Vm.Ownership_checker.make_borrow_err_msg "x") in
 
   Alcotest.(check (result unit string)) "test" expected result
 
@@ -56,11 +53,9 @@ let test_mut_and_immut_diff_scopes_succeeds () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1) };
-        Block
-          (Sequence [ BorrowExpr { is_mutable = true; expr = Variable "x" } ]);
-        Block
-          (Sequence [ BorrowExpr { is_mutable = false; expr = Variable "x" } ]);
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Block (Sequence [ BorrowExpr { is_mutable = true; expr = Nam "x" } ]);
+        Block (Sequence [ BorrowExpr { is_mutable = false; expr = Nam "x" } ]);
       ]
   in
   let result = check_ownership node checker in
@@ -74,19 +69,18 @@ let test_mult_borrows_nested_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1) };
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
         Block
           (Sequence
              [
-               BorrowExpr { is_mutable = true; expr = Variable "x" };
+               BorrowExpr { is_mutable = true; expr = Nam "x" };
                Block
-                 (Sequence
-                    [ BorrowExpr { is_mutable = false; expr = Variable "x" } ]);
+                 (Sequence [ BorrowExpr { is_mutable = false; expr = Nam "x" } ]);
              ]);
       ]
   in
   let result = check_ownership node checker in
-  let expected = Error borrow_err in
+  let expected = Error (make_borrow_err_msg "x") in
 
   Alcotest.(check (result unit string)) "test" expected result
 
@@ -96,14 +90,13 @@ let test_mult_borrows_nested_succeeds () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1) };
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
         Block
           (Sequence
              [
-               BorrowExpr { is_mutable = false; expr = Variable "x" };
+               BorrowExpr { is_mutable = false; expr = Nam "x" };
                Block
-                 (Sequence
-                    [ BorrowExpr { is_mutable = false; expr = Variable "x" } ]);
+                 (Sequence [ BorrowExpr { is_mutable = false; expr = Nam "x" } ]);
              ]);
       ]
   in

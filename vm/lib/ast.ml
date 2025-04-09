@@ -1,16 +1,15 @@
 type ast_node =
   | Literal of Value.lit_value
-  | Variable of string
+  | Nam of string
   | Block of ast_node
   | Sequence of ast_node list
-  | Let of { sym : string; expr : ast_node }
+  | Let of { sym : string; expr : ast_node; is_mutable : bool }
   | Ld of string
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
   | Lam of { prms : string list; body : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
-  | Nam of string
   | Ret of ast_node
   | App of { func : ast_node; args : ast_node list }
   | BorrowExpr of { is_mutable : bool; expr : ast_node }
@@ -39,6 +38,7 @@ let rec of_json json =
             (match json |> member "lit" with
             | `Null -> json |> member "expr" |> of_json
             | lit -> of_json lit);
+          is_mutable = json |> member "is_mutable" |> to_bool;
         }
   | "const" ->
       Const
@@ -68,11 +68,17 @@ let rec of_json json =
         }
   | "fun" ->
       let sym = json |> member "sym" |> to_string in
-      let prms = json |> member "prms" |> to_list |> List.map (fun p -> p |> member "name" |> to_string) in
+      let prms =
+        json |> member "prms" |> to_list
+        |> List.map (fun p -> p |> member "name" |> to_string)
+      in
       let body = json |> member "body" |> of_json in
       Fun { sym; prms; body }
   | "lam" ->
-      let prms = json |> member "prms" |> to_list |> List.map (fun p -> p |> member "name" |> to_string) in
+      let prms =
+        json |> member "prms" |> to_list
+        |> List.map (fun p -> p |> member "name" |> to_string)
+      in
       let body = json |> member "body" |> of_json in
       Lam { prms; body }
   | "ret" -> Ret (json |> member "expr" |> of_json)
@@ -81,5 +87,3 @@ let rec of_json json =
       let args = json |> member "args" |> to_list |> List.map of_json in
       App { func = fun_expr; args }
   | tag -> failwith ("Unknown tag: " ^ tag)
-
-
