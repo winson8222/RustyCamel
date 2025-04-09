@@ -129,11 +129,11 @@ let rec compile node state =
       let new_instr = ASSIGN pos in
       { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
   | Lam { prms; body } -> 
-      let loadFuncInstr = LDF {arity = List.length prms; addr = wc + 2} in
+      let loadFunInstr = LDF {arity = List.length prms; addr = wc + 2} in
       let gotoInstrIndex = wc + 1 in (* Index where GOTO will be *)
       let state_after_ldf_goto = {
         state with
-        instrs = instrs @ [loadFuncInstr; GOTO 0];  (* add LDF, then GOTO 0 placeholder *)
+        instrs = instrs @ [loadFunInstr; GOTO 0];  (* add LDF, then GOTO 0 placeholder *)
         wc = wc + 2
       } in
 
