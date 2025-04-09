@@ -10,6 +10,9 @@ type vm_value =
 type vm_error = TypeError of string
 
 val create : unit -> t
-val run : t -> Compiler.compiled_instruction list -> (vm_value, vm_error) Result.t
+
+val run :
+  t -> Compiler.compiled_instruction list -> (vm_value, vm_error) Result.t
+
 val string_of_vm_value : vm_value -> string
 val string_of_vm_error : vm_error -> string
