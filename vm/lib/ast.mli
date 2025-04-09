@@ -4,7 +4,6 @@ type ast_node =
   | Block of ast_node
   | Sequence of ast_node list
   | Let of { sym : string; expr : ast_node }
-  | Ld of string
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
