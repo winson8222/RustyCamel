@@ -96,7 +96,7 @@ let rec compile node state =
       (* Finally add EXIT_SCOPE *)
       let exit_scope_instr = EXIT_SCOPE in
       {
-        state_after_body with
+        state with
         wc = state_after_body.wc + 1;
         instrs = state_after_body.instrs @ [ exit_scope_instr ];
       }
