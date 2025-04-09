@@ -3,8 +3,8 @@ type ast_node =
   | Variable of string
   | Block of ast_node
   | Sequence of ast_node list
+  | Cond of { pred : ast_node; cons : ast_node; alt : ast_node }
   | Let of { sym : string; expr : ast_node }
-  | Ld of string
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }

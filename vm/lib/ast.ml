@@ -3,6 +3,7 @@ type ast_node =
   | Variable of string
   | Block of ast_node
   | Sequence of ast_node list
+  | Cond of { pred : ast_node; cons : ast_node; alt : ast_node }
   | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
@@ -78,4 +79,11 @@ let rec of_json json =
       let fun_nam = json |> member "fun" |> of_json in
       let args = json |> member "args" |> to_list |> List.map of_json in
       App { fun_nam; args }
+  | "cond" ->
+      Cond
+        {
+          pred = json |> member "pred" |> of_json;
+          cons = json |> member "cons" |> of_json;
+          alt = json |> member "alt" |> of_json;
+        }
   | tag -> failwith ("Unknown tag: " ^ tag)

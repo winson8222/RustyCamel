@@ -532,6 +532,108 @@ let test_nested_function_calls () =
   ] in
   check_instr_list "nested function calls with tail call" expected result
 
+let test_conditional_function () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "fun",
+            "sym": "f",
+            "prms": [
+              { "name": "x" },
+              { "name": "y" }
+            ],
+            "body": {
+              "tag": "seq",
+              "stmts": [
+                {
+                  "tag": "cond",
+                  "pred": {
+                    "tag": "binop",
+                    "sym": ">",
+                    "frst": { "tag": "nam", "sym": "x" },
+                    "scnd": { "tag": "lit", "val": 0 }
+                  },
+                  "cons": {
+                    "tag": "blk",
+                    "body": {
+                      "tag": "const",
+                      "sym": "z",
+                      "expr": { "tag": "lit", "val": 0 }
+                    }
+                  },
+                  "alt": {
+                    "tag": "blk",
+                    "body": {
+                      "tag": "const",
+                      "sym": "z",
+                      "expr": { "tag": "lit", "val": 3 }
+                    }
+                  }
+                },
+                {
+                  "tag": "ret",
+                  "expr": {
+                    "tag": "binop",
+                    "sym": "-",
+                    "frst": { "tag": "nam", "sym": "x" },
+                    "scnd": { "tag": "nam", "sym": "y" }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "tag": "app",
+            "fun": { "tag": "nam", "sym": "f" },
+            "args": [
+              { "tag": "lit", "val": 33 },
+              { "tag": "lit", "val": 22 }
+            ]
+          }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected = [
+    ENTER_SCOPE { num = 1 };
+    LDF { arity = 2; addr = 3 };
+    GOTO 23;
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    LDC (Int 0);
+    BINOP { sym = ">" };
+    JOF 12;
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 0);
+    ASSIGN { frame_index = 2; value_index = 0 };
+    EXIT_SCOPE;
+    GOTO 16;
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 3);
+    ASSIGN { frame_index = 2; value_index = 0 };
+    EXIT_SCOPE;
+    POP;
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+    BINOP { sym = "-" };
+    RESET;
+    LDC Undefined;
+    RESET;
+    ASSIGN { frame_index = 0; value_index = 0 };
+    POP;
+    LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+    LDC (Int 33);
+    LDC (Int 22);
+    CALL 2;
+    EXIT_SCOPE;
+    DONE
+  ] in
+  check_instr_list "conditional function with assignment" expected result
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -554,5 +656,6 @@ let () =
           test_case "function with block and const" `Quick test_function_with_block_and_const;
           test_case "function application" `Quick test_function_application;
           test_case "nested function calls with tail call" `Quick test_nested_function_calls;
+          test_case "conditional function with assignment" `Quick test_conditional_function;
         ] );
     ]
