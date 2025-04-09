@@ -940,6 +940,254 @@ let test_2_conditional_function () =
   ] in
   check_instr_list "complex conditional function with multiple blocks and returns" expected result
 
+let test_nested_conditional_function () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "fun",
+            "sym": "f",
+            "prms": [
+              { "name": "x" },
+              { "name": "y" }
+            ],
+            "body": {
+              "tag": "blk",
+              "body": {
+                "tag": "seq",
+                "stmts": [
+                  {
+                    "tag": "const",
+                    "sym": "k",
+                    "expr": {
+                      "tag": "binop",
+                      "sym": "*",
+                      "frst": { "tag": "lit", "val": 3 },
+                      "scnd": { "tag": "nam", "sym": "x" }
+                    }
+                  },
+                  {
+                    "tag": "cond",
+                    "pred": {
+                      "tag": "binop",
+                      "sym": ">",
+                      "frst": { "tag": "nam", "sym": "x" },
+                      "scnd": { "tag": "lit", "val": 0 }
+                    },
+                    "cons": {
+                      "tag": "blk",
+                      "body": {
+                        "tag": "const",
+                        "sym": "m",
+                        "expr": { "tag": "lit", "val": 0 }
+                      }
+                    },
+                    "alt": {
+                      "tag": "seq",
+                      "stmts": [
+                        {
+                          "tag": "cond",
+                          "pred": {
+                            "tag": "binop",
+                            "sym": ">",
+                            "frst": { "tag": "nam", "sym": "x" },
+                            "scnd": {
+                              "tag": "unop",
+                              "sym": "-unary",
+                              "frst": { "tag": "lit", "val": 3 }
+                            }
+                          },
+                          "cons": {
+                            "tag": "blk",
+                            "body": {
+                              "tag": "seq",
+                              "stmts": [
+                                {
+                                  "tag": "const",
+                                  "sym": "m",
+                                  "expr": { "tag": "lit", "val": 3 }
+                                },
+                                {
+                                  "tag": "const",
+                                  "sym": "n",
+                                  "expr": { "tag": "lit", "val": 1 }
+                                }
+                              ]
+                            }
+                          },
+                          "alt": {
+                            "tag": "blk",
+                            "body": {
+                              "tag": "const",
+                              "sym": "m",
+                              "expr": { "tag": "lit", "val": 5 }
+                            }
+                          }
+                        },
+                        {
+                          "tag": "ret",
+                          "expr": { "tag": "lit", "val": 10 }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "tag": "const",
+                    "sym": "j",
+                    "expr": { "tag": "lit", "val": 0 }
+                  },
+                  {
+                    "tag": "cond",
+                    "pred": {
+                      "tag": "binop",
+                      "sym": "<",
+                      "frst": { "tag": "nam", "sym": "y" },
+                      "scnd": { "tag": "lit", "val": 0 }
+                    },
+                    "cons": {
+                      "tag": "blk",
+                      "body": {
+                        "tag": "seq",
+                        "stmts": [
+                          {
+                            "tag": "const",
+                            "sym": "z",
+                            "expr": { "tag": "lit", "val": 0 }
+                          },
+                          {
+                            "tag": "ret",
+                            "expr": {
+                              "tag": "binop",
+                              "sym": "+",
+                              "frst": { "tag": "nam", "sym": "x" },
+                              "scnd": { "tag": "nam", "sym": "y" }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "alt": {
+                      "tag": "blk",
+                      "body": {
+                        "tag": "seq",
+                        "stmts": [
+                          {
+                            "tag": "const",
+                            "sym": "z",
+                            "expr": { "tag": "lit", "val": 3 }
+                          },
+                          {
+                            "tag": "ret",
+                            "expr": {
+                              "tag": "binop",
+                              "sym": "-",
+                              "frst": { "tag": "nam", "sym": "x" },
+                              "scnd": { "tag": "nam", "sym": "y" }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "tag": "app",
+            "fun": { "tag": "nam", "sym": "f" },
+            "args": [
+              { "tag": "lit", "val": 33 },
+              { "tag": "lit", "val": 22 }
+            ]
+          }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected = [
+    ENTER_SCOPE { num = 1 };
+    LDF { arity = 2; addr = 3 };
+    GOTO 68;
+    ENTER_SCOPE { num = 2 };
+    LDC (Int 3);
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    BINOP { sym = "*" };
+    ASSIGN { frame_index = 2; value_index = 0 };
+    POP;
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    LDC (Int 0);
+    BINOP { sym = ">" };
+    JOF 18;
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 0);
+    ASSIGN { frame_index = 3; value_index = 0 };
+    EXIT_SCOPE;
+    GOTO 38;
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    LDC (Int 3);
+    UNOP { sym = "-unary" };
+    BINOP { sym = ">" };
+    JOF 31;
+    ENTER_SCOPE { num = 2 };
+    LDC (Int 3);
+    ASSIGN { frame_index = 3; value_index = 0 };
+    POP;
+    LDC (Int 1);
+    ASSIGN { frame_index = 3; value_index = 1 };
+    EXIT_SCOPE;
+    GOTO 35;
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 5);
+    ASSIGN { frame_index = 3; value_index = 0 };
+    EXIT_SCOPE;
+    POP;
+    LDC (Int 10);
+    RESET;
+    POP;
+    LDC (Int 0);
+    ASSIGN { frame_index = 2; value_index = 1 };
+    POP;
+    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+    LDC (Int 0);
+    BINOP { sym = "<" };
+    JOF 56;
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 0);
+    ASSIGN { frame_index = 3; value_index = 0 };
+    POP;
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+    BINOP { sym = "+" };
+    RESET;
+    EXIT_SCOPE;
+    GOTO 65;
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 3);
+    ASSIGN { frame_index = 3; value_index = 0 };
+    POP;
+    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+    BINOP { sym = "-" };
+    RESET;
+    EXIT_SCOPE;
+    EXIT_SCOPE;
+    LDC Undefined;
+    RESET;
+    ASSIGN { frame_index = 0; value_index = 0 };
+    POP;
+    LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+    LDC (Int 33);
+    LDC (Int 22);
+    CALL 2;
+    EXIT_SCOPE;
+    DONE
+  ] in
+  check_instr_list "nested conditional function with multiple blocks and returns" expected result
 
 (* ---------- Run tests ---------- *)
 
@@ -966,5 +1214,6 @@ let () =
           test_case "conditional function with assignment" `Quick test_conditional_function;
           test_case "conditional function with returns" `Quick test_conditional_function_with_returns;
           test_case "2 conditional functions" `Quick test_2_conditional_function;
+          test_case "nested conditional function" `Quick test_nested_conditional_function;
         ] );
     ]
