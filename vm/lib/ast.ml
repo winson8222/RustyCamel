@@ -20,6 +20,11 @@ type typed_ast =
   | Variable of string
   | Block of typed_ast
   | Sequence of typed_ast list
+  | Cond of {
+      pred : typed_ast;
+      cons : typed_ast;
+      alt : typed_ast;
+    }
   | Let of { sym : string; expr : typed_ast; declared_type : Types.value_type }
   | Ld of string
   | Const of {
@@ -127,6 +132,12 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Variable sym -> Variable sym
   | Block body -> Block (strip_types body)
   | Sequence stmts -> Sequence (List.map strip_types stmts)
+  | Cond { pred; cons; alt } ->
+      Cond {
+        pred = strip_types pred;
+        cons = strip_types cons;
+        alt = strip_types alt;
+      }
   | Let { sym; expr; _ } -> Let { sym; expr = strip_types expr }
   | Ld sym -> Variable sym
   | Const { sym; expr; _ } -> Let { sym; expr = strip_types expr }
