@@ -1,7 +1,11 @@
 type ownership_status = Owned | ImmutablyBorrowed | MutablyBorrowed | Moved
 [@@deriving show]
 
-type symbol_table = (string, ownership_status) Hashtbl.t
+type symbol_info = { ownership : ownership_status; typ : Types.value_type }
+[@@deriving show]
+
+(* Update symbol table type *)
+type symbol_table = (string, symbol_info) Hashtbl.t
 type scope = App | Let
 type borrow_kind = MutableBorrow | ImmutableBorrow [@@deriving show]
 
@@ -21,18 +25,25 @@ let guessed_max_var_count_per_scope = 10
 
 let rec lookup_symbol_status sym state =
   match Hashtbl.find_opt state.sym_table sym with
-  | Some s -> Some s
-  | None -> (
-      match state.parent with
-      | Some parent -> lookup_symbol_status sym parent
-      | None -> None)
+  | Some info -> Some info.ownership
+  | None -> Option.bind state.parent (lookup_symbol_status sym)
 
-let rec set_existing_sym_ownership sym new_status state =
+let rec lookup_symbol_type ~sym state =
   match Hashtbl.find_opt state.sym_table sym with
-  | Some _ -> Hashtbl.replace state.sym_table sym new_status
+  | Some info -> info.typ
   | None -> (
       match state.parent with
-      | Some parent -> set_existing_sym_ownership sym new_status parent
+      | None -> failwith "Sym not found in table"
+      | Some parent -> lookup_symbol_type ~sym parent)
+
+let rec set_existing_sym_ownership_in_lowest_frame sym new_status state =
+  match Hashtbl.find_opt state.sym_table sym with
+  | Some info ->
+      Hashtbl.replace state.sym_table sym { info with ownership = new_status }
+  | None -> (
+      match state.parent with
+      | Some parent ->
+          set_existing_sym_ownership_in_lowest_frame sym new_status parent
       | None -> failwith "Can't set sym that doesn't exist in sym table")
 
 let extend_scope parent =
@@ -59,14 +70,20 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
     | _ -> false
   in
 
-  let handle_variable_borrow sym ~sym_status ~borrow_kind state =
+  let handle_var_borrow sym ~sym_status ~borrow_kind state =
     match is_borrow_valid ~borrow_kind ~sym_status with
     | true -> (
         match state.is_in with
         | Some Let ->
-            Hashtbl.replace state.sym_table sym
-              (borrow_kind_to_ownership_status borrow_kind);
-            state
+            let sym_typ = lookup_symbol_type ~sym state in
+            if not (Types.is_type_implement_copy sym_typ) then (
+              let new_ownership_status =
+                borrow_kind_to_ownership_status borrow_kind
+              in
+              set_existing_sym_ownership_in_lowest_frame sym
+                new_ownership_status state;
+              state)
+            else state
         | Some App -> state
         | None ->
             (* Rust compiler does this *)
@@ -79,7 +96,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
     | Owned -> (
         match state.is_in with
         | Some _ ->
-            set_existing_sym_ownership sym Moved state;
+            set_existing_sym_ownership_in_lowest_frame sym Moved state;
             state
         | None -> state (* Simple access, no need to change ownership *))
     | _ ->
@@ -113,12 +130,13 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
 
       match state.borrow_kind with
       | None -> handle_var_acc_or_move sym ~sym_status state
-      | Some bk -> handle_variable_borrow sym ~sym_status ~borrow_kind:bk state)
-  | Let { sym; expr; _ } ->
+      | Some bk -> handle_var_borrow sym ~sym_status ~borrow_kind:bk state)
+  | Let { sym; expr; declared_type; _ } ->
       let new_state =
         check_ownership_aux expr { state with is_in = Some Let }
       in
-      Hashtbl.replace new_state.sym_table sym Owned;
+      Hashtbl.add new_state.sym_table sym
+        { ownership = Owned; typ = declared_type };
       new_state
   | Block body ->
       let new_state = extend_scope state in
@@ -128,10 +146,12 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       List.fold_left
         (fun acc_state arg -> check_ownership_aux arg acc_state)
         app_state args
-  | Fun { prms; body; _ } ->
+  | Fun { prms; body; declared_type; _ } ->
       let new_state = extend_scope state in
       List.iter
-        (fun prm_sym -> Hashtbl.replace new_state.sym_table prm_sym Owned)
+        (fun prm_sym ->
+          Hashtbl.replace new_state.sym_table prm_sym
+            { ownership = Owned; typ = declared_type })
         prms;
       check_ownership_aux body new_state
   | Ret expr -> check_ownership_aux expr state
