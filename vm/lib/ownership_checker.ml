@@ -51,7 +51,7 @@ let make_borrow_err_msg sym status = make_err_msg "borrow" sym status
 let make_move_err_msg sym status = make_err_msg "move" sym status
 let make_acc_err_msg sym status = make_err_msg "access" sym status
 
-let rec check_ownership_aux ast_node state : t =
+let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
   let is_borrow_valid ~borrow_kind ~sym_status =
     match (borrow_kind, sym_status) with
     | ImmutableBorrow, (Owned | ImmutablyBorrowed) | MutableBorrow, Owned ->
@@ -91,7 +91,7 @@ let rec check_ownership_aux ast_node state : t =
         failwith (err_msg_f sym sym_status)
   in
   let open Ast in
-  match ast_node with
+  match typed_ast with
   | Borrow { is_mutable; expr } ->
       let borrow_kind = if is_mutable then MutableBorrow else ImmutableBorrow in
       check_ownership_aux expr { state with borrow_kind = Some borrow_kind }
@@ -138,9 +138,9 @@ let rec check_ownership_aux ast_node state : t =
   | Literal _ -> state
   | _ -> failwith "Unsupported ast node in ownership checking"
 
-let check_ownership ast_node state =
+let check_ownership typed_ast state =
   try
-    let _ = check_ownership_aux ast_node state in
+    let _ = check_ownership_aux typed_ast state in
     Ok ()
   with
   | Failure e -> Error e

@@ -6,12 +6,19 @@ let test_simple_let_assmt_borrow_succeeds () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Let
           {
             sym = "a";
             is_mutable = false;
             expr = Borrow { is_mutable = false; expr = Nam "x" };
+            declared_type = TRef { is_mutable = false; base = TInt };
           };
       ]
   in
@@ -25,8 +32,20 @@ let test_simple_fun_arg_borrow_succeeds () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
+        Fun
+          {
+            sym = "f";
+            body = Ret (Literal (Int 1));
+            prms = [ "a" ];
+            declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+          };
         App
           {
             fun_nam = Nam "f";
@@ -45,8 +64,20 @@ let test_simple_fun_arg_move_succeeds () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
+        Fun
+          {
+            sym = "f";
+            body = Ret (Literal (Int 1));
+            prms = [ "a" ];
+            declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+          };
         App { fun_nam = Nam "f"; args = [ Nam "x" ] };
       ]
   in
@@ -61,8 +92,20 @@ let test_use_after_fun_arg_move_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
+        Fun
+          {
+            sym = "f";
+            body = Ret (Literal (Int 1));
+            prms = [ "a" ];
+            declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+          };
         App { fun_nam = Nam "f"; args = [ Nam "x" ] };
         Nam "x";
       ]
@@ -78,18 +121,26 @@ let test_multiple_mutable_borrows_fail () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Let
           {
             sym = "a";
             expr = Borrow { is_mutable = true; expr = Nam "x" };
             is_mutable = false;
+            declared_type = TRef { is_mutable = true; base = TInt };
           };
         Let
           {
             sym = "b";
             expr = Borrow { is_mutable = true; expr = Nam "x" };
             is_mutable = false;
+            declared_type = TRef { is_mutable = true; base = TInt };
           };
       ]
   in
@@ -104,18 +155,26 @@ let test_mutable_and_immutable_borrow_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Let
           {
             sym = "a";
             is_mutable = false;
             expr = Borrow { is_mutable = true; expr = Nam "x" };
+            declared_type = TInt;
           };
         Let
           {
             sym = "b";
             is_mutable = false;
             expr = Borrow { is_mutable = false; expr = Nam "x" };
+            declared_type = TRef { is_mutable = false; base = TInt };
           };
       ]
   in
@@ -130,7 +189,13 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Block
           (Sequence
              [
@@ -139,6 +204,7 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
                    sym = "y";
                    expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
+                   declared_type = TRef { is_mutable = true; base = TInt };
                  };
              ]);
         Block
@@ -149,6 +215,7 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
                    sym = "z";
                    expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
+                   declared_type = TRef { is_mutable = true; base = TInt };
                  };
              ]);
       ]
@@ -164,7 +231,13 @@ let test_nested_mutable_and_immutable_borrow_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Block
           (Sequence
              [
@@ -173,6 +246,7 @@ let test_nested_mutable_and_immutable_borrow_fails () =
                    sym = "a";
                    is_mutable = false;
                    expr = Borrow { is_mutable = true; expr = Nam "x" };
+                   declared_type = TRef { is_mutable = true; base = TInt };
                  };
                Block
                  (Sequence
@@ -182,6 +256,8 @@ let test_nested_mutable_and_immutable_borrow_fails () =
                           sym = "b";
                           is_mutable = false;
                           expr = Borrow { is_mutable = true; expr = Nam "x" };
+                          declared_type =
+                            TRef { is_mutable = true; base = TInt };
                         };
                     ]);
              ]);
@@ -198,7 +274,13 @@ let test_nested_multiple_immutable_borrows_succeed () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Block
           (Sequence
              [
@@ -207,6 +289,7 @@ let test_nested_multiple_immutable_borrows_succeed () =
                    sym = "a";
                    is_mutable = false;
                    expr = Borrow { is_mutable = false; expr = Nam "x" };
+                   declared_type = TRef { is_mutable = false; base = TInt };
                  };
                Block
                  (Sequence
@@ -216,6 +299,8 @@ let test_nested_multiple_immutable_borrows_succeed () =
                           sym = "b";
                           is_mutable = false;
                           expr = Borrow { is_mutable = false; expr = Nam "x" };
+                          declared_type =
+                            TRef { is_mutable = false; base = TInt };
                         };
                     ]);
              ]);
@@ -233,8 +318,20 @@ let test_use_after_move_fails () =
     Block
       (Sequence
          [
-           Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-           Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+           Let
+             {
+               sym = "x";
+               expr = Literal (Int 1);
+               is_mutable = false;
+               declared_type = TInt;
+             };
+           Let
+             {
+               sym = "y";
+               expr = Nam "x";
+               is_mutable = false;
+               declared_type = TRef { is_mutable = false; base = TInt };
+             };
            Nam "x";
            (* using x after move *)
          ])
@@ -249,11 +346,18 @@ let test_multiple_immutable_borrows_succeed () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Let
           {
             sym = "a";
             expr = Borrow { is_mutable = false; expr = Nam "x" };
+            declared_type = TRef { is_mutable = false; base = TInt };
             is_mutable = false;
           };
         Let
@@ -261,6 +365,7 @@ let test_multiple_immutable_borrows_succeed () =
             sym = "b";
             expr = Borrow { is_mutable = false; expr = Nam "x" };
             is_mutable = false;
+            declared_type = TRef { is_mutable = false; base = TInt };
           };
       ]
   in
@@ -275,7 +380,13 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 42); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 42);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Block
           (Sequence
              [
@@ -284,6 +395,7 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
                    sym = "b";
                    expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
+                   declared_type = TRef { is_mutable = true; base = TInt };
                  };
              ]);
         Let
@@ -291,6 +403,7 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
             sym = "a";
             is_mutable = false;
             expr = Borrow { is_mutable = false; expr = Nam "x" };
+            declared_type = TRef { is_mutable = false; base = TInt };
           };
       ]
   in
@@ -305,14 +418,27 @@ let test_move_after_mut_borrow_fails () =
   let node =
     Sequence
       [
-        Let { sym = "val"; expr = Literal (Int 9); is_mutable = false };
+        Let
+          {
+            sym = "val";
+            expr = Literal (Int 9);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Let
           {
             sym = "x";
             expr = Borrow { is_mutable = true; expr = Nam "val" };
             is_mutable = false;
+            declared_type = TRef { is_mutable = true; base = TInt };
           };
-        Let { sym = "copy"; expr = Nam "val"; is_mutable = false };
+        Let
+          {
+            sym = "copy";
+            expr = Nam "val";
+            is_mutable = false;
+            declared_type = TRef { is_mutable = false; base = TInt };
+          };
       ]
   in
   let expected = Error (make_move_err_msg "val" MutablyBorrowed) in
@@ -326,14 +452,27 @@ let test_borrow_after_move_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
+        Let
+          {
+            sym = "y";
+            expr = Nam "x";
+            is_mutable = false;
+            declared_type = TRef { is_mutable = false; base = TInt };
+          };
         (* move *)
         Let
           {
             sym = "a";
             expr = Borrow { is_mutable = false; expr = Nam "x" };
             is_mutable = false;
+            declared_type = TRef { is_mutable = false; base = TInt };
           };
         (* illegal *)
       ]
@@ -349,11 +488,23 @@ let test_borrow_after_move_in_different_scopes_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Block
           (Sequence
              [
-               Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+               Let
+                 {
+                   sym = "y";
+                   expr = Nam "x";
+                   is_mutable = false;
+                   declared_type = TRef { is_mutable = false; base = TInt };
+                 };
                (* Move x to y *)
              ]);
         Let
@@ -362,6 +513,7 @@ let test_borrow_after_move_in_different_scopes_fails () =
             expr = Borrow { is_mutable = false; expr = Nam "x" };
             (* Illegal borrow of moved value *)
             is_mutable = false;
+            declared_type = TRef { is_mutable = false; base = TInt };
           };
       ]
   in
@@ -376,11 +528,23 @@ let test_move_and_borrow_same_var_in_nested_blocks_fails () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Block
           (Sequence
              [
-               Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+               Let
+                 {
+                   sym = "y";
+                   expr = Nam "x";
+                   is_mutable = false;
+                   declared_type = TRef { is_mutable = false; base = TInt };
+                 };
                (* Move x to y *)
                Block
                  (Sequence
@@ -391,6 +555,8 @@ let test_move_and_borrow_same_var_in_nested_blocks_fails () =
                           expr = Borrow { is_mutable = false; expr = Nam "x" };
                           (* Borrow x in nested block after it was moved *)
                           is_mutable = false;
+                          declared_type =
+                            TRef { is_mutable = false; base = TInt };
                         };
                     ]);
              ]);
@@ -407,11 +573,23 @@ let test_complex_ownership_with_nested_blocks () =
   let node =
     Sequence
       [
-        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Let
+          {
+            sym = "x";
+            expr = Literal (Int 1);
+            is_mutable = false;
+            declared_type = TInt;
+          };
         Block
           (Sequence
              [
-               Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+               Let
+                 {
+                   sym = "y";
+                   expr = Nam "x";
+                   is_mutable = false;
+                   declared_type = TRef { is_mutable = false; base = TInt };
+                 };
                (* Move x to y *)
                Block
                  (Sequence
@@ -422,6 +600,8 @@ let test_complex_ownership_with_nested_blocks () =
                           expr = Borrow { is_mutable = false; expr = Nam "x" };
                           (* Attempting to borrow moved value in nested block *)
                           is_mutable = false;
+                          declared_type =
+                            TRef { is_mutable = false; base = TInt };
                         };
                     ]);
              ]);

@@ -4,6 +4,7 @@ type compiled_instruction =
   | LDC of Value.lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
+  | JOF of int
   | BINOP of { sym : string }
   | UNOP of { sym : string }
   | ASSIGN of pos_in_env
@@ -27,19 +28,8 @@ type state = {
 (* TODO: Add global compile environment with builtin frames *)
 let initial_state = { instrs = []; ce = []; wc = 0 }
 
-let find_index f ls =
-  let rec find_index_helper ls f cur_index =
-    match ls with
-    | [] -> None
-    | hd :: tl -> (
-        match f hd with
-        | true -> Some cur_index
-        | false -> find_index_helper tl f (cur_index + 1))
-  in
-  find_index_helper ls f 0
-
 (** Helper functions *)
-let rec scan_for_locals node =
+let rec scan_for_locals (node : Ast.ast_node) =
   let open Ast in
   match node with
   | Let { sym; _ } | Const { sym; _ } | Fun { sym; _ } -> [ sym ]
@@ -54,7 +44,7 @@ let get_compile_time_environment_pos sym ce =
     | [] -> failwith "Symbol not found in compile time environment"
     | cur_frame :: tl_frames -> (
         let maybe_sym_index =
-          find_index (fun x -> String.equal x sym) cur_frame
+          Utils.find_index (fun x -> String.equal x sym) cur_frame
         in
         match maybe_sym_index with
         | Some sym_index ->
@@ -66,7 +56,7 @@ let get_compile_time_environment_pos sym ce =
 let compile_time_environment_extend frame_vars ce = [ frame_vars ] @ ce
 
 (* Compilation functions *)
-let rec compile node state =
+let rec compile (node : Ast.ast_node) state =
   let open Ast in
   let instrs = state.instrs in
   let wc = state.wc in
@@ -126,7 +116,7 @@ let rec compile node state =
         instrs = state_after_expr.instrs @ [ new_instr ];
         wc = state_after_expr.wc + 1;
       }
-  | Const { sym; expr } ->
+  | Const { sym; expr; _ } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
@@ -174,7 +164,7 @@ let rec compile node state =
           final_state.instrs
       in
       { final_state with instrs = updated_instrs }
-  | Fun { sym; prms; body } ->
+  | Fun { sym; prms; body; _ } ->
       compile (Let { sym; expr = Lam { prms; body }; is_mutable = false }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
@@ -201,7 +191,7 @@ let rec compile node state =
   | App { fun_nam; args } ->
       (* Compile the function expression *)
       let state_after_fun = compile fun_nam state in
-      
+
       (* Compile each argument *)
       let state_after_args =
         List.fold_left (fun state arg -> compile arg state) state_after_fun args
@@ -213,6 +203,54 @@ let rec compile node state =
         state_after_args with
         instrs = state_after_args.instrs @ [ new_instr ];
         wc = state_after_args.wc + 1;
+      }
+  | Cond { pred; cons; alt } ->
+      (* Compile the predicate *)
+      let state_after_pred = compile pred state in
+
+      (* Add placeholder JOF instruction *)
+      let state_after_jof =
+        {
+          state_after_pred with
+          instrs = state_after_pred.instrs @ [ JOF 0 ];
+          wc = state_after_pred.wc + 1;
+        }
+      in
+
+      (* Compile the true block *)
+      let state_after_cons = compile cons state_after_jof in
+
+      (* Add GOTO to the end of the true block *)
+      let state_after_goto =
+        {
+          state_after_cons with
+          instrs = state_after_cons.instrs @ [ GOTO 0 ];
+          wc = state_after_cons.wc + 1;
+        }
+      in
+
+      (* Compile the false block *)
+      let state_after_alt =
+        compile alt
+          {
+            state_after_goto with
+            instrs =
+              List.mapi
+                (fun i instr ->
+                  if i = state_after_pred.wc then JOF state_after_goto.wc
+                  else instr)
+                state_after_goto.instrs;
+          }
+      in
+
+      (* Modify GOTO to point to the end of the false block *)
+      {
+        state_after_alt with
+        instrs =
+          List.mapi
+            (fun i instr ->
+              if i = state_after_cons.wc then GOTO state_after_alt.wc else instr)
+            state_after_alt.instrs;
       }
   | other ->
       failwith
@@ -242,6 +280,7 @@ let string_of_instruction = show_compiled_instruction
 
 let compile_program json_str =
   let parsed_json = Yojson.Basic.from_string json_str in
-  let ast = Ast.of_json parsed_json in
+  let typed_ast = Ast.of_json parsed_json in
+  let ast = Ast.strip_types typed_ast in
   let state = compile ast initial_state in
   state.instrs @ [ DONE ]
