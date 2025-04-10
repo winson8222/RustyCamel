@@ -105,7 +105,6 @@ let rec check_ownership_aux ast_node state : t =
       in
       check_all stmts state
   | Nam sym -> (
-      (* Only for simple accesses or moves (let assmt) ; otherwise it would have gone to Borrow  *)
       let sym_status =
         match lookup_symbol_status sym state with
         | Some status -> status
@@ -129,7 +128,15 @@ let rec check_ownership_aux ast_node state : t =
       List.fold_left
         (fun acc_state arg -> check_ownership_aux arg acc_state)
         app_state args
-  | _ -> state
+  | Fun { prms; body; _ } ->
+      let new_state = extend_scope state in
+      List.iter
+        (fun prm_sym -> Hashtbl.replace new_state.sym_table prm_sym Owned)
+        prms;
+      check_ownership_aux body new_state
+  | Ret expr -> check_ownership_aux expr state
+  | Literal _ -> state
+  | _ -> failwith "Unsupported ast node in ownership checking"
 
 let check_ownership ast_node state =
   try
