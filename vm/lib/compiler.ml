@@ -187,37 +187,39 @@ let rec compile node state =
         instrs = state_after_args.instrs @ [new_instr]; 
         wc = state_after_args.wc + 1 }
   | While { pred; body } ->
-      let start_wc = state.wc in
-
       (* Compile the predicate *)
       let state_after_pred = compile pred state in
-      let jof_instrs = JOF 0 in
-      let jof_wc = state_after_pred.wc in
-      let state_after_jof = {state_after_pred with instrs = state_after_pred.instrs @ [jof_instrs]; wc = jof_wc + 1} in
+      let state_after_jof = {
+        state_after_pred with
+        instrs = state_after_pred.instrs @ [ JOF 0 ];
+        wc = state_after_pred.wc + 1;
+      } in
 
       (* Compile the body *)
       let state_after_body = compile body state_after_jof in
 
       (* Add POP and GOTO *)
-      let pop_instrs = POP in
-      let goto_instrs = GOTO start_wc in
-      let state_after_pop_goto = {state_after_body with instrs = state_after_body.instrs @ [pop_instrs; goto_instrs]; wc = state_after_body.wc + 2} in
+      let state_after_pop_goto = {
+        state_after_body with
+        instrs = state_after_body.instrs @ [ POP; GOTO state.wc ];
+        wc = state_after_body.wc + 2;
+      } in
 
-      (* Update the JOF instruction to point to the new start_wc *)
-      let changed_jof_instrs = List.mapi (fun i instr -> 
-        if i = jof_wc
-        then JOF (state_after_pop_goto.wc)
-        else instr)
-      state_after_pop_goto.instrs in
-
-      (* Add LDC Undefined instruction *)
-      let state_after_pop_goto = {state_after_pop_goto with instrs = changed_jof_instrs @ [LDC Undefined]; wc = state_after_pop_goto.wc + 1} in
-      state_after_pop_goto
+      (* modify jof to point to the body *)
+      { state_after_pop_goto with
+        instrs = List.mapi (fun i instr -> 
+          if i = state_after_pred.wc
+          then JOF state_after_pop_goto.wc
+          else instr)
+        state_after_pop_goto.instrs @ [ LDC Undefined ];
+        wc = state_after_pop_goto.wc + 1;
+      }
   | Assign { sym; expr } ->
       let state_after_expr = compile expr state in
-      let pos = get_compile_time_environment_pos sym state_after_expr.ce in
-      let new_instr = ASSIGN pos in
-      { state_after_expr with instrs = state_after_expr.instrs @ [ new_instr ]; wc = state_after_expr.wc + 1 }
+      { state_after_expr with
+        instrs = state_after_expr.instrs @ [ ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce) ];
+        wc = state_after_expr.wc + 1;
+      }
   | other ->  
       failwith
         (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))
