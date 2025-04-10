@@ -1,18 +1,76 @@
 open Vm.Ownership_checker
 
-let test_simple_borrow_succeeds () =
+let test_simple_let_assmt_borrow_succeeds () =
   let checker = create () in
   let open Vm.Ast in
   let node =
     Sequence
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        BorrowExpr { is_mutable = false; expr = Nam "x" };
+        Let
+          {
+            sym = "a";
+            is_mutable = false;
+            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+          };
       ]
   in
   let result = check_ownership node checker in
   let expected = Ok () in
   Alcotest.(check (result unit string)) "simple borrow" expected result
+
+let test_simple_fun_arg_borrow_succeeds () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
+        App
+          {
+            func = Nam "f";
+            args = [ BorrowExpr { expr = Nam "x"; is_mutable = false } ];
+          };
+      ]
+  in
+  let result = check_ownership node checker in
+  let expected = Ok () in
+  Alcotest.(check (result unit string))
+    "simple borrow in function arg" expected result
+
+let test_simple_fun_arg_move_succeeds () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
+        App { func = Nam "f"; args = [ Nam "x" ] };
+      ]
+  in
+  let result = check_ownership node checker in
+  let expected = Ok () in
+  Alcotest.(check (result unit string))
+    "simple move in function arg" expected result
+
+let test_use_after_fun_arg_move_fails () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
+        App { func = Nam "f"; args = [ Nam "x" ] };
+        Nam "x";
+      ]
+  in
+  let result = check_ownership node checker in
+  let expected = Error (make_acc_err_msg "x" Moved) in
+  Alcotest.(check (result unit string))
+    "use after moved into function" expected result
 
 let test_multiple_mutable_borrows_fail () =
   let checker = create () in
@@ -21,8 +79,18 @@ let test_multiple_mutable_borrows_fail () =
     Sequence
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        BorrowExpr { is_mutable = true; expr = Nam "x" };
-        BorrowExpr { is_mutable = true; expr = Nam "x" };
+        Let
+          {
+            sym = "a";
+            expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+            is_mutable = false;
+          };
+        Let
+          {
+            sym = "b";
+            expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+            is_mutable = false;
+          };
       ]
   in
   let expected = Error (make_borrow_err_msg "x" MutablyBorrowed) in
@@ -37,8 +105,18 @@ let test_mutable_and_immutable_borrow_fails () =
     Sequence
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        BorrowExpr { is_mutable = true; expr = Nam "x" };
-        BorrowExpr { is_mutable = false; expr = Nam "x" };
+        Let
+          {
+            sym = "a";
+            is_mutable = false;
+            expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+          };
+        Let
+          {
+            sym = "b";
+            is_mutable = false;
+            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+          };
       ]
   in
   let expected = Error (make_borrow_err_msg "x" MutablyBorrowed) in
@@ -53,8 +131,26 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
     Sequence
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        Block (Sequence [ BorrowExpr { is_mutable = true; expr = Nam "x" } ]);
-        Block (Sequence [ BorrowExpr { is_mutable = false; expr = Nam "x" } ]);
+        Block
+          (Sequence
+             [
+               Let
+                 {
+                   sym = "y";
+                   expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+                   is_mutable = false;
+                 };
+             ]);
+        Block
+          (Sequence
+             [
+               Let
+                 {
+                   sym = "z";
+                   expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+                   is_mutable = false;
+                 };
+             ]);
       ]
   in
   let expected = Ok () in
@@ -72,9 +168,23 @@ let test_nested_mutable_and_immutable_borrow_fails () =
         Block
           (Sequence
              [
-               BorrowExpr { is_mutable = true; expr = Nam "x" };
+               Let
+                 {
+                   sym = "a";
+                   is_mutable = false;
+                   expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+                 };
                Block
-                 (Sequence [ BorrowExpr { is_mutable = false; expr = Nam "x" } ]);
+                 (Sequence
+                    [
+                      Let
+                        {
+                          sym = "b";
+                          is_mutable = false;
+                          expr =
+                            BorrowExpr { is_mutable = true; expr = Nam "x" };
+                        };
+                    ]);
              ]);
       ]
   in
@@ -93,9 +203,23 @@ let test_nested_multiple_immutable_borrows_succeed () =
         Block
           (Sequence
              [
-               BorrowExpr { is_mutable = false; expr = Nam "x" };
+               Let
+                 {
+                   sym = "a";
+                   is_mutable = false;
+                   expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+                 };
                Block
-                 (Sequence [ BorrowExpr { is_mutable = false; expr = Nam "x" } ]);
+                 (Sequence
+                    [
+                      Let
+                        {
+                          sym = "b";
+                          is_mutable = false;
+                          expr =
+                            BorrowExpr { is_mutable = false; expr = Nam "x" };
+                        };
+                    ]);
              ]);
       ]
   in
@@ -128,8 +252,18 @@ let test_multiple_immutable_borrows_succeed () =
     Sequence
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
-        BorrowExpr { is_mutable = false; expr = Nam "x" };
-        BorrowExpr { is_mutable = false; expr = Nam "x" };
+        Let
+          {
+            sym = "a";
+            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            is_mutable = false;
+          };
+        Let
+          {
+            sym = "b";
+            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            is_mutable = false;
+          };
       ]
   in
   let expected = Ok () in
@@ -144,8 +278,22 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
     Sequence
       [
         Let { sym = "x"; expr = Literal (Int 42); is_mutable = false };
-        Block (Sequence [ BorrowExpr { is_mutable = true; expr = Nam "x" } ]);
-        BorrowExpr { is_mutable = false; expr = Nam "x" };
+        Block
+          (Sequence
+             [
+               Let
+                 {
+                   sym = "b";
+                   expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+                   is_mutable = false;
+                 };
+             ]);
+        Let
+          {
+            sym = "a";
+            is_mutable = false;
+            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+          };
       ]
   in
   let expected = Ok () in
@@ -160,7 +308,12 @@ let test_move_after_mut_borrow_fails () =
     Sequence
       [
         Let { sym = "val"; expr = Literal (Int 9); is_mutable = false };
-        BorrowExpr { is_mutable = true; expr = Nam "val" };
+        Let
+          {
+            sym = "x";
+            expr = BorrowExpr { is_mutable = true; expr = Nam "val" };
+            is_mutable = false;
+          };
         Let { sym = "copy"; expr = Nam "val"; is_mutable = false };
       ]
   in
@@ -178,7 +331,12 @@ let test_borrow_after_move_fails () =
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
         Let { sym = "y"; expr = Nam "x"; is_mutable = false };
         (* move *)
-        BorrowExpr { is_mutable = false; expr = Nam "x" };
+        Let
+          {
+            sym = "a";
+            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            is_mutable = false;
+          };
         (* illegal *)
       ]
   in
@@ -193,7 +351,14 @@ let () =
     [
       ( "Ownership rules",
         [
-          test_case "simple borrow succeeds" `Quick test_simple_borrow_succeeds;
+          test_case "simple let assmt borrow succeeds" `Quick
+            test_simple_let_assmt_borrow_succeeds;
+          test_case "simple fun arg borrow succeeds" `Quick
+            test_simple_fun_arg_borrow_succeeds;
+          test_case "simple fun arg move succeeds" `Quick
+            test_simple_fun_arg_move_succeeds;
+          test_case "use after fun arg move fails" `Quick
+            test_use_after_fun_arg_move_fails;
           test_case "multiple mutable borrows fail" `Quick
             test_multiple_mutable_borrows_fail;
           test_case "mut and immut borrow fails" `Quick
