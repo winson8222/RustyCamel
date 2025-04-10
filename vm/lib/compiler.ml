@@ -187,29 +187,44 @@ let rec compile node state =
         instrs = state_after_args.instrs @ [new_instr]; 
         wc = state_after_args.wc + 1 }
   | Cond { pred; cons; alt } ->
+      (* Compile the predicate *)
       let state_after_pred = compile pred state in
-      let jof_instrs = JOF 0 in
-      let jof_wc = state_after_pred.wc in
-      let state_after_jof = {state_after_pred with instrs = state_after_pred.instrs @ [jof_instrs]; wc = jof_wc + 1} in
+
+      (* Add placeholder JOF instruction *)
+      let state_after_jof = {
+        state_after_pred with
+        instrs = state_after_pred.instrs @ [ JOF 0 ];
+        wc = state_after_pred.wc + 1;
+      } in
+
+      (* Compile the true block *)
       let state_after_cons = compile cons state_after_jof in
-      let goto_instrs = GOTO 0 in
-      let goto_wc = state_after_cons.wc in
-      let state_after_goto = {state_after_cons with instrs = state_after_cons.instrs @ [goto_instrs]; wc = state_after_cons.wc + 1} in
-      let changed_jof_instrs = List.mapi (fun i instr ->
-        if i = jof_wc
-        then JOF (state_after_goto.wc)
-        else instr)
-      state_after_goto.instrs in
-      let state_after_goto = {state_after_goto with instrs = changed_jof_instrs} in
-      let state_after_alt = compile alt state_after_goto in
-      let changed_goto_instrs = List.mapi (fun i instr ->
-        if i = goto_wc
-        then GOTO (state_after_alt.wc)
-        else instr)
-      state_after_alt.instrs in
-      let state_after_alt = {state_after_alt with instrs = changed_goto_instrs} in
-      state_after_alt
-      
+
+      (* Add GOTO to the end of the true block *)
+      let state_after_goto = {
+        state_after_cons with
+        instrs = state_after_cons.instrs @ [ GOTO 0 ];
+        wc = state_after_cons.wc + 1;
+      } in
+
+      (* Compile the false block *)
+      let state_after_alt = compile alt {
+        state_after_goto with
+        instrs = List.mapi (fun i instr ->
+          if i = state_after_pred.wc
+          then JOF state_after_goto.wc
+          else instr)
+        state_after_goto.instrs;
+      } in
+
+      (* Modify GOTO to point to the end of the false block *)
+      { state_after_alt with
+        instrs = List.mapi (fun i instr ->
+          if i = state_after_cons.wc
+          then GOTO state_after_alt.wc
+          else instr)
+        state_after_alt.instrs;
+      }
   | other ->
       failwith
         (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))
