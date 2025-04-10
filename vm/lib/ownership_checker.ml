@@ -28,13 +28,15 @@ let extend_scope parent =
 
 let create () =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
-  (* Example usage of Owned to avoid unused constructor warning *)
-  Hashtbl.add sym_table "example_var" Owned;
-  Hashtbl.add sym_table "example_var2" Moved;
   { sym_table; _parent = None }
 
-let make_borrow_err_msg sym =
-  Printf.sprintf "Cannot borrow %s - already moved or borrowed" sym
+let make_err_msg action sym sym_ownership_status =
+  Printf.sprintf "Cannot %s %s - already %s" action sym
+    (show_ownership_status sym_ownership_status)
+
+let make_borrow_err_msg sym status = make_err_msg "borrow" sym status
+let make_move_err_msg sym status = make_err_msg "move" sym status
+let make_acc_err_msg sym status = make_err_msg "access" sym status
 
 let rec check_ownership_aux ast_node state : t =
   let is_borrow_valid borrow_status sym_status =
@@ -45,13 +47,13 @@ let rec check_ownership_aux ast_node state : t =
   in
 
   let handle_variable_borrow sym borrow_status state =
-    let status = lookup_symbol_status sym state in
+    let maybe_status = lookup_symbol_status sym state in
 
-    match status with
-    | Some current_status when is_borrow_valid borrow_status current_status ->
+    match maybe_status with
+    | Some status when is_borrow_valid borrow_status status ->
         Hashtbl.replace state.sym_table sym borrow_status;
         state
-    | Some _ -> failwith (make_borrow_err_msg sym)
+    | Some status -> failwith (make_borrow_err_msg sym status)
     | None ->
         Hashtbl.replace state.sym_table sym borrow_status;
         state
@@ -74,7 +76,7 @@ let rec check_ownership_aux ast_node state : t =
       check_all stmts state
   | Nam n -> (
       match lookup_symbol_status n state with
-      | Some Moved -> failwith "sym has been moved"
+      | Some Moved -> failwith (make_acc_err_msg n Moved)
       | None -> failwith "Unbound name"
       | _ -> state)
   | Let { sym; expr; _ } ->
