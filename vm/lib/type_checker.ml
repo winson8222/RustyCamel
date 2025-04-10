@@ -29,12 +29,6 @@ let rec lookup_table sym state =
       match state.parent with None -> None | Some p -> lookup_table sym p)
   | Some typ -> Some typ
 
-let rec lookup_fun sym state =
-  match lookup_table sym state with
-  | Some (TFunction value) -> value
-  | None -> failwith "No function found with the given sym in type env"
-  | Some _ -> failwith "Function type is in an unexpected format"
-
 let is_declaration node =
   let open Ast in
   match node with Let _ | Const _ | Fun _ -> true | _ -> false

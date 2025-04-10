@@ -15,28 +15,39 @@ and value_type =
   | TArray of value_type * int (* Fixed size arrays *)
 [@@deriving show]
 
-open Yojson.Basic.Util
+let of_string s =
+  match s with
+  | "string" -> TString
+  | "int" -> TInt
+  | "boolean" -> TBoolean
+  | "undefined" -> TUndefined
+  | other -> failwith (Printf.sprintf "unknown type: %s" other)
 
-let rec of_json type_json =
-  match type_json with
-  | `Null -> failwith "Type not provided"
-  | `String value -> (
-      match value with
-      | "string" -> TString
-      | "int" -> TInt
-      | "boolean" -> TBoolean
-      | "undefined" -> TUndefined
-      | other -> failwith (Printf.sprintf "unknown type: %s" other))
-  | `Assoc fields ->
-      (* Extract ret and prms from the assoc, expecting both to exist *)
-      let ret_type =
-        try List.assoc "ret" fields |> of_json
-        with Not_found -> failwith "Missing 'ret' field in function type"
-      in
-      let prms_types =
-        match List.assoc_opt "prms" fields with
-        | Some prms_json -> prms_json |> to_list |> List.map of_json
-        | None -> [] (* Default to empty list if no parameters are provided *)
-      in
-      TFunction { ret = ret_type; prms = prms_types }
-  | other -> failwith (Printf.sprintf "unknown type: %s" (Yojson.Basic.to_string other))
+let rec of_json (json : Yojson.Basic.t) =
+  let open Yojson.Basic.Util in
+  match json with
+  | `String s -> of_string s (* Handle simple string types directly *)
+  | `Assoc fields -> (
+      match List.assoc_opt "kind" fields with
+      | Some (`String "basic") -> (
+          match List.assoc_opt "value" fields with
+          | Some (`String s) -> of_string s
+          | _ -> failwith "Invalid basic type: missing or invalid value")
+      | Some (`String "ref") -> (
+          match
+            (List.assoc_opt "value" fields, List.assoc_opt "is_mutable" fields)
+          with
+          | Some value, mutable_field ->
+              let is_mut =
+                Option.value ~default:(`Bool false) mutable_field |> to_bool
+              in
+              TRef { is_mutable = is_mut; base = of_json value }
+          | _ -> failwith "Invalid ref type: missing value")
+      | Some (`String "function") -> (
+          match (List.assoc_opt "ret" fields, List.assoc_opt "prms" fields) with
+          | Some ret, Some prms ->
+              TFunction
+                { ret = of_json ret; prms = to_list prms |> List.map of_json }
+          | _ -> failwith "Invalid function type: missing ret or prms")
+      | _ -> failwith "Invalid type: unknown or missing kind")
+  | _ -> failwith "Invalid type format"

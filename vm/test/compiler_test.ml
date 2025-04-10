@@ -58,7 +58,13 @@ let test_blk_with_let () =
     "body": {
       "tag": "seq",
       "stmts": [
-        { "tag": "let", "sym": "x", "expr": { "tag": "lit", "val": 4 }, "declared_type": "int" }
+        { "tag": "let", "sym": "x", 
+          "expr": { "tag": "lit", "val": 4 }, 
+          "declared_type": {
+              "kind": "basic",
+              "value": "int"
+            }
+        }
       ]
     }
   }|}
@@ -77,7 +83,7 @@ let test_blk_with_let () =
 
 let test_ld_variable () =
   let json =
-    {|{"tag": "blk", "body": {"tag": "seq", "stmts": [{"tag": "let", "sym": "x", "expr": {"tag": "lit", "val": 4}, "declared_type": "int"}, {"tag": "nam", "sym": "x"}]}}|}
+    {|{"tag": "blk", "body": {"tag": "seq", "stmts": [{"tag": "let", "sym": "x", "expr": {"tag": "lit", "val": 4}, "declared_type": {"kind": "basic", "value": "int"}}, {"tag": "nam", "sym": "x"}]}}|}
   in
   let result = compile_program json in
   let expected =
@@ -147,6 +153,7 @@ let test_function_no_params () =
           }
         }, 
         "declared_type": {
+          "kind": "function",
           "ret": "int",
           "prms": []
         }
@@ -197,6 +204,7 @@ let test_function_with_params () =
           }
         },
          "declared_type": {
+          "kind": "function", 
           "ret": "int",
           "prms": ["int", "int"]
         }
@@ -249,6 +257,7 @@ let test_function_with_binop () =
           }
         },
          "declared_type": {
+         "kind": "function",
           "ret": "int",
           "prms": ["int", "int"]
         }
@@ -288,6 +297,7 @@ let test_function_with_block_and_const () =
           { "name": "y" }
         ],
         "declared_type": {
+        "kind": "function",
           "ret": "int",
           "prms": ["int", "int"]
         },
@@ -303,7 +313,10 @@ let test_function_with_block_and_const () =
                   "tag": "lit",
                   "val": 0
                 },
-                "declared_type": "int"
+                "declared_type": {
+                  "kind": "basic",
+                  "value": "int"
+                }
               },
               {
                 "tag": "ret",
@@ -371,6 +384,7 @@ let test_function_application () =
               }
             },
              "declared_type": {
+             "kind": "function",
               "ret": "int",
               "prms": ["int", "int"]
             }
@@ -434,6 +448,7 @@ let test_nested_function_calls () =
               }
             },
             "declared_type": {
+              "kind": "function",
               "ret": "int",
               "prms": ["int"]
             }
@@ -452,6 +467,7 @@ let test_nested_function_calls () =
               }
             },
             "declared_type": {
+            "kind": "function",
               "ret": "int",
               "prms": ["int"]
             }
@@ -464,6 +480,7 @@ let test_nested_function_calls () =
               { "name": "y" }
             ],
             "declared_type": {
+            "kind": "function",
               "ret": "int",
               "prms": ["int", "int"]
             },
@@ -479,7 +496,10 @@ let test_nested_function_calls () =
                       "tag": "lit",
                       "val": 0
                     },
-                    "declared_type": "int"
+                    "declared_type": {
+                      "kind": "basic",
+                      "value": "int"
+                    }
                   },
                   {
                     "tag": "ret",
