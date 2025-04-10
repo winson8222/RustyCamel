@@ -20,7 +20,7 @@ let rec set_sym_ownership sym new_status state =
   | None -> (
       match state._parent with
       | Some parent -> set_sym_ownership sym new_status parent
-      | None -> ())
+      | None -> failwith "Can't set sym that doesn't exist in sym table")
 
 let extend_scope parent =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
@@ -36,7 +36,7 @@ let create () =
 let make_borrow_err_msg sym =
   Printf.sprintf "Cannot borrow %s - already moved or borrowed" sym
 
-let rec check_ownership ast_node state =
+let rec check_ownership_aux ast_node state : t =
   let is_borrow_valid borrow_status sym_status =
     match (borrow_status, sym_status) with
     | ImmutablyBorrowed, (Owned | ImmutablyBorrowed) | MutablyBorrowed, Owned ->
@@ -44,17 +44,17 @@ let rec check_ownership ast_node state =
     | _ -> false
   in
 
-  let handle_variable_borrow sym borrow_status =
+  let handle_variable_borrow sym borrow_status state =
     let status = lookup_symbol_status sym state in
 
     match status with
     | Some current_status when is_borrow_valid borrow_status current_status ->
         Hashtbl.replace state.sym_table sym borrow_status;
-        Ok ()
-    | Some _ -> Error (make_borrow_err_msg sym)
+        state
+    | Some _ -> failwith (make_borrow_err_msg sym)
     | None ->
         Hashtbl.replace state.sym_table sym borrow_status;
-        Ok ()
+        state
   in
   let open Ast in
   match ast_node with
@@ -62,30 +62,37 @@ let rec check_ownership ast_node state =
       let borrow_status =
         if is_mutable then MutablyBorrowed else ImmutablyBorrowed
       in
-      handle_variable_borrow sym borrow_status
+      handle_variable_borrow sym borrow_status state
   | Sequence stmts ->
-      let rec check_all = function
-        | [] -> Ok ()
-        | stmt :: rest -> (
-            match check_ownership stmt state with
-            | Ok () -> check_all rest
-            | Error _ as e -> e)
+      let rec check_all stmts cur_state =
+        match stmts with
+        | [] -> cur_state
+        | stmt :: rest ->
+            let new_state = check_ownership_aux stmt state in
+            check_all rest new_state
       in
-      check_all stmts
+      check_all stmts state
   | Nam n -> (
       match lookup_symbol_status n state with
       | Some Moved -> failwith "sym has been moved"
       | None -> failwith "Unbound name"
-      | _ -> Ok ())
+      | _ -> state)
   | Let { sym; expr; _ } ->
       (match expr with
       | Nam used_sym -> set_sym_ownership used_sym Moved state
       | _ -> ());
       Hashtbl.replace state.sym_table sym Owned;
-      Ok ()
+      state
   | Block body ->
       let new_state = extend_scope state in
-      let res = check_ownership body new_state in
-      res
+      check_ownership_aux body new_state
   | BorrowExpr _ -> failwith "No support for borrowing of non-variables"
-  | _ -> Ok ()
+  | _ -> state
+
+let check_ownership ast_node state =
+  try
+    let _ = check_ownership_aux ast_node state in
+    Ok ()
+  with
+  | Failure e -> Error e
+  | exn -> Error (Printexc.to_string exn)

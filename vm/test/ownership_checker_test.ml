@@ -105,6 +105,23 @@ let test_mult_borrows_nested_succeeds () =
 
   Alcotest.(check (result unit string)) "test" expected result
 
+let test_moved_fails () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Block
+      (Sequence
+         [
+           Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+           Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+           Block (Nam "x");
+         ])
+  in
+  let result = check_ownership node checker in
+  let expected = Error "sym has been moved" in
+
+  Alcotest.(check (result unit string)) "test" expected result
+
 let () =
   let open Alcotest in
   run "Ownership checker Tests"
@@ -121,5 +138,6 @@ let () =
             test_mult_borrows_nested_fails;
           test_case "mult borrows nested scoped succedd" `Quick
             test_mult_borrows_nested_succeeds;
+          test_case "moved value access fails" `Quick test_moved_fails;
         ] );
     ]
