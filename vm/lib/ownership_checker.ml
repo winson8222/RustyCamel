@@ -2,7 +2,7 @@ type ownership_status = Owned | ImmutablyBorrowed | MutablyBorrowed | Moved
 [@@deriving show]
 
 type symbol_table = (string, ownership_status) Hashtbl.t
-type t = { sym_table : symbol_table; _parent : t option }
+type t = { sym_table : symbol_table; parent : t option; is_in_let_assmt : bool }
 
 let guessed_max_var_count_per_scope = 10
 
@@ -10,25 +10,25 @@ let rec lookup_symbol_status sym state =
   match Hashtbl.find_opt state.sym_table sym with
   | Some s -> Some s
   | None -> (
-      match state._parent with
+      match state.parent with
       | Some parent -> lookup_symbol_status sym parent
       | None -> None)
 
-let rec set_sym_ownership sym new_status state =
+let rec set_existing_sym_ownership sym new_status state =
   match Hashtbl.find_opt state.sym_table sym with
   | Some _ -> Hashtbl.replace state.sym_table sym new_status
   | None -> (
-      match state._parent with
-      | Some parent -> set_sym_ownership sym new_status parent
+      match state.parent with
+      | Some parent -> set_existing_sym_ownership sym new_status parent
       | None -> failwith "Can't set sym that doesn't exist in sym table")
 
 let extend_scope parent =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
-  { sym_table; _parent = Some parent }
+  { sym_table; parent = Some parent; is_in_let_assmt = false }
 
 let create () =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
-  { sym_table; _parent = None }
+  { sym_table; parent = None; is_in_let_assmt = false }
 
 let make_err_msg action sym sym_ownership_status =
   Printf.sprintf "Cannot %s %s - already %s" action sym
@@ -74,17 +74,31 @@ let rec check_ownership_aux ast_node state : t =
             check_all rest new_state
       in
       check_all stmts state
-  | Nam n -> (
-      match lookup_symbol_status n state with
-      | Some Moved -> failwith (make_acc_err_msg n Moved)
-      | None -> failwith "Unbound name"
-      | _ -> state)
+  | Nam sym -> (
+      (* Only for simple accesses or moves (let assmt) ; otherwise it would have gone to Borrow  *)
+      let sym_status =
+        match lookup_symbol_status sym state with
+        | Some status -> status
+        | None -> failwith "Unbound value"
+      in
+
+      match sym_status with
+      | Owned when state.is_in_let_assmt ->
+          set_existing_sym_ownership sym Moved state;
+          state
+      | Owned -> state
+      | _ ->
+          let err_msg_f =
+            if state.is_in_let_assmt then make_move_err_msg
+            else make_acc_err_msg
+          in
+          failwith (err_msg_f sym sym_status))
   | Let { sym; expr; _ } ->
-      (match expr with
-      | Nam used_sym -> set_sym_ownership used_sym Moved state
-      | _ -> ());
-      Hashtbl.replace state.sym_table sym Owned;
-      state
+      let new_state =
+        check_ownership_aux expr { state with is_in_let_assmt = true }
+      in
+      Hashtbl.replace new_state.sym_table sym Owned;
+      new_state
   | Block body ->
       let new_state = extend_scope state in
       check_ownership_aux body new_state
