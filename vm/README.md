@@ -1,37 +1,51 @@
 ## Formatting
+
 1. Install [ocamlformat](https://github.com/ocaml-ppx/ocamlformat#installation)
 2. run `dune fmt`
 
 ## Sample JSON
+
 ### Literal
+
 {"tag": "blk", "body": {"tag": "lit", "val": 1}}
 
 ## Ownership Checking
-- Two kinds of move: `let` decl and `function `
-- 2 kinds of borrow: immutable borrow and mutable borrow
 
-### Mutability
-Let declaration: `let x = &mut z` 
-Unary Expression: `let mut x = z`
+### Currently supported
 
+- Borrows (Mutable/Immutable)
+  - Borrows via let declarations
 
-### Move
-`let x = y`
-sym: x , expr: Var
-let x = &y
-expr: 
+  ```
+  let mut x = String::"hello";
+  let y = &x
+  let z = &mut x // Invalid
+  ```
 
-### Borrow
-Immutable Borrow
-```
-let x = 1;
-let y = &x
-```
+  - Borrows via function application
 
-Mutable Borrow
-*Notice how x also needs the `mut` keyword
-```
-let mut x = 1 
-let y = &mut x
-```
+  ```
+  let mut x = String::"hello";
+  let y = f(&x)
+  let z = f(&mut x)
+  ```
 
+  - TODO: reassign
+
+- Move
+  - Move via let declaration
+
+  ```
+  let mut x = String::"hello";
+  let y = x
+  let z = x // Invalid
+  ```
+
+  - Move via function application
+  ```
+  let mut x = String::"hello";
+  let y = f(x)
+  let z = f(x) // Invalid
+  ```
+
+  - TODO: reassign
