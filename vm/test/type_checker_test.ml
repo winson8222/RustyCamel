@@ -6,9 +6,7 @@ let test_literal_mismatch_fails () =
     Vm.Ast.Let { sym = "x"; declared_type = TBoolean; expr = Literal (Int 1) }
   in
   let result = check_type node tc in
-  let expected =
-    Error "Type error: expected Types.TBoolean but got Types.TInt"
-  in
+  let expected = Error (make_type_err_msg TBoolean TInt) in
 
   Alcotest.(check (result unit string)) "test" expected result
 
@@ -52,7 +50,7 @@ let test_fun_fails () =
          })
   in
   let actual = check_type node tc in
-  let expected = Error "Return types are not compatible" in
+  let expected = Error "Return type mismatch" in
   Alcotest.(check (result unit string)) "test" expected actual
 
 let test_fun_compatible_prms_args_succeeds () =
@@ -94,7 +92,7 @@ let test_fun_uncompatible_prms_args_fails () =
          ])
   in
   let actual = check_type node tc in
-  let expected = Error "Types of arg and parm are not compatible" in
+  let expected = Error "Argument type mismatch" in
   Alcotest.(check (result unit string)) "test" expected actual
 
 let test_binop_mismatched_operands_fails () =
@@ -114,7 +112,7 @@ let test_binop_mismatched_operands_fails () =
   in
   let actual = check_type node tc in
   let expected =
-    Error "Operand types for binop expression are not compatible"
+    Error "Binary operands have incompatible types"
   in
   Alcotest.(check (result unit string)) "test" expected actual
 

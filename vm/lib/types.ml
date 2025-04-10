@@ -12,10 +12,9 @@ and value_type =
   | TUndefined
   | TRef of ref_type
   | TFunction of function_type
-  | TArray of value_type * int (* Fixed size arrays *)
 [@@deriving show]
 
-let of_string s =
+let of_basic_type_string s =
   match s with
   | "string" -> TString
   | "int" -> TInt
@@ -29,7 +28,7 @@ let rec of_json (json : Yojson.Basic.t) : value_type =
 
   let parse_basic fields =
     match get_assoc_field "value" fields with
-    | Some (`String s) -> of_string s
+    | Some (`String s) -> of_basic_type_string s
     | _ -> failwith "Invalid basic type: missing or invalid value"
   in
 
@@ -54,7 +53,7 @@ let rec of_json (json : Yojson.Basic.t) : value_type =
   in
 
   match json with
-  | `String s -> of_string s
+  | `String s -> of_basic_type_string s
   | `Assoc fields -> (
       match get_assoc_field "kind" fields with
       | Some (`String "basic") -> parse_basic fields
