@@ -22,18 +22,19 @@ type typed_ast =
   | Variable of string
   | Block of typed_ast
   | Sequence of typed_ast list
+  | While of { pred : typed_ast; body : typed_ast }
   | Cond of {
       pred : typed_ast;
       cons : typed_ast;
       alt : typed_ast;
     }
   | Let of { sym : string; expr : typed_ast; declared_type : Types.value_type }
-  | Ld of string
   | Const of {
       sym : string;
       expr : typed_ast;
       declared_type : Types.value_type;
     }
+  | Assign of { sym : string; expr : typed_ast }
   | Binop of { sym : string; frst : typed_ast; scnd : typed_ast }
   | Unop of { sym : string; frst : typed_ast }
   | Lam of { prms : string list; body : typed_ast }
@@ -146,6 +147,8 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Variable sym -> Variable sym
   | Block body -> Block (strip_types body)
   | Sequence stmts -> Sequence (List.map strip_types stmts)
+  | While { pred; body } ->
+      While { pred = strip_types pred; body = strip_types body }
   | Cond { pred; cons; alt } ->
       Cond {
         pred = strip_types pred;
@@ -153,8 +156,8 @@ let rec strip_types (ast : typed_ast) : ast_node =
         alt = strip_types alt;
       }
   | Let { sym; expr; _ } -> Let { sym; expr = strip_types expr }
-  | Ld sym -> Variable sym
   | Const { sym; expr; _ } -> Let { sym; expr = strip_types expr }
+  | Assign { sym; expr } -> Assign { sym; expr = strip_types expr }
   | Binop { sym; frst; scnd } ->
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }

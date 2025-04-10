@@ -23,14 +23,15 @@ type typed_ast =
   | Variable of string
   | Block of typed_ast
   | Sequence of typed_ast list
+  | While of { pred : typed_ast; body : typed_ast }
   | Cond of {
       pred : typed_ast;
       cons : typed_ast;
       alt : typed_ast;
     }
   | Let of { sym : string; expr : typed_ast; declared_type : Types.value_type }
-  | Ld of string
   | Const of { sym : string; expr : typed_ast; declared_type : Types.value_type }
+  | Assign of { sym : string; expr : typed_ast }
   | Binop of { sym : string; frst : typed_ast; scnd : typed_ast }
   | Unop of { sym : string; frst : typed_ast }
   | Lam of { prms : string list; body : typed_ast }
