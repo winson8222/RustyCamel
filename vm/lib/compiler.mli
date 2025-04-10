@@ -4,6 +4,7 @@ type compiled_instruction =
   | LDC of Value.lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
+  | JOF of int
   | BINOP of { sym : string }
   | UNOP of { sym : string }
   | ASSIGN of pos_in_env

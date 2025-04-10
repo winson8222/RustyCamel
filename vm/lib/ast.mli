@@ -3,6 +3,7 @@ type ast_node =
   | Variable of string
   | Block of ast_node
   | Sequence of ast_node list
+  | Cond of { pred : ast_node; cons : ast_node; alt : ast_node }
   | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
@@ -20,6 +21,11 @@ type typed_ast =
   | Variable of string
   | Block of typed_ast
   | Sequence of typed_ast list
+  | Cond of {
+      pred : typed_ast;
+      cons : typed_ast;
+      alt : typed_ast;
+    }
   | Let of { sym : string; expr : typed_ast; declared_type : Types.value_type }
   | Ld of string
   | Const of { sym : string; expr : typed_ast; declared_type : Types.value_type }

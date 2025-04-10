@@ -3,6 +3,7 @@ type ast_node =
   | Variable of string
   | Block of ast_node
   | Sequence of ast_node list
+  | Cond of { pred : ast_node; cons : ast_node; alt : ast_node }
   | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
@@ -19,6 +20,11 @@ type typed_ast =
   | Variable of string
   | Block of typed_ast
   | Sequence of typed_ast list
+  | Cond of {
+      pred : typed_ast;
+      cons : typed_ast;
+      alt : typed_ast;
+    }
   | Let of { sym : string; expr : typed_ast; declared_type : Types.value_type }
   | Ld of string
   | Const of {
@@ -111,6 +117,13 @@ let rec of_json json =
       let fun_nam = json |> member "fun" |> of_json in
       let args = json |> member "args" |> to_list |> List.map of_json in
       App { fun_nam; args }
+  | "cond" ->
+      Cond
+        {
+          pred = json |> member "pred" |> of_json;
+          cons = json |> member "cons" |> of_json;
+          alt = json |> member "alt" |> of_json;
+        }
   | tag -> failwith ("Unknown tag: " ^ tag)
 
 let rec strip_types (ast : typed_ast) : ast_node =
@@ -119,6 +132,12 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Variable sym -> Variable sym
   | Block body -> Block (strip_types body)
   | Sequence stmts -> Sequence (List.map strip_types stmts)
+  | Cond { pred; cons; alt } ->
+      Cond {
+        pred = strip_types pred;
+        cons = strip_types cons;
+        alt = strip_types alt;
+      }
   | Let { sym; expr; _ } -> Let { sym; expr = strip_types expr }
   | Ld sym -> Variable sym
   | Const { sym; expr; _ } -> Let { sym; expr = strip_types expr }
