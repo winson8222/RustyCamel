@@ -345,38 +345,119 @@ let test_borrow_after_move_fails () =
   Alcotest.(check (result unit string))
     "borrow after move fails" expected result
 
-let () =
-  let open Alcotest in
-  run "Ownership Checker Tests"
-    [
-      ( "Ownership rules",
-        [
-          test_case "simple let assmt borrow succeeds" `Quick
-            test_simple_let_assmt_borrow_succeeds;
-          test_case "simple fun arg borrow succeeds" `Quick
-            test_simple_fun_arg_borrow_succeeds;
-          test_case "simple fun arg move succeeds" `Quick
-            test_simple_fun_arg_move_succeeds;
-          test_case "use after fun arg move fails" `Quick
-            test_use_after_fun_arg_move_fails;
-          test_case "multiple mutable borrows fail" `Quick
-            test_multiple_mutable_borrows_fail;
-          test_case "mut and immut borrow fails" `Quick
-            test_mutable_and_immutable_borrow_fails;
-          test_case "mut and immut in separate blocks succeed" `Quick
-            test_mutable_and_immutable_in_diff_scopes_succeed;
-          test_case "nested mut and immut fails" `Quick
-            test_nested_mutable_and_immutable_borrow_fails;
-          test_case "nested multiple immut borrows succeed" `Quick
-            test_nested_multiple_immutable_borrows_succeed;
-          test_case "use after move fails" `Quick test_use_after_move_fails;
-          test_case "multiple immut borrows succeed" `Quick
-            test_multiple_immutable_borrows_succeed;
-          test_case "borrow after move fails" `Quick
-            test_borrow_after_move_fails;
-          test_case "mut then immut borrow in blocks succeeds" `Quick
-            test_mut_borrow_then_immut_in_separate_blocks_succeeds;
-          test_case "move after mut borrow fails" `Quick
-            test_move_after_mut_borrow_fails;
-        ] );
-    ]
+let test_borrow_after_move_in_different_scopes_fails () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Block
+          (Sequence
+             [
+               Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+               (* Move x to y *)
+             ]);
+        Let
+          {
+            sym = "z";
+            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            (* Illegal borrow of moved value *)
+            is_mutable = false;
+          };
+      ]
+  in
+  let expected = Error (make_borrow_err_msg "x" Moved) in
+  let result = check_ownership node checker in
+  Alcotest.(check (result unit string))
+    "borrow after move in different scopes fails" expected result
+
+let test_move_and_borrow_same_var_in_nested_blocks_fails () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Block
+          (Sequence
+             [
+               Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+               (* Move x to y *)
+               Block
+                 (Sequence
+                    [
+                      Let
+                        {
+                          sym = "z";
+                          expr =
+                            BorrowExpr { is_mutable = false; expr = Nam "x" };
+                          (* Borrow x in nested block after it was moved *)
+                          is_mutable = false;
+                        };
+                    ]);
+             ]);
+      ]
+  in
+  let expected = Error (make_borrow_err_msg "x" Moved) in
+  let result = check_ownership node checker in
+  Alcotest.(check (result unit string))
+    "move and borrow same var in nested blocks fails" expected result
+
+let test_complex_ownership_with_nested_blocks () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
+        Block
+          (Sequence
+             [
+               Let { sym = "y"; expr = Nam "x"; is_mutable = false };
+               (* Move x to y *)
+               Block
+                 (Sequence
+                    [
+                      Let
+                        {
+                          sym = "a";
+                          expr =
+                            BorrowExpr { is_mutable = false; expr = Nam "x" };
+                          (* Attempting to borrow moved value in nested block *)
+                          is_mutable = false;
+                        };
+                    ]);
+             ]);
+      ]
+  in
+  let expected = Error (make_borrow_err_msg "x" Moved) in
+  let result = check_ownership node checker in
+  Alcotest.(check (result unit string))
+    "complex ownership with nested blocks fails" expected result
+    let () =
+    let open Alcotest in
+    run "Ownership Checker Tests"
+      [
+        ( "Ownership rules",
+          [
+            test_case "test_simple_let_assmt_borrow_succeeds" `Quick test_simple_let_assmt_borrow_succeeds;
+            test_case "test_simple_fun_arg_borrow_succeeds" `Quick test_simple_fun_arg_borrow_succeeds;
+            test_case "test_simple_fun_arg_move_succeeds" `Quick test_simple_fun_arg_move_succeeds;
+            test_case "test_use_after_fun_arg_move_fails" `Quick test_use_after_fun_arg_move_fails;
+            test_case "test_multiple_mutable_borrows_fail" `Quick test_multiple_mutable_borrows_fail;
+            test_case "test_mutable_and_immutable_borrow_fails" `Quick test_mutable_and_immutable_borrow_fails;
+            test_case "test_mutable_and_immutable_in_diff_scopes_succeed" `Quick test_mutable_and_immutable_in_diff_scopes_succeed;
+            test_case "test_nested_mutable_and_immutable_borrow_fails" `Quick test_nested_mutable_and_immutable_borrow_fails;
+            test_case "test_nested_multiple_immutable_borrows_succeed" `Quick test_nested_multiple_immutable_borrows_succeed;
+            test_case "test_use_after_move_fails" `Quick test_use_after_move_fails;
+            test_case "test_multiple_immutable_borrows_succeed" `Quick test_multiple_immutable_borrows_succeed;
+            test_case "test_borrow_after_move_fails" `Quick test_borrow_after_move_fails;
+            test_case "test_mut_borrow_then_immut_in_separate_blocks_succeeds" `Quick test_mut_borrow_then_immut_in_separate_blocks_succeeds;
+            test_case "test_move_after_mut_borrow_fails" `Quick test_move_after_mut_borrow_fails;
+            test_case "test_borrow_after_move_in_different_scopes_fails" `Quick test_borrow_after_move_in_different_scopes_fails;
+            test_case "test_move_and_borrow_same_var_in_nested_blocks_fails" `Quick test_move_and_borrow_same_var_in_nested_blocks_fails;
+            test_case "test_complex_ownership_with_nested_blocks" `Quick test_complex_ownership_with_nested_blocks;
+          ] );
+      ]
+  
