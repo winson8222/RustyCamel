@@ -17,19 +17,23 @@ let test_run_ldc () =
   check_vm_value "run ldc int" (Ok (VNumber 123)) result
 
 let test_assign_and_ld () =
-    let open Vm.Compiler in 
-    let instrs = 
-      [
-        ENTER_SCOPE { num = 1 };              (* scope for y *)
-        LDC (Int 4);                          (* push 4 *)
-        ASSIGN { frame_index = 0; value_index = 0 }; (* assign to y *)
-        EXIT_SCOPE;                           (* exit x scope *)
-        DONE
-      ]
-    in
-    let result = run (create ()) instrs in
-    check_vm_value "run assign and load" (Ok (VNumber 4)) result
-  
+  let open Vm.Compiler in
+  let instrs =
+    [
+      ENTER_SCOPE { num = 1 };
+      (* scope for y *)
+      LDC (Int 4);
+      (* push 4 *)
+      ASSIGN { frame_index = 0; value_index = 0 };
+      (* assign to y *)
+      EXIT_SCOPE;
+      (* exit x scope *)
+      DONE;
+    ]
+  in
+  let result = run (create ()) instrs in
+  check_vm_value "run assign and load" (Ok (VNumber 4)) result
+
 let test_run_string_literal () =
   let open Vm.Compiler in
   let instrs = [ LDC (String "hello world"); DONE ] in
@@ -62,14 +66,16 @@ let test_unrecognized_instr () =
 (* ---------- Run tests ---------- *)
 
 let () =
-let open Alcotest in 
-  run "VM Runner Tests" [
-    "runner", [
-      test_case "Run LDC Int" `Quick test_run_ldc;
-      test_case "Run LDC String" `Quick test_run_string_literal;
-      test_case "Enter/Exit Scope" `Quick test_enter_exit_scope;
-      test_case "DONE on empty stack" `Quick test_run_empty_stack;
-      test_case "Unrecognized instruction" `Quick test_unrecognized_instr;
-      test_case "assign and load" `Quick test_assign_and_ld;
+  let open Alcotest in
+  run "VM Runner Tests"
+    [
+      ( "runner",
+        [
+          test_case "Run LDC Int" `Quick test_run_ldc;
+          test_case "Run LDC String" `Quick test_run_string_literal;
+          test_case "Enter/Exit Scope" `Quick test_enter_exit_scope;
+          test_case "DONE on empty stack" `Quick test_run_empty_stack;
+          test_case "Unrecognized instruction" `Quick test_unrecognized_instr;
+          test_case "assign and load" `Quick test_assign_and_ld;
+        ] );
     ]
-  ]
