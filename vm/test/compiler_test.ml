@@ -58,7 +58,7 @@ let test_blk_with_let () =
     "body": {
       "tag": "seq",
       "stmts": [
-        { "tag": "let", "sym": "x", "expr": { "tag": "lit", "val": 4 } }
+        { "tag": "let", "sym": "x", "expr": { "tag": "lit", "val": 4 }, "is_mutable": false }
       ]
     }
   }|}
@@ -77,7 +77,7 @@ let test_blk_with_let () =
 
 let test_ld_variable () =
   let json =
-    {|{"tag": "blk", "body": {"tag": "seq", "stmts": [{"tag": "let", "sym": "x", "expr": {"tag": "lit", "val": 4}}, {"tag": "nam", "sym": "x"}]}}|}
+    {|{"tag": "blk", "body": {"tag": "seq", "stmts": [{"tag": "let", "sym": "x", "is_mutable": false,"expr": {"tag": "lit", "val": 4}}, {"tag": "nam", "sym": "x"}]}}|}
   in
   let result = compile_program json in
   let expected =
@@ -86,7 +86,7 @@ let test_ld_variable () =
       LDC (Int 4);
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "x"; pos ={ frame_index = 0; value_index = 0 } };
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
       DONE;
     ]
@@ -367,27 +367,29 @@ let test_function_application () =
     }|}
   in
   let result = compile_program json in
-  let expected = [
-    ENTER_SCOPE { num = 1 };
-    LDF { arity = 2; addr = 3 };
-    GOTO 11;
-    ENTER_SCOPE { num = 0 };
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    BINOP { sym = "+" };
-    RESET;
-    EXIT_SCOPE;
-    LDC Undefined;
-    RESET;
-    ASSIGN { frame_index = 0; value_index = 0 };
-    POP;
-    LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
-    LDC (Int 33);
-    LDC (Int 22);
-    CALL 2;
-    EXIT_SCOPE;
-    DONE
-  ] in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 11;
+      ENTER_SCOPE { num = 0 };
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      BINOP { sym = "+" };
+      RESET;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 33);
+      LDC (Int 22);
+      CALL 2;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
   check_instr_list "function application" expected result
 
 let test_nested_function_calls () =
@@ -487,49 +489,51 @@ let test_nested_function_calls () =
     }|}
   in
   let result = compile_program json in
-  let expected = [
-    ENTER_SCOPE { num = 3 };
-    (* Function k *)
-    LDF { arity = 1; addr = 3 };
-    GOTO 7;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    RESET;
-    LDC Undefined;
-    RESET;
-    ASSIGN { frame_index = 0; value_index = 0 };
-    POP;
-    (* Function g *)
-    LDF { arity = 1; addr = 11 };
-    GOTO 15;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    RESET;
-    LDC Undefined;
-    RESET;
-    ASSIGN { frame_index = 0; value_index = 1 };
-    POP;
-    (* Function f *)
-    LDF { arity = 2; addr = 19 };
-    GOTO 29;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 0);
-    ASSIGN { frame_index = 2; value_index = 0 };
-    POP;
-    LD { sym = "g"; pos = { frame_index = 0; value_index = 1 } };
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    TAILCALL 1;
-    EXIT_SCOPE;
-    LDC Undefined;
-    RESET;
-    ASSIGN { frame_index = 0; value_index = 2 };
-    POP;
-    (* Call f(33, 22) *)
-    LD { sym = "f"; pos = { frame_index = 0; value_index = 2 } };
-    LDC (Int 33);
-    LDC (Int 22);
-    CALL 2;
-    EXIT_SCOPE;
-    DONE
-  ] in
+  let expected =
+    [
+      ENTER_SCOPE { num = 3 };
+      (* Function k *)
+      LDF { arity = 1; addr = 3 };
+      GOTO 7;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      RESET;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      (* Function g *)
+      LDF { arity = 1; addr = 11 };
+      GOTO 15;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      RESET;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      POP;
+      (* Function f *)
+      LDF { arity = 2; addr = 19 };
+      GOTO 29;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 2; value_index = 0 };
+      POP;
+      LD { sym = "g"; pos = { frame_index = 0; value_index = 1 } };
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      TAILCALL 1;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 2 };
+      POP;
+      (* Call f(33, 22) *)
+      LD { sym = "f"; pos = { frame_index = 0; value_index = 2 } };
+      LDC (Int 33);
+      LDC (Int 22);
+      CALL 2;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
   check_instr_list "nested function calls with tail call" expected result
 
 (* ---------- Run tests ---------- *)
@@ -550,9 +554,12 @@ let () =
           test_case "Unary not" `Quick test_unary_not;
           test_case "Function with no parameters" `Quick test_function_no_params;
           test_case "Function with parameters" `Quick test_function_with_params;
-          test_case "function with binop parameters" `Quick test_function_with_binop;
-          test_case "function with block and const" `Quick test_function_with_block_and_const;
+          test_case "function with binop parameters" `Quick
+            test_function_with_binop;
+          test_case "function with block and const" `Quick
+            test_function_with_block_and_const;
           test_case "function application" `Quick test_function_application;
-          test_case "nested function calls with tail call" `Quick test_nested_function_calls;
+          test_case "nested function calls with tail call" `Quick
+            test_nested_function_calls;
         ] );
     ]

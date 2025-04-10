@@ -29,7 +29,7 @@ let test_simple_fun_arg_borrow_succeeds () =
         Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
         App
           {
-            func = Nam "f";
+            fun_nam =Nam "f";
             args = [ BorrowExpr { expr = Nam "x"; is_mutable = false } ];
           };
       ]
@@ -47,7 +47,7 @@ let test_simple_fun_arg_move_succeeds () =
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
         Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
-        App { func = Nam "f"; args = [ Nam "x" ] };
+        App { fun_nam =Nam "f"; args = [ Nam "x" ] };
       ]
   in
   let result = check_ownership node checker in
@@ -63,7 +63,7 @@ let test_use_after_fun_arg_move_fails () =
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
         Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
-        App { func = Nam "f"; args = [ Nam "x" ] };
+        App { fun_nam =Nam "f"; args = [ Nam "x" ] };
         Nam "x";
       ]
   in

@@ -11,7 +11,7 @@ type ast_node =
   | Lam of { prms : string list; body : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Ret of ast_node
-  | App of { func : ast_node; args : ast_node list }
+  | App of { fun_nam : ast_node; args : ast_node list }
   | BorrowExpr of { is_mutable : bool; expr : ast_node }
 [@@deriving show]
 
@@ -83,7 +83,7 @@ let rec of_json json =
       Lam { prms; body }
   | "ret" -> Ret (json |> member "expr" |> of_json)
   | "app" ->
-      let fun_expr = json |> member "fun" |> of_json in
+      let fun_nam = json |> member "fun" |> of_json in
       let args = json |> member "args" |> to_list |> List.map of_json in
-      App { func = fun_expr; args }
+      App { fun_nam; args }
   | tag -> failwith ("Unknown tag: " ^ tag)

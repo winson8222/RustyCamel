@@ -11,9 +11,10 @@ type ast_node =
   | Lam of { prms : string list; body : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Ret of ast_node
-  | App of { func : ast_node; args : ast_node list }
+  | App of { fun_nam : ast_node; args : ast_node list }
   | BorrowExpr of { is_mutable: bool; expr: ast_node }
 [@@deriving show]
+
 
 val of_json : Yojson.Basic.t -> ast_node
 

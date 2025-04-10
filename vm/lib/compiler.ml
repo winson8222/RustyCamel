@@ -95,7 +95,7 @@ let rec compile node state =
       (* Finally add EXIT_SCOPE *)
       let exit_scope_instr = EXIT_SCOPE in
       {
-        state_after_body with
+        state with
         wc = state_after_body.wc + 1;
         instrs = state_after_body.instrs @ [ exit_scope_instr ];
       }
@@ -198,10 +198,10 @@ let rec compile node state =
             instrs = state_after_expr.instrs @ [ RESET ];
             wc = state_after_expr.wc + 1;
           })
-  | App { func; args } ->
+  | App { fun_nam; args } ->
       (* Compile the function expression *)
-      let state_after_fun = compile func state in
-
+      let state_after_fun = compile fun_nam state in
+      
       (* Compile each argument *)
       let state_after_args =
         List.fold_left (fun state arg -> compile arg state) state_after_fun args
