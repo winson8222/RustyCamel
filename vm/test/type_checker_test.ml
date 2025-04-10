@@ -111,9 +111,7 @@ let test_binop_mismatched_operands_fails () =
          ])
   in
   let actual = check_type node tc in
-  let expected =
-    Error "Binary operands have incompatible types"
-  in
+  let expected = Error "Binary operands have incompatible types" in
   Alcotest.(check (result unit string)) "test" expected actual
 
 let test_binop_matching_operands_succeeds () =

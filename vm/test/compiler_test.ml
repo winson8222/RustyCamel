@@ -670,39 +670,41 @@ let test_conditional_function () =
     }|}
   in
   let result = compile_program json in
-  let expected = [
-    ENTER_SCOPE { num = 1 };
-    LDF { arity = 2; addr = 3 };
-    GOTO 23;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LDC (Int 0);
-    BINOP { sym = ">" };
-    JOF 12;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 0);
-    ASSIGN { frame_index = 2; value_index = 0 };
-    EXIT_SCOPE;
-    GOTO 16;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 3);
-    ASSIGN { frame_index = 2; value_index = 0 };
-    EXIT_SCOPE;
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    BINOP { sym = "-" };
-    RESET;
-    LDC Undefined;
-    RESET;
-    ASSIGN { frame_index = 0; value_index = 0 };
-    POP;
-    LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
-    LDC (Int 33);
-    LDC (Int 22);
-    CALL 2;
-    EXIT_SCOPE;
-    DONE
-  ] in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 23;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 0);
+      BINOP { sym = ">" };
+      JOF 12;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 2; value_index = 0 };
+      EXIT_SCOPE;
+      GOTO 16;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 3);
+      ASSIGN { frame_index = 2; value_index = 0 };
+      EXIT_SCOPE;
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      BINOP { sym = "-" };
+      RESET;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 33);
+      LDC (Int 22);
+      CALL 2;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
   check_instr_list "conditional function with assignment" expected result
 
 let test_conditional_function_with_returns () =
@@ -799,46 +801,49 @@ let test_conditional_function_with_returns () =
     }|}
   in
   let result = compile_program json in
-  let expected = [
-    ENTER_SCOPE { num = 1 };
-    LDF { arity = 2; addr = 3 };
-    GOTO 28;
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    LDC (Int 0);
-    BINOP { sym = "<" };
-    JOF 17;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 0);
-    ASSIGN { frame_index = 2; value_index = 0 };
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    BINOP { sym = "+" };
-    RESET;
-    EXIT_SCOPE;
-    GOTO 26;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 3);
-    ASSIGN { frame_index = 2; value_index = 0 };
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    BINOP { sym = "-" };
-    RESET;
-    EXIT_SCOPE;
-    LDC Undefined;
-    RESET;
-    ASSIGN { frame_index = 0; value_index = 0 };
-    POP;
-    LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
-    LDC (Int 33);
-    LDC (Int 22);
-    CALL 2;
-    EXIT_SCOPE;
-    DONE
-  ] in
-  check_instr_list "conditional function with returns in both branches" expected result
-  
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 28;
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LDC (Int 0);
+      BINOP { sym = "<" };
+      JOF 17;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 2; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      BINOP { sym = "+" };
+      RESET;
+      EXIT_SCOPE;
+      GOTO 26;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 3);
+      ASSIGN { frame_index = 2; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      BINOP { sym = "-" };
+      RESET;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 33);
+      LDC (Int 22);
+      CALL 2;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "conditional function with returns in both branches" expected
+    result
+
 let test_2_conditional_function () =
   let json =
     {|{
@@ -988,66 +993,70 @@ let test_2_conditional_function () =
     }|}
   in
   let result = compile_program json in
-  let expected = [
-    ENTER_SCOPE { num = 1 };
-    LDF { arity = 2; addr = 3 };
-    GOTO 49;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 3);
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    BINOP { sym = "*" };
-    ASSIGN { frame_index = 2; value_index = 0 };
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LDC (Int 0);
-    BINOP { sym = ">" };
-    JOF 18;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 0);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    EXIT_SCOPE;
-    GOTO 22;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 1);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    EXIT_SCOPE;
-    POP;
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    LDC (Int 0);
-    BINOP { sym = "<" };
-    JOF 37;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 0);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    BINOP { sym = "+" };
-    RESET;
-    EXIT_SCOPE;
-    GOTO 46;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 3);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    BINOP { sym = "-" };
-    RESET;
-    EXIT_SCOPE;
-    EXIT_SCOPE;
-    LDC Undefined;
-    RESET;
-    ASSIGN { frame_index = 0; value_index = 0 };
-    POP;
-    LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
-    LDC (Int 33);
-    LDC (Int 22);
-    CALL 2;
-    EXIT_SCOPE;
-    DONE
-  ] in
-  check_instr_list "complex conditional function with multiple blocks and returns" expected result
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 49;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 3);
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      BINOP { sym = "*" };
+      ASSIGN { frame_index = 2; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 0);
+      BINOP { sym = ">" };
+      JOF 18;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      EXIT_SCOPE;
+      GOTO 22;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 1);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      EXIT_SCOPE;
+      POP;
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LDC (Int 0);
+      BINOP { sym = "<" };
+      JOF 37;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      BINOP { sym = "+" };
+      RESET;
+      EXIT_SCOPE;
+      GOTO 46;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 3);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      BINOP { sym = "-" };
+      RESET;
+      EXIT_SCOPE;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 33);
+      LDC (Int 22);
+      CALL 2;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list
+    "complex conditional function with multiple blocks and returns" expected
+    result
 
 let test_nested_conditional_function () =
   let json =
@@ -1255,85 +1264,89 @@ let test_nested_conditional_function () =
     }|}
   in
   let result = compile_program json in
-  let expected = [
-    ENTER_SCOPE { num = 1 };
-    LDF { arity = 2; addr = 3 };
-    GOTO 68;
-    ENTER_SCOPE { num = 2 };
-    LDC (Int 3);
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    BINOP { sym = "*" };
-    ASSIGN { frame_index = 2; value_index = 0 };
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LDC (Int 0);
-    BINOP { sym = ">" };
-    JOF 18;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 0);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    EXIT_SCOPE;
-    GOTO 38;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LDC (Int 3);
-    UNOP { sym = "-unary" };
-    BINOP { sym = ">" };
-    JOF 31;
-    ENTER_SCOPE { num = 2 };
-    LDC (Int 3);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    POP;
-    LDC (Int 1);
-    ASSIGN { frame_index = 3; value_index = 1 };
-    EXIT_SCOPE;
-    GOTO 35;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 5);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    EXIT_SCOPE;
-    POP;
-    LDC (Int 10);
-    RESET;
-    POP;
-    LDC (Int 0);
-    ASSIGN { frame_index = 2; value_index = 1 };
-    POP;
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    LDC (Int 0);
-    BINOP { sym = "<" };
-    JOF 56;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 0);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    BINOP { sym = "+" };
-    RESET;
-    EXIT_SCOPE;
-    GOTO 65;
-    ENTER_SCOPE { num = 1 };
-    LDC (Int 3);
-    ASSIGN { frame_index = 3; value_index = 0 };
-    POP;
-    LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-    LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
-    BINOP { sym = "-" };
-    RESET;
-    EXIT_SCOPE;
-    EXIT_SCOPE;
-    LDC Undefined;
-    RESET;
-    ASSIGN { frame_index = 0; value_index = 0 };
-    POP;
-    LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
-    LDC (Int 33);
-    LDC (Int 22);
-    CALL 2;
-    EXIT_SCOPE;
-    DONE
-  ] in
-  check_instr_list "nested conditional function with multiple blocks and returns" expected result
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 68;
+      ENTER_SCOPE { num = 2 };
+      LDC (Int 3);
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      BINOP { sym = "*" };
+      ASSIGN { frame_index = 2; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 0);
+      BINOP { sym = ">" };
+      JOF 18;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      EXIT_SCOPE;
+      GOTO 38;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 3);
+      UNOP { sym = "-unary" };
+      BINOP { sym = ">" };
+      JOF 31;
+      ENTER_SCOPE { num = 2 };
+      LDC (Int 3);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LDC (Int 1);
+      ASSIGN { frame_index = 3; value_index = 1 };
+      EXIT_SCOPE;
+      GOTO 35;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 5);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      EXIT_SCOPE;
+      POP;
+      LDC (Int 10);
+      RESET;
+      POP;
+      LDC (Int 0);
+      ASSIGN { frame_index = 2; value_index = 1 };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LDC (Int 0);
+      BINOP { sym = "<" };
+      JOF 56;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      BINOP { sym = "+" };
+      RESET;
+      EXIT_SCOPE;
+      GOTO 65;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 3);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      BINOP { sym = "-" };
+      RESET;
+      EXIT_SCOPE;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 33);
+      LDC (Int 22);
+      CALL 2;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list
+    "nested conditional function with multiple blocks and returns" expected
+    result
 
 (* ---------- Run tests ---------- *)
 
@@ -1358,10 +1371,14 @@ let () =
           test_case "function with block and const" `Quick
             test_function_with_block_and_const;
           test_case "function application" `Quick test_function_application;
-          test_case "nested function calls with tail call" `Quick test_nested_function_calls;
-          test_case "conditional function with assignment" `Quick test_conditional_function;
-          test_case "conditional function with returns" `Quick test_conditional_function_with_returns;
+          test_case "nested function calls with tail call" `Quick
+            test_nested_function_calls;
+          test_case "conditional function with assignment" `Quick
+            test_conditional_function;
+          test_case "conditional function with returns" `Quick
+            test_conditional_function_with_returns;
           test_case "2 conditional functions" `Quick test_2_conditional_function;
-          test_case "nested conditional function" `Quick test_nested_conditional_function;
+          test_case "nested conditional function" `Quick
+            test_nested_conditional_function;
         ] );
     ]
