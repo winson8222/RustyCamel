@@ -11,7 +11,7 @@ let test_simple_let_assmt_borrow_succeeds () =
           {
             sym = "a";
             is_mutable = false;
-            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            expr = Borrow { is_mutable = false; expr = Nam "x" };
           };
       ]
   in
@@ -29,8 +29,8 @@ let test_simple_fun_arg_borrow_succeeds () =
         Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
         App
           {
-            fun_nam =Nam "f";
-            args = [ BorrowExpr { expr = Nam "x"; is_mutable = false } ];
+            fun_nam = Nam "f";
+            args = [ Borrow { expr = Nam "x"; is_mutable = false } ];
           };
       ]
   in
@@ -47,7 +47,7 @@ let test_simple_fun_arg_move_succeeds () =
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
         Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
-        App { fun_nam =Nam "f"; args = [ Nam "x" ] };
+        App { fun_nam = Nam "f"; args = [ Nam "x" ] };
       ]
   in
   let result = check_ownership node checker in
@@ -63,7 +63,7 @@ let test_use_after_fun_arg_move_fails () =
       [
         Let { sym = "x"; expr = Literal (Int 1); is_mutable = false };
         Fun { sym = "f"; body = Ret (Literal (Int 1)); prms = [ "a" ] };
-        App { fun_nam =Nam "f"; args = [ Nam "x" ] };
+        App { fun_nam = Nam "f"; args = [ Nam "x" ] };
         Nam "x";
       ]
   in
@@ -82,13 +82,13 @@ let test_multiple_mutable_borrows_fail () =
         Let
           {
             sym = "a";
-            expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+            expr = Borrow { is_mutable = true; expr = Nam "x" };
             is_mutable = false;
           };
         Let
           {
             sym = "b";
-            expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+            expr = Borrow { is_mutable = true; expr = Nam "x" };
             is_mutable = false;
           };
       ]
@@ -109,13 +109,13 @@ let test_mutable_and_immutable_borrow_fails () =
           {
             sym = "a";
             is_mutable = false;
-            expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+            expr = Borrow { is_mutable = true; expr = Nam "x" };
           };
         Let
           {
             sym = "b";
             is_mutable = false;
-            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            expr = Borrow { is_mutable = false; expr = Nam "x" };
           };
       ]
   in
@@ -137,7 +137,7 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
                Let
                  {
                    sym = "y";
-                   expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+                   expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
                  };
              ]);
@@ -147,7 +147,7 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
                Let
                  {
                    sym = "z";
-                   expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+                   expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
                  };
              ]);
@@ -172,7 +172,7 @@ let test_nested_mutable_and_immutable_borrow_fails () =
                  {
                    sym = "a";
                    is_mutable = false;
-                   expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+                   expr = Borrow { is_mutable = true; expr = Nam "x" };
                  };
                Block
                  (Sequence
@@ -181,8 +181,7 @@ let test_nested_mutable_and_immutable_borrow_fails () =
                         {
                           sym = "b";
                           is_mutable = false;
-                          expr =
-                            BorrowExpr { is_mutable = true; expr = Nam "x" };
+                          expr = Borrow { is_mutable = true; expr = Nam "x" };
                         };
                     ]);
              ]);
@@ -207,7 +206,7 @@ let test_nested_multiple_immutable_borrows_succeed () =
                  {
                    sym = "a";
                    is_mutable = false;
-                   expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+                   expr = Borrow { is_mutable = false; expr = Nam "x" };
                  };
                Block
                  (Sequence
@@ -216,8 +215,7 @@ let test_nested_multiple_immutable_borrows_succeed () =
                         {
                           sym = "b";
                           is_mutable = false;
-                          expr =
-                            BorrowExpr { is_mutable = false; expr = Nam "x" };
+                          expr = Borrow { is_mutable = false; expr = Nam "x" };
                         };
                     ]);
              ]);
@@ -255,13 +253,13 @@ let test_multiple_immutable_borrows_succeed () =
         Let
           {
             sym = "a";
-            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            expr = Borrow { is_mutable = false; expr = Nam "x" };
             is_mutable = false;
           };
         Let
           {
             sym = "b";
-            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            expr = Borrow { is_mutable = false; expr = Nam "x" };
             is_mutable = false;
           };
       ]
@@ -284,7 +282,7 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
                Let
                  {
                    sym = "b";
-                   expr = BorrowExpr { is_mutable = true; expr = Nam "x" };
+                   expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
                  };
              ]);
@@ -292,7 +290,7 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
           {
             sym = "a";
             is_mutable = false;
-            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            expr = Borrow { is_mutable = false; expr = Nam "x" };
           };
       ]
   in
@@ -311,7 +309,7 @@ let test_move_after_mut_borrow_fails () =
         Let
           {
             sym = "x";
-            expr = BorrowExpr { is_mutable = true; expr = Nam "val" };
+            expr = Borrow { is_mutable = true; expr = Nam "val" };
             is_mutable = false;
           };
         Let { sym = "copy"; expr = Nam "val"; is_mutable = false };
@@ -334,7 +332,7 @@ let test_borrow_after_move_fails () =
         Let
           {
             sym = "a";
-            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            expr = Borrow { is_mutable = false; expr = Nam "x" };
             is_mutable = false;
           };
         (* illegal *)
@@ -361,7 +359,7 @@ let test_borrow_after_move_in_different_scopes_fails () =
         Let
           {
             sym = "z";
-            expr = BorrowExpr { is_mutable = false; expr = Nam "x" };
+            expr = Borrow { is_mutable = false; expr = Nam "x" };
             (* Illegal borrow of moved value *)
             is_mutable = false;
           };
@@ -390,8 +388,7 @@ let test_move_and_borrow_same_var_in_nested_blocks_fails () =
                       Let
                         {
                           sym = "z";
-                          expr =
-                            BorrowExpr { is_mutable = false; expr = Nam "x" };
+                          expr = Borrow { is_mutable = false; expr = Nam "x" };
                           (* Borrow x in nested block after it was moved *)
                           is_mutable = false;
                         };
@@ -422,8 +419,7 @@ let test_complex_ownership_with_nested_blocks () =
                       Let
                         {
                           sym = "a";
-                          expr =
-                            BorrowExpr { is_mutable = false; expr = Nam "x" };
+                          expr = Borrow { is_mutable = false; expr = Nam "x" };
                           (* Attempting to borrow moved value in nested block *)
                           is_mutable = false;
                         };
@@ -435,29 +431,45 @@ let test_complex_ownership_with_nested_blocks () =
   let result = check_ownership node checker in
   Alcotest.(check (result unit string))
     "complex ownership with nested blocks fails" expected result
-    let () =
-    let open Alcotest in
-    run "Ownership Checker Tests"
-      [
-        ( "Ownership rules",
-          [
-            test_case "test_simple_let_assmt_borrow_succeeds" `Quick test_simple_let_assmt_borrow_succeeds;
-            test_case "test_simple_fun_arg_borrow_succeeds" `Quick test_simple_fun_arg_borrow_succeeds;
-            test_case "test_simple_fun_arg_move_succeeds" `Quick test_simple_fun_arg_move_succeeds;
-            test_case "test_use_after_fun_arg_move_fails" `Quick test_use_after_fun_arg_move_fails;
-            test_case "test_multiple_mutable_borrows_fail" `Quick test_multiple_mutable_borrows_fail;
-            test_case "test_mutable_and_immutable_borrow_fails" `Quick test_mutable_and_immutable_borrow_fails;
-            test_case "test_mutable_and_immutable_in_diff_scopes_succeed" `Quick test_mutable_and_immutable_in_diff_scopes_succeed;
-            test_case "test_nested_mutable_and_immutable_borrow_fails" `Quick test_nested_mutable_and_immutable_borrow_fails;
-            test_case "test_nested_multiple_immutable_borrows_succeed" `Quick test_nested_multiple_immutable_borrows_succeed;
-            test_case "test_use_after_move_fails" `Quick test_use_after_move_fails;
-            test_case "test_multiple_immutable_borrows_succeed" `Quick test_multiple_immutable_borrows_succeed;
-            test_case "test_borrow_after_move_fails" `Quick test_borrow_after_move_fails;
-            test_case "test_mut_borrow_then_immut_in_separate_blocks_succeeds" `Quick test_mut_borrow_then_immut_in_separate_blocks_succeeds;
-            test_case "test_move_after_mut_borrow_fails" `Quick test_move_after_mut_borrow_fails;
-            test_case "test_borrow_after_move_in_different_scopes_fails" `Quick test_borrow_after_move_in_different_scopes_fails;
-            test_case "test_move_and_borrow_same_var_in_nested_blocks_fails" `Quick test_move_and_borrow_same_var_in_nested_blocks_fails;
-            test_case "test_complex_ownership_with_nested_blocks" `Quick test_complex_ownership_with_nested_blocks;
-          ] );
-      ]
-  
+
+let () =
+  let open Alcotest in
+  run "Ownership Checker Tests"
+    [
+      ( "Ownership rules",
+        [
+          test_case "test_simple_let_assmt_borrow_succeeds" `Quick
+            test_simple_let_assmt_borrow_succeeds;
+          test_case "test_simple_fun_arg_borrow_succeeds" `Quick
+            test_simple_fun_arg_borrow_succeeds;
+          test_case "test_simple_fun_arg_move_succeeds" `Quick
+            test_simple_fun_arg_move_succeeds;
+          test_case "test_use_after_fun_arg_move_fails" `Quick
+            test_use_after_fun_arg_move_fails;
+          test_case "test_multiple_mutable_borrows_fail" `Quick
+            test_multiple_mutable_borrows_fail;
+          test_case "test_mutable_and_immutable_borrow_fails" `Quick
+            test_mutable_and_immutable_borrow_fails;
+          test_case "test_mutable_and_immutable_in_diff_scopes_succeed" `Quick
+            test_mutable_and_immutable_in_diff_scopes_succeed;
+          test_case "test_nested_mutable_and_immutable_borrow_fails" `Quick
+            test_nested_mutable_and_immutable_borrow_fails;
+          test_case "test_nested_multiple_immutable_borrows_succeed" `Quick
+            test_nested_multiple_immutable_borrows_succeed;
+          test_case "test_use_after_move_fails" `Quick test_use_after_move_fails;
+          test_case "test_multiple_immutable_borrows_succeed" `Quick
+            test_multiple_immutable_borrows_succeed;
+          test_case "test_borrow_after_move_fails" `Quick
+            test_borrow_after_move_fails;
+          test_case "test_mut_borrow_then_immut_in_separate_blocks_succeeds"
+            `Quick test_mut_borrow_then_immut_in_separate_blocks_succeeds;
+          test_case "test_move_after_mut_borrow_fails" `Quick
+            test_move_after_mut_borrow_fails;
+          test_case "test_borrow_after_move_in_different_scopes_fails" `Quick
+            test_borrow_after_move_in_different_scopes_fails;
+          test_case "test_move_and_borrow_same_var_in_nested_blocks_fails"
+            `Quick test_move_and_borrow_same_var_in_nested_blocks_fails;
+          test_case "test_complex_ownership_with_nested_blocks" `Quick
+            test_complex_ownership_with_nested_blocks;
+        ] );
+    ]

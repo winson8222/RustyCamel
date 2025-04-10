@@ -92,7 +92,7 @@ let rec check_ownership_aux ast_node state : t =
   in
   let open Ast in
   match ast_node with
-  | BorrowExpr { is_mutable; expr } ->
+  | Borrow { is_mutable; expr } ->
       let borrow_kind = if is_mutable then MutableBorrow else ImmutableBorrow in
       check_ownership_aux expr { state with borrow_kind = Some borrow_kind }
   | Sequence stmts ->

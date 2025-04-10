@@ -12,7 +12,7 @@ type ast_node =
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
-  | BorrowExpr of { is_mutable : bool; expr : ast_node }
+  | Borrow of { is_mutable : bool; expr : ast_node }
 [@@deriving show]
 
 let rec of_json json =
@@ -61,7 +61,7 @@ let rec of_json json =
         }
   | "nam" -> Nam (member "sym" json |> to_string)
   | "borrow" ->
-      BorrowExpr
+      Borrow
         {
           is_mutable = member "mutable" json |> to_bool;
           expr = member "expr" json |> of_json;
