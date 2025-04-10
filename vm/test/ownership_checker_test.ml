@@ -137,6 +137,38 @@ let test_multiple_immutable_borrows_succeed () =
   Alcotest.(check (result unit string))
     "multiple immut borrows succeed" expected result
 
+let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Let { sym = "x"; expr = Literal (Int 42); is_mutable = false };
+        Block (Sequence [ BorrowExpr { is_mutable = true; expr = Nam "x" } ]);
+        BorrowExpr { is_mutable = false; expr = Nam "x" };
+      ]
+  in
+  let expected = Ok () in
+  let result = check_ownership node checker in
+  Alcotest.(check (result unit string))
+    "mut borrow then immut in separate blocks succeeds" expected result
+
+let test_move_after_mut_borrow_fails () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Let { sym = "val"; expr = Literal (Int 9); is_mutable = false };
+        BorrowExpr { is_mutable = true; expr = Nam "val" };
+        Let { sym = "copy"; expr = Nam "val"; is_mutable = false };
+      ]
+  in
+  let expected = Error (make_move_err_msg "val" MutablyBorrowed) in
+  let result = check_ownership node checker in
+  Alcotest.(check (result unit string))
+    "move after mut borrow fails" expected result
+
 let test_borrow_after_move_fails () =
   let checker = create () in
   let open Vm.Ast in
@@ -177,5 +209,9 @@ let () =
             test_multiple_immutable_borrows_succeed;
           test_case "borrow after move fails" `Quick
             test_borrow_after_move_fails;
+          test_case "mut then immut borrow in blocks succeeds" `Quick
+            test_mut_borrow_then_immut_in_separate_blocks_succeeds;
+          test_case "move after mut borrow fails" `Quick
+            test_move_after_mut_borrow_fails;
         ] );
     ]
