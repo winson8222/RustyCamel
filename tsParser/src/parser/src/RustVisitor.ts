@@ -20,6 +20,7 @@ import { BinaryExprContext } from "./RustParser.js";
 import { UnaryNegationContext } from "./RustParser.js";
 import { UnaryNotContext } from "./RustParser.js";
 import { BorrowExprContext } from "./RustParser.js";
+import { DerefExprContext } from "./RustParser.js";
 import { UnaryToAtomContext } from "./RustParser.js";
 import { FunctionCallContext } from "./RustParser.js";
 import { MacroCallContext } from "./RustParser.js";
@@ -149,6 +150,13 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitBorrowExpr?: (ctx: BorrowExprContext) => Result;
+    /**
+     * Visit a parse tree produced by the `DerefExpr`
+     * labeled alternative in `RustParser.exprUnary`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitDerefExpr?: (ctx: DerefExprContext) => Result;
     /**
      * Visit a parse tree produced by the `UnaryToAtom`
      * labeled alternative in `RustParser.exprUnary`.

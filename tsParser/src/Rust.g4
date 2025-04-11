@@ -55,8 +55,10 @@ exprUnary
     : '-' exprUnary                    #UnaryNegation
     | '!' exprUnary                    #UnaryNot
     | REF MUT? exprUnary               #BorrowExpr
+    | '*' exprUnary                    #DerefExpr    // Add dereferencing
     | exprAtom                         #UnaryToAtom
     ;
+
 
 exprAtom
     : IDENTIFIER '(' argList? ')'      #FunctionCall
