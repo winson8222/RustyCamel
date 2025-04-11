@@ -183,7 +183,7 @@ let test_function_lifetime () =
   let expected = [
     ENTER_SCOPE { num = 1 };
     LDF { arity = 1; addr = 3 };
-    GOTO 22;
+    GOTO 23;
     ENTER_SCOPE { num = 2 };
     LDC (Int 0);
     ASSIGN { frame_index = 2; value_index = 0 };
@@ -201,6 +201,7 @@ let test_function_lifetime () =
     FREE { sym = "x"; to_free = true };
     RESET;
     EXIT_SCOPE;
+    FREE { sym = "x"; to_free = true };
     LDC Undefined;
     RESET;
     ASSIGN { frame_index = 0; value_index = 0 };
@@ -209,6 +210,55 @@ let test_function_lifetime () =
     DONE;
   ] in
   check_instr_list "function lifetime" expected result
+
+let test_function_no_return_lifetime () =
+  let json_str = {|
+    { "tag": "blk",
+      "body":
+      { "tag": "fun",
+        "sym": "f",
+        "prms": [{"name": "x"}],
+        "declared_type": {
+          "kind": "function",
+          "ret": "int",
+          "prms": ["int"]
+        },
+        "body":
+        { "tag": "blk",
+          "body":
+          { "tag": "seq",
+            "stmts":
+            [ {"tag": "const", "sym": "y", "expr": {"tag": "lit", "val": 0}, "is_mutable": false, "declared_type": {"kind": "basic", "value": "int"}},
+              {"tag": "assmt", "sym": "x", "expr": {"tag": "lit", "val": 0}},
+              {"tag": "let", "sym": "k", "expr": {"tag": "lit", "val": 1}, "is_mutable": false, "declared_type": {"kind": "basic", "value": "int"}}]}}}}
+  |} in
+  let result = compile_program json_str in
+  let expected = [
+    ENTER_SCOPE { num = 1 };
+    LDF { arity = 1; addr = 3 };
+    GOTO 19;
+    ENTER_SCOPE { num = 2 };
+    LDC (Int 0);
+    ASSIGN { frame_index = 2; value_index = 0 };
+    FREE { sym = "y"; to_free = true };
+    POP;
+    LDC (Int 0);
+    ASSIGN { frame_index = 1; value_index = 0 };
+    FREE { sym = "x"; to_free = false };
+    POP;
+    LDC (Int 1);
+    ASSIGN { frame_index = 2; value_index = 1 };
+    FREE { sym = "k"; to_free = true };
+    EXIT_SCOPE;
+    FREE { sym = "x"; to_free = true };
+    LDC Undefined;
+    RESET;
+    ASSIGN { frame_index = 0; value_index = 0 };
+    FREE { sym = "f"; to_free = true };
+    EXIT_SCOPE;
+    DONE;
+  ] in
+  check_instr_list "function no return lifetime" expected result
 
 let () =
   let open Alcotest in
@@ -226,5 +276,7 @@ let () =
             test_nested_block_multiple_uses;
           test_case "test_function_lifetime" `Quick
             test_function_lifetime;
+          test_case "test_function_no_return_lifetime" `Quick
+            test_function_no_return_lifetime;
         ] );
     ]

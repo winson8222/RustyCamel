@@ -161,7 +161,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
             { ownership = Owned; typ = declared_type })
         prms;
       check_ownership_aux body new_state
-  | Ret { expr; _ } -> check_ownership_aux expr state
+  | Ret expr -> check_ownership_aux expr state
   | Literal _ -> state
   | _ -> failwith "Unsupported ast node in ownership checking"
 

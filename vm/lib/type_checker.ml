@@ -115,7 +115,7 @@ let rec type_ast ast_node state =
               ^ Types.show_value_type actual_ret)
           else declared_type
       | _ -> failwith "Expected function type in Fun declaration")
-  | Ret { expr; _ } -> (
+  | Ret expr -> (
       let ret_type = type_ast expr state in
       match state.expected_return with
       | None -> failwith "Return statement outside of function"

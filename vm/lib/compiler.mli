@@ -26,6 +26,7 @@ type state = {
   ce : string list list; (* list of frames—list of syms *)
   wc : int;
   sym_pos : (string, int) Hashtbl.t;
+  current_params : string list; (* Track current function's parameters *)
 }
 
 val get_compile_time_environment_pos : string -> string list list -> pos_in_env

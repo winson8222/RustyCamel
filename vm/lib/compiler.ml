@@ -26,10 +26,11 @@ type state = {
   wc : int;
   (* create a hashmap of symbol to position *)
   sym_pos : (string, int) Hashtbl.t;
+  current_params : string list; (* Track current function's parameters *)
 }
 
 (* TODO: Add global compile environment with builtin frames *)
-let initial_state = { instrs = []; ce = []; wc = 0; sym_pos = Hashtbl.create 100 }
+let initial_state = { instrs = []; ce = []; wc = 0; sym_pos = Hashtbl.create 100; current_params = [] }
 
 (** Helper functions *)
 let rec scan_for_locals (node : Ast.ast_node) =
@@ -74,7 +75,7 @@ let rec compile (node : Ast.ast_node) state =
   match node with
   | Literal lit ->
       let new_instr = LDC lit in
-      { state with instrs = instrs @ [ new_instr ]; wc = state.wc + 1 }
+      { state with instrs = instrs @ [ new_instr ]; wc = state.wc + 1; current_params = state.current_params }
   | Block body ->
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
@@ -88,6 +89,7 @@ let rec compile (node : Ast.ast_node) state =
           wc = wc + 1;
           ce = extended_ce;
           sym_pos = state.sym_pos;
+          current_params = state.current_params;
         }
       in
 
@@ -124,6 +126,7 @@ let rec compile (node : Ast.ast_node) state =
         wc = sec_state.wc + 1;
         ce = sec_state.ce;
         sym_pos = sec_state.sym_pos;
+        current_params = sec_state.current_params;
       }
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
@@ -133,6 +136,7 @@ let rec compile (node : Ast.ast_node) state =
         wc = state_aft_frst.wc + 1;
         ce = state_aft_frst.ce;
         sym_pos = state_aft_frst.sym_pos;
+        current_params = state_aft_frst.current_params;
       }
   | Sequence stmts -> compile_sequence stmts state
   | Let { sym; expr; _ } ->
@@ -168,6 +172,7 @@ let rec compile (node : Ast.ast_node) state =
           instrs = instrs @ [ loadFunInstr; GOTO 0 ];
           (* add LDF, then GOTO 0 placeholder *)
           wc = wc + 2;
+          current_params = prms;
         }
       in
 
@@ -187,6 +192,7 @@ let rec compile (node : Ast.ast_node) state =
           state_after_ldf_goto with
           instrs = after_body_state.instrs @ free_params_instrs @ [ LDC Undefined; RESET ];
           wc = after_body_state.wc + List.length free_params_instrs + 2;
+          current_params = [];
         }
       in
 
@@ -210,7 +216,7 @@ let rec compile (node : Ast.ast_node) state =
         wc = wc + 2;
       } in
       update_sym_pos sym (state_with_ld.wc - 1) state_with_ld
-  | Ret { expr; prms } -> (
+  | Ret expr -> (
       let state_after_expr = compile expr state in
       match expr with
       | App { args; _ } ->
@@ -224,12 +230,14 @@ let rec compile (node : Ast.ast_node) state =
           in
           { state_after_expr with instrs = new_instrs }
       | _ ->
-          let free_instrs = List.map (fun prm -> FREE { sym = prm; to_free = true }) prms in
+          let free_instrs = List.map (fun prm -> FREE { sym = prm; to_free = true }) state.current_params in
           {
             state_after_expr with
             instrs = state_after_expr.instrs @ free_instrs @ [ RESET ];
             wc = state_after_expr.wc + List.length free_instrs + 1;
+            current_params = [];
           })
+
   | App { fun_nam; args } ->
       (* Compile the function expression *)
       let state_after_fun = compile fun_nam state in
