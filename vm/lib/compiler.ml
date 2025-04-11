@@ -165,7 +165,7 @@ let rec compile (node : Ast.ast_node) state =
       in
       { final_state with instrs = updated_instrs }
   | Fun { sym; prms; body; _ } ->
-      compile (Let { sym; expr = Lam { prms; body } }) state
+      compile (Let { sym; expr = Lam { prms; body }; is_mutable = false }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
@@ -241,39 +241,48 @@ let rec compile (node : Ast.ast_node) state =
       let state_after_pred = compile pred state in
 
       (* Add placeholder JOF instruction *)
-      let state_after_jof = {
-        state_after_pred with
-        instrs = state_after_pred.instrs @ [ JOF 0 ];
-        wc = state_after_pred.wc + 1;
-      } in
+      let state_after_jof =
+        {
+          state_after_pred with
+          instrs = state_after_pred.instrs @ [ JOF 0 ];
+          wc = state_after_pred.wc + 1;
+        }
+      in
 
       (* Compile the true block *)
       let state_after_cons = compile cons state_after_jof in
 
       (* Add GOTO to the end of the true block *)
-      let state_after_goto = {
-        state_after_cons with
-        instrs = state_after_cons.instrs @ [ GOTO 0 ];
-        wc = state_after_cons.wc + 1;
-      } in
+      let state_after_goto =
+        {
+          state_after_cons with
+          instrs = state_after_cons.instrs @ [ GOTO 0 ];
+          wc = state_after_cons.wc + 1;
+        }
+      in
 
       (* Compile the false block *)
-      let state_after_alt = compile alt {
-        state_after_goto with
-        instrs = List.mapi (fun i instr ->
-          if i = state_after_pred.wc
-          then JOF state_after_goto.wc
-          else instr)
-        state_after_goto.instrs;
-      } in
+      let state_after_alt =
+        compile alt
+          {
+            state_after_goto with
+            instrs =
+              List.mapi
+                (fun i instr ->
+                  if i = state_after_pred.wc then JOF state_after_goto.wc
+                  else instr)
+                state_after_goto.instrs;
+          }
+      in
 
       (* Modify GOTO to point to the end of the false block *)
-      { state_after_alt with
-        instrs = List.mapi (fun i instr ->
-          if i = state_after_cons.wc
-          then GOTO state_after_alt.wc
-          else instr)
-        state_after_alt.instrs;
+      {
+        state_after_alt with
+        instrs =
+          List.mapi
+            (fun i instr ->
+              if i = state_after_cons.wc then GOTO state_after_alt.wc else instr)
+            state_after_alt.instrs;
       }
   | other ->  
       failwith
