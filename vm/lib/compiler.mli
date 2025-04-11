@@ -15,8 +15,9 @@ type compiled_instruction =
   | RESET
   | TAILCALL of int
   | CALL of int
+  | FREE of { sym : string; to_free : bool }
   | DONE
-
+[@@deriving show]
 
 val string_of_instruction : compiled_instruction -> string
 
@@ -24,6 +25,7 @@ type state = {
   instrs : compiled_instruction list; (* Symbol table with positions *)
   ce : string list list; (* list of frames—list of syms *)
   wc : int;
+  sym_pos : (string, int) Hashtbl.t;
 }
 
 val get_compile_time_environment_pos : string -> string list list -> pos_in_env

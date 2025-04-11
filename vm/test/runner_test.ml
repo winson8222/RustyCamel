@@ -24,7 +24,7 @@ let test_assign_and_ld () =
       (* scope for y *)
       LDC (Int 4);
       (* push 4 *)
-      ASSIGN { frame_index = 0; value_index = 0 };
+      ASSIGN { frame_index = 0; value_index = 0; };
       (* assign to y *)
       EXIT_SCOPE;
       (* exit x scope *)

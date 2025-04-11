@@ -1,4 +1,4 @@
-type pos_in_env = { frame_index : int; value_index : int } [@@deriving show]
+type pos_in_env = { frame_index : int; value_index : int;} [@@deriving show]
 
 type compiled_instruction =
   | LDC of Value.lit_value
@@ -15,6 +15,7 @@ type compiled_instruction =
   | RESET
   | TAILCALL of int
   | CALL of int
+  | FREE of { sym : string; to_free: bool }
   | DONE
 [@@deriving show]
 
@@ -23,10 +24,12 @@ type state = {
   instrs : compiled_instruction list; (* Symbol table with positions *)
   ce : string list list;
   wc : int;
+  (* create a hashmap of symbol to position *)
+  sym_pos : (string, int) Hashtbl.t;
 }
 
 (* TODO: Add global compile environment with builtin frames *)
-let initial_state = { instrs = []; ce = []; wc = 0 }
+let initial_state = { instrs = []; ce = []; wc = 0; sym_pos = Hashtbl.create 100 }
 
 (** Helper functions *)
 let rec scan_for_locals (node : Ast.ast_node) =
@@ -48,7 +51,10 @@ let get_compile_time_environment_pos sym ce =
         in
         match maybe_sym_index with
         | Some sym_index ->
-            { frame_index = cur_frame_index; value_index = sym_index }
+            { 
+              frame_index = cur_frame_index; 
+              value_index = sym_index;
+            }
         | None -> helper sym tl_frames (cur_frame_index + 1))
   in
   helper sym reversed_ce 0
@@ -56,6 +62,11 @@ let get_compile_time_environment_pos sym ce =
 let compile_time_environment_extend frame_vars ce = [ frame_vars ] @ ce
 
 (* Compilation functions *)
+
+let update_sym_pos sym index state =
+  Hashtbl.replace state.sym_pos sym index;
+  state
+
 let rec compile (node : Ast.ast_node) state =
   let open Ast in
   let instrs = state.instrs in
@@ -76,18 +87,33 @@ let rec compile (node : Ast.ast_node) state =
           instrs = state.instrs @ [ enter_scope_instr ];
           wc = wc + 1;
           ce = extended_ce;
+          sym_pos = state.sym_pos;
         }
       in
 
       (* Then compile body *)
       let state_after_body = compile body state_after_enter in
 
+
+      (* for each local sym, find their last used using the sym_pos hashmap, and based on the last used index change that index in the instrs list to be FREE true *)
+      let all_locals_last_used = List.map (fun sym ->
+        let pos = Hashtbl.find state_after_body.sym_pos sym in
+        pos
+      ) locals in
+
+      let instrs_with_frees = List.mapi (fun i instr ->
+        if List.mem i all_locals_last_used then 
+          match instr with
+          | FREE { sym; _ } -> FREE { sym; to_free = true }
+          | _ -> instr
+        else instr
+      ) state_after_body.instrs in
       (* Finally add EXIT_SCOPE *)
       let exit_scope_instr = EXIT_SCOPE in
       {
         state with
         wc = state_after_body.wc + 1;
-        instrs = state_after_body.instrs @ [ exit_scope_instr ];
+        instrs = instrs_with_frees @ [ exit_scope_instr ];
       }
   | Binop { sym; frst; scnd } ->
       let frst_state = compile frst state in
@@ -97,6 +123,7 @@ let rec compile (node : Ast.ast_node) state =
         instrs = sec_state.instrs @ [ new_instr ];
         wc = sec_state.wc + 1;
         ce = sec_state.ce;
+        sym_pos = sec_state.sym_pos;
       }
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
@@ -105,26 +132,32 @@ let rec compile (node : Ast.ast_node) state =
         instrs = state_aft_frst.instrs @ [ new_instr ];
         wc = state_aft_frst.wc + 1;
         ce = state_aft_frst.ce;
+        sym_pos = state_aft_frst.sym_pos;
       }
   | Sequence stmts -> compile_sequence stmts state
   | Let { sym; expr; _ } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
-      {
+      let state_with_assign = {
         state_after_expr with
-        instrs = state_after_expr.instrs @ [ new_instr ];
-        wc = state_after_expr.wc + 1;
-      }
+        instrs = state_after_expr.instrs @ [ new_instr; FREE { sym; to_free = false } ];
+        wc = state_after_expr.wc + 2;
+        sym_pos = state_after_expr.sym_pos;
+      } in
+      update_sym_pos sym (state_with_assign.wc - 1) state_with_assign
+
   | Const { sym; expr; _ } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
-      {
+      let state_with_assign = {
         state_after_expr with
-        instrs = state_after_expr.instrs @ [ new_instr ];
-        wc = state_after_expr.wc + 1;
-      }
+        instrs = state_after_expr.instrs @ [ new_instr; FREE { sym; to_free = false } ];
+        wc = state_after_expr.wc + 2;
+        sym_pos = state_after_expr.sym_pos;
+      } in
+      update_sym_pos sym (state_with_assign.wc - 1) state_with_assign
   | Lam { prms; body } ->
       let loadFunInstr = LDF { arity = List.length prms; addr = wc + 2 } in
       let gotoInstrIndex = wc + 1 in
@@ -168,7 +201,12 @@ let rec compile (node : Ast.ast_node) state =
       compile (Let { sym; expr = Lam { prms; body }; is_mutable = false }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
-      { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
+      let state_with_ld = {
+        state with 
+        instrs = instrs @ [ LD { sym; pos }; FREE { sym; to_free = false } ]; 
+        wc = wc + 2;
+      } in
+      update_sym_pos sym (state_with_ld.wc - 1) state_with_ld
   | Ret expr -> (
       let state_after_expr = compile expr state in
       match expr with
@@ -232,10 +270,12 @@ let rec compile (node : Ast.ast_node) state =
       }
   | Assign { sym; expr } ->
       let state_after_expr = compile expr state in
-      { state_after_expr with
-        instrs = state_after_expr.instrs @ [ ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce) ];
-        wc = state_after_expr.wc + 1;
-      }
+      let state_with_assign = {
+        state_after_expr with
+        instrs = state_after_expr.instrs @ [ ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce); FREE { sym; to_free = false } ];
+        wc = state_after_expr.wc + 2;
+      } in
+      update_sym_pos sym (state_with_assign.wc - 1) state_with_assign
   | Cond { pred; cons; alt } ->
       (* Compile the predicate *)
       let state_after_pred = compile pred state in
@@ -316,3 +356,4 @@ let compile_program json_str =
   let ast = Ast.strip_types typed_ast in
   let state = compile ast initial_state in
   state.instrs @ [ DONE ]
+

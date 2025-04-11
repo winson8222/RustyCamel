@@ -75,7 +75,7 @@ let test_blk_with_let () =
     [
       ENTER_SCOPE { num = 1 };
       LDC (Int 4);
-      ASSIGN { frame_index = 0; value_index = 0 };
+      ASSIGN { frame_index = 0; value_index = 0};
       EXIT_SCOPE;
       DONE;
     ]
@@ -2079,6 +2079,9 @@ let test_nested_conditional_function () =
     "nested conditional function with multiple blocks and returns" expected
     result
 
+
+
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -2124,4 +2127,5 @@ let () =
           test_case "nested conditional function" `Quick
             test_nested_conditional_function;
         ] );
+
     ]
