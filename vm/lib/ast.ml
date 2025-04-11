@@ -28,14 +28,12 @@ type typed_ast =
       declared_type : Types.value_type;
       is_mutable : bool;
     }
-  | Ld of string
   | While of { pred : typed_ast; body : typed_ast }
   | Cond of {
       pred : typed_ast;
       cons : typed_ast;
       alt : typed_ast;
     }
-  | Let of { sym : string; expr : typed_ast; declared_type : Types.value_type }
   | Const of {
       sym : string;
       expr : typed_ast;
@@ -172,7 +170,6 @@ let rec strip_types (ast : typed_ast) : ast_node =
         }
   | Let { sym; expr; is_mutable; _ } ->
       Let { sym; expr = strip_types expr; is_mutable }
-  | Ld sym -> Nam sym
   | Const { sym; expr; _ } -> Const { sym; expr = strip_types expr }
   | Assign { sym; expr } -> Assign { sym; expr = strip_types expr }
   | Binop { sym; frst; scnd } ->

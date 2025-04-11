@@ -22,14 +22,15 @@ type typed_ast =
   | Nam of string
   | Block of typed_ast
   | Sequence of typed_ast list
-  | While of { pred : typed_ast; body : typed_ast }
-  | Cond of { pred : typed_ast; cons : typed_ast; alt : typed_ast }
   | Let of {
       sym : string;
       expr : typed_ast;
       declared_type : Types.value_type;
       is_mutable : bool;
     }
+  | While of { pred : typed_ast; body : typed_ast }
+  | Cond of { pred : typed_ast; cons : typed_ast; alt : typed_ast }
+
   | Const of {
       sym : string;
       expr : typed_ast;

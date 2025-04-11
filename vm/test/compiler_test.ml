@@ -755,6 +755,7 @@ let test_assignment_and_while () =
                 "tag": "lit",
                 "val": 0
               },
+              "is_mutable": true,
               "declared_type": {
                 "kind": "basic",
                 "value": "int"
@@ -862,6 +863,7 @@ let test_while_with_const () =
                 "tag": "lit",
                 "val": 0
               },
+              "is_mutable": true,
               "declared_type": {
                 "kind": "basic",
                 "value": "int"
@@ -983,6 +985,7 @@ let test_nested_while_loops () =
                 "tag": "lit",
                 "val": 0
               },
+              "is_mutable": true,
               "declared_type": {
                 "kind": "basic",
                 "value": "int"
@@ -995,6 +998,7 @@ let test_nested_while_loops () =
                 "tag": "lit",
                 "val": 0
               },
+              "is_mutable": true,
               "declared_type": {
                 "kind": "basic",
                 "value": "int"
@@ -1026,6 +1030,7 @@ let test_nested_while_loops () =
                         "tag": "lit",
                         "val": 0
                       },
+                      "is_mutable": true,
                       "declared_type": {
                         "kind": "basic",
                         "value": "int"
