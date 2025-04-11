@@ -11,7 +11,7 @@ type ast_node =
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
-  | Ret of ast_node
+  | Ret of { expr : ast_node; prms : string list }
   | App of { fun_nam : ast_node; args : ast_node list }
   | Borrow of { is_mutable : bool; expr : ast_node }
   | Lam of { prms : string list; body : ast_node }
@@ -50,7 +50,7 @@ type typed_ast =
       body : typed_ast;
     }
   | Borrow of { is_mutable : bool; expr : typed_ast }
-  | Ret of typed_ast
+  | Ret of { expr : typed_ast; prms : string list }
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
 
@@ -133,7 +133,12 @@ let rec of_json json =
           pred = json |> member "pred" |> of_json;
           body = json |> member "body" |> of_json;
         }
-  | "ret" -> Ret (json |> member "expr" |> of_json)
+  | "ret" ->
+      Ret
+        {
+          expr = json |> member "expr" |> of_json;
+          prms = json |> member "prms" |> to_list |> List.map (fun p -> p |> member "name" |> to_string);
+        }
   | "app" ->
       let fun_nam = json |> member "fun" |> of_json in
       let args = json |> member "args" |> to_list |> List.map of_json in
@@ -178,7 +183,7 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Lam { prms; body } ->
       Fun { sym = "anonymous"; prms; body = strip_types body }
   | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
-  | Ret expr -> Ret (strip_types expr)
+  | Ret { expr; _ } -> Ret { expr = strip_types expr; prms = [] }
   | App { fun_nam; args } ->
       App { fun_nam = strip_types fun_nam; args = List.map strip_types args }
   | Borrow { is_mutable; expr } ->

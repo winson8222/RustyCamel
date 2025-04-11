@@ -11,7 +11,7 @@ type ast_node =
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
-  | Ret of ast_node
+  | Ret of { expr : ast_node; prms : string list }
   | App of { fun_nam : ast_node; args : ast_node list }
   | Borrow of { is_mutable : bool; expr : ast_node }
   | Lam of { prms : string list; body : ast_node }
@@ -47,7 +47,7 @@ type typed_ast =
       body : typed_ast;
     }
   | Borrow of { is_mutable : bool; expr : typed_ast }
-  | Ret of typed_ast
+  | Ret of { expr : typed_ast; prms : string list }
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
 

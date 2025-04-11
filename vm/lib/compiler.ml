@@ -178,12 +178,15 @@ let rec compile (node : Ast.ast_node) state =
         compile body { state_after_ldf_goto with ce = extended_ce }
       in
 
+      (* add free instructions for each parameter *)
+      let free_params_instrs = List.map (fun param -> FREE { sym = param; to_free = true }) param_names in
+
       (* add undefined and reset *)
       let final_state =
         {
           state_after_ldf_goto with
-          instrs = after_body_state.instrs @ [ LDC Undefined; RESET ];
-          wc = after_body_state.wc + 2;
+          instrs = after_body_state.instrs @ free_params_instrs @ [ LDC Undefined; RESET ];
+          wc = after_body_state.wc + List.length free_params_instrs + 2;
         }
       in
 
@@ -207,11 +210,11 @@ let rec compile (node : Ast.ast_node) state =
         wc = wc + 2;
       } in
       update_sym_pos sym (state_with_ld.wc - 1) state_with_ld
-  | Ret expr -> (
+  | Ret { expr; prms } -> (
       let state_after_expr = compile expr state in
       match expr with
       | App { args; _ } ->
-          let new_instrs =
+          let new_instrs =  
             List.mapi
               (fun i instr ->
                 if i = List.length state_after_expr.instrs - 1 then
@@ -221,10 +224,11 @@ let rec compile (node : Ast.ast_node) state =
           in
           { state_after_expr with instrs = new_instrs }
       | _ ->
+          let free_instrs = List.map (fun prm -> FREE { sym = prm; to_free = true }) prms in
           {
             state_after_expr with
-            instrs = state_after_expr.instrs @ [ RESET ];
-            wc = state_after_expr.wc + 1;
+            instrs = state_after_expr.instrs @ free_instrs @ [ RESET ];
+            wc = state_after_expr.wc + List.length free_instrs + 1;
           })
   | App { fun_nam; args } ->
       (* Compile the function expression *)

@@ -41,7 +41,7 @@ let test_fun_succeeds () =
            sym = "f";
            prms = [ "a" ];
            declared_type = TFunction { ret = TInt; prms = [ TInt ] };
-           body = Ret (Literal (Int 1));
+           body = Ret { expr = Literal (Int 1); prms = [ "a" ] };
          })
   in
   let actual = check_type node tc in
@@ -58,7 +58,7 @@ let test_fun_fails () =
            sym = "f";
            prms = [ "a" ];
            declared_type = TFunction { ret = TUndefined; prms = [ TInt ] };
-           body = Ret (Literal (Int 1));
+           body = Ret { expr = Literal (Int 1); prms = [ "a" ] };
          })
   in
   let actual = check_type node tc in
@@ -77,7 +77,7 @@ let test_fun_compatible_prms_args_succeeds () =
                sym = "f";
                prms = [ "a" ];
                declared_type = TFunction { ret = TInt; prms = [ TInt ] };
-               body = Ret (Literal (Int 1));
+               body = Ret { expr = Literal (Int 1); prms = [ "a" ] };
              };
            App { fun_nam = Nam "f"; args = [ Literal (Int 1) ] };
          ])
@@ -94,11 +94,11 @@ let test_fun_uncompatible_prms_args_fails () =
       (Sequence
          [
            Fun
-             {
+             {  
                sym = "f";
                prms = [ "a" ];
                declared_type = TFunction { ret = TInt; prms = [ TInt ] };
-               body = Ret (Literal (Int 1));
+               body = Ret { expr = Literal (Int 1); prms = [ "a" ] };
              };
            App { fun_nam = Nam "f"; args = [ Literal (Boolean true) ] };
          ])

@@ -42,7 +42,7 @@ let test_simple_fun_arg_borrow_succeeds () =
         Fun
           {
             sym = "f";
-            body = Ret (Literal (String "hello"));
+            body = Ret { expr = Literal (String "hello"); prms = [ "a" ] };
             prms = [ "a" ];
             declared_type = TFunction { ret = TString; prms = [ TString ] };
           };
@@ -74,7 +74,7 @@ let test_simple_fun_arg_move_succeeds () =
         Fun
           {
             sym = "f";
-            body = Ret (Literal (String "hello"));
+            body = Ret { expr = Literal (String "hello"); prms = [ "a" ] };
             prms = [ "a" ];
             declared_type = TFunction { ret = TString; prms = [ TString ] };
           };
@@ -102,7 +102,7 @@ let test_use_after_fun_arg_move_fails () =
         Fun
           {
             sym = "f";
-            body = Ret (Literal (String "Hi"));
+            body = Ret { expr = Literal (String "Hi"); prms = [ "a" ] };
             prms = [ "a" ];
             declared_type = TFunction { ret = TString; prms = [ TString ] };
           };
