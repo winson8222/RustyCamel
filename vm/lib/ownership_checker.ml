@@ -4,7 +4,6 @@ type ownership_status = Owned | ImmutablyBorrowed | MutablyBorrowed | Moved
 type symbol_info = { ownership : ownership_status; typ : Types.value_type }
 [@@deriving show]
 
-(* Update symbol table type *)
 type symbol_table = (string, symbol_info) Hashtbl.t
 type scope = App | Let
 type borrow_kind = MutableBorrow | ImmutableBorrow [@@deriving show]
@@ -46,6 +45,11 @@ let rec set_existing_sym_ownership_in_lowest_frame sym new_status state =
           set_existing_sym_ownership_in_lowest_frame sym new_status parent
       | None -> failwith "Can't set sym that doesn't exist in sym table")
 
+let set_sym_ownership_in_cur_frame ~sym ~new_status ~state =
+  let declared_type = lookup_symbol_type ~sym state in
+  Hashtbl.replace state.sym_table sym
+    { ownership = new_status; typ = declared_type }
+
 let extend_scope parent =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
   { sym_table; parent = Some parent; is_in = None; borrow_kind = None }
@@ -80,8 +84,8 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
               let new_ownership_status =
                 borrow_kind_to_ownership_status borrow_kind
               in
-              set_existing_sym_ownership_in_lowest_frame sym
-                new_ownership_status state;
+              set_sym_ownership_in_cur_frame ~sym
+                ~new_status:new_ownership_status ~state;
               state)
             else state
         | Some App -> state
@@ -96,8 +100,11 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
     | Owned -> (
         match state.is_in with
         | Some _ ->
-            set_existing_sym_ownership_in_lowest_frame sym Moved state;
-            state
+            let sym_typ = lookup_symbol_type ~sym state in
+            if not (Types.is_type_implement_copy sym_typ) then (
+              set_existing_sym_ownership_in_lowest_frame sym Moved state;
+              state)
+            else state
         | None -> state (* Simple access, no need to change ownership *))
     | _ ->
         let err_msg_f =

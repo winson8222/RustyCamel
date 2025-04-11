@@ -9,16 +9,16 @@ let test_simple_let_assmt_borrow_succeeds () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Let
           {
             sym = "a";
             is_mutable = false;
             expr = Borrow { is_mutable = false; expr = Nam "x" };
-            declared_type = TRef { is_mutable = false; base = TInt };
+            declared_type = TRef { is_mutable = false; base = TString };
           };
       ]
   in
@@ -35,16 +35,16 @@ let test_simple_fun_arg_borrow_succeeds () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Fun
           {
             sym = "f";
-            body = Ret (Literal (Int 1));
+            body = Ret (Literal (String "hello"));
             prms = [ "a" ];
-            declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+            declared_type = TFunction { ret = TString; prms = [ TString ] };
           };
         App
           {
@@ -67,16 +67,16 @@ let test_simple_fun_arg_move_succeeds () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Fun
           {
             sym = "f";
-            body = Ret (Literal (Int 1));
+            body = Ret (Literal (String "hello"));
             prms = [ "a" ];
-            declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+            declared_type = TFunction { ret = TString; prms = [ TString ] };
           };
         App { fun_nam = Nam "f"; args = [ Nam "x" ] };
       ]
@@ -95,16 +95,16 @@ let test_use_after_fun_arg_move_fails () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "Hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Fun
           {
             sym = "f";
-            body = Ret (Literal (Int 1));
+            body = Ret (Literal (String "Hi"));
             prms = [ "a" ];
-            declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+            declared_type = TFunction { ret = TString; prms = [ TString ] };
           };
         App { fun_nam = Nam "f"; args = [ Nam "x" ] };
         Nam "x";
@@ -192,9 +192,9 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Block
           (Sequence
@@ -204,7 +204,7 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
                    sym = "y";
                    expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
-                   declared_type = TRef { is_mutable = true; base = TInt };
+                   declared_type = TRef { is_mutable = true; base = TString };
                  };
              ]);
         Block
@@ -215,7 +215,7 @@ let test_mutable_and_immutable_in_diff_scopes_succeed () =
                    sym = "z";
                    expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
-                   declared_type = TRef { is_mutable = true; base = TInt };
+                   declared_type = TRef { is_mutable = true; base = TString };
                  };
              ]);
       ]
@@ -277,9 +277,9 @@ let test_nested_multiple_immutable_borrows_succeed () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Block
           (Sequence
@@ -289,7 +289,7 @@ let test_nested_multiple_immutable_borrows_succeed () =
                    sym = "a";
                    is_mutable = false;
                    expr = Borrow { is_mutable = false; expr = Nam "x" };
-                   declared_type = TRef { is_mutable = false; base = TInt };
+                   declared_type = TRef { is_mutable = false; base = TString };
                  };
                Block
                  (Sequence
@@ -300,7 +300,7 @@ let test_nested_multiple_immutable_borrows_succeed () =
                           is_mutable = false;
                           expr = Borrow { is_mutable = false; expr = Nam "x" };
                           declared_type =
-                            TRef { is_mutable = false; base = TInt };
+                            TRef { is_mutable = false; base = TString };
                         };
                     ]);
              ]);
@@ -321,16 +321,16 @@ let test_use_after_move_fails () =
            Let
              {
                sym = "x";
-               expr = Literal (Int 1);
+               expr = Literal (String "hello");
                is_mutable = false;
-               declared_type = TInt;
+               declared_type = TString;
              };
            Let
              {
                sym = "y";
                expr = Nam "x";
                is_mutable = false;
-               declared_type = TRef { is_mutable = false; base = TInt };
+               declared_type = TRef { is_mutable = false; base = TString };
              };
            Nam "x";
            (* using x after move *)
@@ -349,15 +349,15 @@ let test_multiple_immutable_borrows_succeed () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Let
           {
             sym = "a";
             expr = Borrow { is_mutable = false; expr = Nam "x" };
-            declared_type = TRef { is_mutable = false; base = TInt };
+            declared_type = TRef { is_mutable = false; base = TString };
             is_mutable = false;
           };
         Let
@@ -365,7 +365,7 @@ let test_multiple_immutable_borrows_succeed () =
             sym = "b";
             expr = Borrow { is_mutable = false; expr = Nam "x" };
             is_mutable = false;
-            declared_type = TRef { is_mutable = false; base = TInt };
+            declared_type = TRef { is_mutable = false; base = TString };
           };
       ]
   in
@@ -385,7 +385,7 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
             sym = "x";
             expr = Literal (Int 42);
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Block
           (Sequence
@@ -395,7 +395,7 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
                    sym = "b";
                    expr = Borrow { is_mutable = true; expr = Nam "x" };
                    is_mutable = false;
-                   declared_type = TRef { is_mutable = true; base = TInt };
+                   declared_type = TRef { is_mutable = true; base = TString };
                  };
              ]);
         Let
@@ -403,7 +403,7 @@ let test_mut_borrow_then_immut_in_separate_blocks_succeeds () =
             sym = "a";
             is_mutable = false;
             expr = Borrow { is_mutable = false; expr = Nam "x" };
-            declared_type = TRef { is_mutable = false; base = TInt };
+            declared_type = TRef { is_mutable = false; base = TString };
           };
       ]
   in
@@ -455,16 +455,16 @@ let test_borrow_after_move_fails () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Let
           {
             sym = "y";
             expr = Nam "x";
             is_mutable = false;
-            declared_type = TRef { is_mutable = false; base = TInt };
+            declared_type = TRef { is_mutable = false; base = TString };
           };
         (* move *)
         Let
@@ -472,7 +472,7 @@ let test_borrow_after_move_fails () =
             sym = "a";
             expr = Borrow { is_mutable = false; expr = Nam "x" };
             is_mutable = false;
-            declared_type = TRef { is_mutable = false; base = TInt };
+            declared_type = TRef { is_mutable = false; base = TString };
           };
         (* illegal *)
       ]
@@ -491,9 +491,9 @@ let test_borrow_after_move_in_different_scopes_fails () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Block
           (Sequence
@@ -503,7 +503,7 @@ let test_borrow_after_move_in_different_scopes_fails () =
                    sym = "y";
                    expr = Nam "x";
                    is_mutable = false;
-                   declared_type = TRef { is_mutable = false; base = TInt };
+                   declared_type = TRef { is_mutable = false; base = TString };
                  };
                (* Move x to y *)
              ]);
@@ -513,7 +513,7 @@ let test_borrow_after_move_in_different_scopes_fails () =
             expr = Borrow { is_mutable = false; expr = Nam "x" };
             (* Illegal borrow of moved value *)
             is_mutable = false;
-            declared_type = TRef { is_mutable = false; base = TInt };
+            declared_type = TRef { is_mutable = false; base = TString };
           };
       ]
   in
@@ -531,9 +531,9 @@ let test_move_and_borrow_same_var_in_nested_blocks_fails () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Block
           (Sequence
@@ -543,7 +543,7 @@ let test_move_and_borrow_same_var_in_nested_blocks_fails () =
                    sym = "y";
                    expr = Nam "x";
                    is_mutable = false;
-                   declared_type = TRef { is_mutable = false; base = TInt };
+                   declared_type = TRef { is_mutable = false; base = TString };
                  };
                (* Move x to y *)
                Block
@@ -556,7 +556,7 @@ let test_move_and_borrow_same_var_in_nested_blocks_fails () =
                           (* Borrow x in nested block after it was moved *)
                           is_mutable = false;
                           declared_type =
-                            TRef { is_mutable = false; base = TInt };
+                            TRef { is_mutable = false; base = TString };
                         };
                     ]);
              ]);
@@ -576,9 +576,9 @@ let test_complex_ownership_with_nested_blocks () =
         Let
           {
             sym = "x";
-            expr = Literal (Int 1);
+            expr = Literal (String "hello");
             is_mutable = false;
-            declared_type = TInt;
+            declared_type = TString;
           };
         Block
           (Sequence
@@ -588,7 +588,7 @@ let test_complex_ownership_with_nested_blocks () =
                    sym = "y";
                    expr = Nam "x";
                    is_mutable = false;
-                   declared_type = TRef { is_mutable = false; base = TInt };
+                   declared_type = TRef { is_mutable = false; base = TString };
                  };
                (* Move x to y *)
                Block
@@ -601,7 +601,7 @@ let test_complex_ownership_with_nested_blocks () =
                           (* Attempting to borrow moved value in nested block *)
                           is_mutable = false;
                           declared_type =
-                            TRef { is_mutable = false; base = TInt };
+                            TRef { is_mutable = false; base = TString };
                         };
                     ]);
              ]);

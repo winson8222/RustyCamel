@@ -49,3 +49,8 @@
   ```
 
   - TODO: reassign
+
+
+two implementation ideas
+(Chosen) 1. Add another sym - owenrship entry in cur frame (which can be diff from parnet frame in the case of block/function scope). This allows nested blocks to see the most "updated" ownership. parent simply doesnt know about the child frames so it's essentialy "restored" wihtout explciitly tracking brorows in the state. however, moving should modify in the parent frame. so we handle borrow and move differently. kind of counterintuitive that the parent state never changes for borrows, but correctness is guaranteed because we only have new frame for block/function, and that ahs to finish execution which must restore parent state (as if it never changed) before the code that follows can execute
+2. Store all the borrows, change the sym recurisvely up parent frame. parent restores the ownership from before block/function. don't restore moving because move permanently affects parent
