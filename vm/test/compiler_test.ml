@@ -12,6 +12,42 @@ let check_instr_list msg expected actual =
 
 (* ---------- Test cases ---------- *)
 
+let test_literal_immut_borrow () =
+  let json =   {|{
+  "tag": "blk",
+    "body": {
+      "tag": "seq",
+      "stmts": [
+        { "tag": "let", "sym": "x", 
+            "expr": { "tag": "lit", "val": "hello" }, 
+            "is_mutable": false, 
+            "declared_type": {
+                "kind": "basic",
+                "value": "string"
+              }
+        },
+        { "tag": "let", 
+            "sym": "y", 
+            "expr": { 
+                "tag": "borrow",
+                "mutable": false, 
+                  "expr": {
+                    "tag": "nam",
+                    "sym": "x"
+                  } 
+            }, 
+            "is_mutable": false, 
+            "declared_type": {
+                "kind": "ref",
+                "value": "string"
+              }
+          }
+      ]
+    }
+  }|} in
+  let result = compile_program json in
+  let expected = [ LDC (Int 42); DONE ] in
+  check_instr_list "literal int" expected result
 let test_literal_int () =
   let json = {|{ "tag": "lit", "val": 42 }|} in
   let result = compile_program json in
@@ -1358,6 +1394,7 @@ let () =
       ( "compiler",
         [
           test_case "Literal int" `Quick test_literal_int;
+          test_case "test_literal_immut_borrow" `Quick test_literal_immut_borrow;
           test_case "Literal string" `Quick test_literal_string;
           test_case "Binop +" `Quick test_binop_add;
           test_case "Sequence of two expressions" `Quick test_seq_two_exprs;
