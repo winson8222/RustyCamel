@@ -81,7 +81,7 @@ let rec type_ast ast_node state =
       let actual = type_ast expr state in
       if not (are_types_compatible actual declared_type) then
         failwith (make_type_err_msg declared_type actual)
-      else actual
+      else Types.TUndefined
   | Block body ->
       let decls = get_local_decls body in
       let new_state = extend_env state in

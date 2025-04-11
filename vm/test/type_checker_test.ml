@@ -3,7 +3,13 @@ open Vm.Type_checker
 let test_literal_mismatch_fails () =
   let tc = create () in
   let node =
-    Vm.Ast.Let { sym = "x"; declared_type = TBoolean; expr = Literal (Int 1) }
+    Vm.Ast.Let
+      {
+        sym = "x";
+        declared_type = TBoolean;
+        expr = Literal (Int 1);
+        is_mutable = false;
+      }
   in
   let result = check_type node tc in
   let expected = Error (make_type_err_msg TBoolean TInt) in
@@ -13,7 +19,13 @@ let test_literal_mismatch_fails () =
 let test_match_int_succeeds () =
   let tc = create () in
   let node =
-    Vm.Ast.Let { sym = "x"; declared_type = TInt; expr = Literal (Int 1) }
+    Vm.Ast.Let
+      {
+        sym = "x";
+        declared_type = TInt;
+        expr = Literal (Int 1);
+        is_mutable = false;
+      }
   in
   let actual = check_type node tc in
   let expected = Ok () in

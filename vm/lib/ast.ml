@@ -1,31 +1,32 @@
 type ast_node =
   | Literal of Value.lit_value
-  | Variable of string
+  | Nam of string
   | Block of ast_node
   | Sequence of ast_node list
   | Cond of { pred : ast_node; cons : ast_node; alt : ast_node }
-  | Let of { sym : string; expr : ast_node }
+  | Let of { sym : string; expr : ast_node; is_mutable : bool }
   | Const of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
-  | Nam of string
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
+  | Borrow of { is_mutable : bool; expr : ast_node }
   | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
 
 type typed_ast =
   | Literal of Value.lit_value
-  | Variable of string
+  | Nam of string
   | Block of typed_ast
   | Sequence of typed_ast list
-  | Cond of {
-      pred : typed_ast;
-      cons : typed_ast;
-      alt : typed_ast;
+  | Cond of { pred : typed_ast; cons : typed_ast; alt : typed_ast }
+  | Let of {
+      sym : string;
+      expr : typed_ast;
+      declared_type : Types.value_type;
+      is_mutable : bool;
     }
-  | Let of { sym : string; expr : typed_ast; declared_type : Types.value_type }
   | Ld of string
   | Const of {
       sym : string;
@@ -41,7 +42,7 @@ type typed_ast =
       declared_type : Types.value_type;
       body : typed_ast;
     }
-  | Nam of string
+  | Borrow of { is_mutable : bool; expr : typed_ast }
   | Ret of typed_ast
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
@@ -70,6 +71,7 @@ let rec of_json json =
             (match json |> member "lit" with
             | `Null -> json |> member "expr" |> of_json
             | lit -> of_json lit);
+          is_mutable = json |> member "is_mutable" |> to_bool;
           declared_type = json |> member "declared_type" |> Types.of_json;
         }
   | "const" ->
@@ -96,6 +98,12 @@ let rec of_json json =
           frst = of_json (member "frst" json);
         }
   | "nam" -> Nam (member "sym" json |> to_string)
+  | "borrow" ->
+      Borrow
+        {
+          is_mutable = member "mutable" json |> to_bool;
+          expr = member "expr" json |> of_json;
+        }
   | "fun" ->
       let sym = json |> member "sym" |> to_string in
       let prms =
@@ -129,25 +137,28 @@ let rec of_json json =
 let rec strip_types (ast : typed_ast) : ast_node =
   match ast with
   | Literal value -> Literal value
-  | Variable sym -> Variable sym
+  | Nam sym -> Nam sym
   | Block body -> Block (strip_types body)
   | Sequence stmts -> Sequence (List.map strip_types stmts)
   | Cond { pred; cons; alt } ->
-      Cond {
-        pred = strip_types pred;
-        cons = strip_types cons;
-        alt = strip_types alt;
-      }
-  | Let { sym; expr; _ } -> Let { sym; expr = strip_types expr }
-  | Ld sym -> Variable sym
-  | Const { sym; expr; _ } -> Let { sym; expr = strip_types expr }
+      Cond
+        {
+          pred = strip_types pred;
+          cons = strip_types cons;
+          alt = strip_types alt;
+        }
+  | Let { sym; expr; is_mutable; _ } ->
+      Let { sym; expr = strip_types expr; is_mutable }
+  | Ld sym -> Nam sym
+  | Const { sym; expr; _ } -> Const { sym; expr = strip_types expr }
   | Binop { sym; frst; scnd } ->
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
   | Lam { prms; body } ->
       Fun { sym = "anonymous"; prms; body = strip_types body }
   | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
-  | Nam sym -> Nam sym
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->
       App { fun_nam = strip_types fun_nam; args = List.map strip_types args }
+  | Borrow { is_mutable; expr } ->
+      Borrow { is_mutable; expr = strip_types expr }

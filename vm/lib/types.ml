@@ -14,6 +14,9 @@ and value_type =
   | TFunction of function_type
 [@@deriving show]
 
+let is_type_implement_copy typ =
+  match typ with TInt | TBoolean | TUndefined -> true | _ -> false
+
 let of_basic_type_string s =
   match s with
   | "string" -> TString

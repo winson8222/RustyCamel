@@ -60,6 +60,7 @@ let test_blk_with_let () =
       "stmts": [
         { "tag": "let", "sym": "x", 
           "expr": { "tag": "lit", "val": 4 }, 
+          "is_mutable": false, 
           "declared_type": {
               "kind": "basic",
               "value": "int"
@@ -83,7 +84,7 @@ let test_blk_with_let () =
 
 let test_ld_variable () =
   let json =
-    {|{"tag": "blk", "body": {"tag": "seq", "stmts": [{"tag": "let", "sym": "x", "expr": {"tag": "lit", "val": 4}, "declared_type": {"kind": "basic", "value": "int"}}, {"tag": "nam", "sym": "x"}]}}|}
+    {|{"tag": "blk", "body": {"tag": "seq", "stmts": [{"tag": "let", "sym": "x", "is_mutable": false,"expr": {"tag": "lit", "val": 4}, "declared_type": {"kind": "basic", "value": "int"}}, {"tag": "nam", "sym": "x"}]}}|}
   in
   let result = compile_program json in
   let expected =
@@ -1367,11 +1368,14 @@ let () =
           test_case "Function with no parameters" `Quick test_function_no_params;
           test_case "Function with parameters" `Quick test_function_with_params;
           test_case "function with binop parameters" `Quick
+           
             test_function_with_binop;
           test_case "function with block and const" `Quick
+           
             test_function_with_block_and_const;
           test_case "function application" `Quick test_function_application;
           test_case "nested function calls with tail call" `Quick
+           
             test_nested_function_calls;
           test_case "conditional function with assignment" `Quick
             test_conditional_function;
