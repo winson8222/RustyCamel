@@ -23,10 +23,10 @@ let extend_env (state : t) =
     expected_return = None;
   }
 
-let rec lookup_table sym state =
+let rec lookup_sym sym state =
   match Hashtbl.find_opt state.te sym with
   | Some typ -> Some typ
-  | None -> Option.bind state.parent (lookup_table sym)
+  | None -> Option.bind state.parent (lookup_sym sym)
 
 let is_declaration = function
   | Ast.Let _ | Ast.Const _ | Ast.Fun _ -> true
@@ -56,7 +56,7 @@ let put_decls_in_table decls te =
 let are_types_compatible = ( = )
 
 let lookup_fun_type sym state : Types.function_type =
-  match lookup_table sym state with
+  match lookup_sym sym state with
   | Some (TFunction value) -> value
   | Some other ->
       failwith ("Expected function type, got: " ^ Types.show_value_type other)
@@ -68,6 +68,9 @@ let make_type_err_msg declared_type actual_type : string =
   ^ ", got "
   ^ Types.show_value_type actual_type
 
+let make_deref_non_ref_val_msg actual_type =
+  "Cannot dereference expression of type " ^ Types.show_value_type actual_type
+
 let rec type_ast ast_node state =
   let open Ast in
   match ast_node with
@@ -77,6 +80,10 @@ let rec type_ast ast_node state =
       | Boolean _ -> Types.TBoolean
       | String _ -> Types.TString
       | Undefined -> Types.TUndefined)
+  | Nam sym -> (
+      match lookup_sym sym state with
+      | None -> failwith "Unbound symbol"
+      | Some t -> t)
   | Let { declared_type; expr; _ } ->
       let actual = type_ast expr state in
       if not (are_types_compatible actual declared_type) then
@@ -146,7 +153,16 @@ let rec type_ast ast_node state =
             failwith "Argument type mismatch")
         prm_types arg_types;
       fun_type.ret
-  | _ -> TInt (* fallback/default case; could be improved *)
+  | Deref expr -> (
+      let expr_type = type_ast expr state in
+      match expr_type with
+      | Types.TRef { base; _ } -> base
+      | other ->
+          failwith (make_deref_non_ref_val_msg other))
+  | Borrow { is_mutable; expr } ->
+      let expr_type = type_ast expr state in
+      Types.TRef { is_mutable; base = expr_type }
+  | _ -> failwith "Type checking not supportd"
 
 let check_type ast_node state =
   try

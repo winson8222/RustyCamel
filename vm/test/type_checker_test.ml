@@ -16,6 +16,87 @@ let test_literal_mismatch_fails () =
 
   Alcotest.(check (result unit string)) "test" expected result
 
+let test_literal_borrow_succeeds () =
+  let tc = create () in
+  let node =
+    let open Vm.Ast in
+    Block
+      (Sequence
+         [
+           Let
+             {
+               sym = "x";
+               declared_type = TInt;
+               expr = Literal (Int 1);
+               is_mutable = false;
+             };
+           Let
+             {
+               sym = "y";
+               declared_type = TRef { is_mutable = false; base = TInt };
+               expr = Borrow { is_mutable = false; expr = Nam "x" };
+               is_mutable = false;
+             };
+           Deref (Nam "y");
+         ])
+  in
+  let result = check_type node tc in
+  let expected = Ok () in
+
+  Alcotest.(check (result unit string)) "test borrow succeeds" expected result
+
+let test_literal_borrow_and_deref_succeeds () =
+  let tc = create () in
+  let node =
+    let open Vm.Ast in
+    Block
+      (Sequence
+         [
+           Let
+             {
+               sym = "x";
+               declared_type = TInt;
+               expr = Literal (Int 1);
+               is_mutable = false;
+             };
+           Let
+             {
+               sym = "y";
+               declared_type = TRef { is_mutable = false; base = TInt };
+               expr = Borrow { is_mutable = false; expr = Nam "x" };
+               is_mutable = false;
+             };
+           Deref (Nam "y");
+         ])
+  in
+  let result = check_type node tc in
+  let expected = Ok () in
+
+  Alcotest.(check (result unit string)) "test borrow succeeds" expected result
+
+let test_deref_literal_fails () =
+  let tc = create () in
+  let node =
+    let open Vm.Ast in
+    Block
+      (Sequence
+         [
+           Let
+             {
+               sym = "x";
+               declared_type = TInt;
+               expr = Literal (Int 1);
+               is_mutable = false;
+             };
+           Deref (Nam "x");
+         ])
+  in
+  let result = check_type node tc in
+  let expected = Error "Cannot dereference expression of type Types.TInt" in
+
+  Alcotest.(check (result unit string))
+    "test deref literal value fails" expected result
+
 let test_match_int_succeeds () =
   let tc = create () in
   let node =
@@ -145,6 +226,9 @@ let () =
       ( "Type checker",
         [
           test_case "Literal int" `Quick test_literal_mismatch_fails;
+          test_case "Literal borrow" `Quick test_literal_borrow_succeeds;
+          test_case "test_literal_borrow_and_deref_succeeds" `Quick test_literal_borrow_and_deref_succeeds;
+          test_case "test_deref_literal_fails" `Quick test_deref_literal_fails;
           test_case "Literal int" `Quick test_match_int_succeeds;
           test_case "Function that returns int" `Quick test_fun_succeeds;
           test_case "Function that returns when shouldnt'" `Quick test_fun_fails;
