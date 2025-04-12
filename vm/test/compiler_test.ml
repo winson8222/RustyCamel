@@ -52,7 +52,7 @@ let test_literal_immut_borrow () =
       LDC (String "hello");
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       BORROW;
       ASSIGN { frame_index = 0; value_index = 1 };
       EXIT_SCOPE;
@@ -142,7 +142,7 @@ let test_ld_variable () =
       LDC (Int 4);
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
       DONE;
     ]
@@ -321,8 +321,8 @@ let test_function_with_binop () =
       LDF { arity = 2; addr = 3 };
       GOTO 11;
       ENTER_SCOPE { num = 0 };
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "+" };
       RESET;
       EXIT_SCOPE;
@@ -393,8 +393,8 @@ let test_function_with_block_and_const () =
       LDC (Int 0);
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "+" };
       RESET;
       EXIT_SCOPE;
@@ -458,8 +458,8 @@ let test_function_application () =
       LDF { arity = 2; addr = 3 };
       GOTO 11;
       ENTER_SCOPE { num = 0 };
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "+" };
       RESET;
       EXIT_SCOPE;
@@ -467,7 +467,7 @@ let test_function_application () =
       RESET;
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 33);
       LDC (Int 22);
       CALL 2;
@@ -599,7 +599,7 @@ let test_nested_function_calls () =
       (* Function k *)
       LDF { arity = 1; addr = 3 };
       GOTO 7;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       RESET;
       LDC Undefined;
       RESET;
@@ -608,7 +608,7 @@ let test_nested_function_calls () =
       (* Function g *)
       LDF { arity = 1; addr = 11 };
       GOTO 15;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       RESET;
       LDC Undefined;
       RESET;
@@ -621,8 +621,8 @@ let test_nested_function_calls () =
       LDC (Int 0);
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
-      LD { sym = "g"; pos = { frame_index = 0; value_index = 1 } };
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       TAILCALL 1;
       EXIT_SCOPE;
       LDC Undefined;
@@ -630,7 +630,7 @@ let test_nested_function_calls () =
       ASSIGN { frame_index = 0; value_index = 2 };
       POP;
       (* Call f(33, 22) *)
-      LD { sym = "f"; pos = { frame_index = 0; value_index = 2 } };
+      LD { pos = { frame_index = 0; value_index = 2 } };
       LDC (Int 33);
       LDC (Int 22);
       CALL 2;
@@ -725,7 +725,7 @@ let test_conditional_function () =
       ENTER_SCOPE { num = 1 };
       LDF { arity = 2; addr = 3 };
       GOTO 23;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 0);
       BINOP { sym = ">" };
       JOF 12;
@@ -739,15 +739,15 @@ let test_conditional_function () =
       ASSIGN { frame_index = 2; value_index = 0 };
       EXIT_SCOPE;
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "-" };
       RESET;
       LDC Undefined;
       RESET;
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 33);
       LDC (Int 22);
       CALL 2;
@@ -876,13 +876,13 @@ let test_assignment_and_while () =
       LDC (Int 1);
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 10);
       BINOP { sym = "<" };
       JOF 19;
       LDC (Int 1);
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 1);
       BINOP { sym = "+" };
       ASSIGN { frame_index = 0; value_index = 0 };
@@ -890,7 +890,7 @@ let test_assignment_and_while () =
       GOTO 7;
       LDC Undefined;
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
       DONE;
     ]
@@ -995,7 +995,7 @@ let test_while_with_const () =
       LDC (Int 1);
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 10);
       BINOP { sym = "<" };
       JOF 22;
@@ -1003,7 +1003,7 @@ let test_while_with_const () =
       LDC (Int 0);
       ASSIGN { frame_index = 1; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 1);
       BINOP { sym = "+" };
       ASSIGN { frame_index = 0; value_index = 0 };
@@ -1012,7 +1012,7 @@ let test_while_with_const () =
       GOTO 7;
       LDC Undefined;
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
       DONE;
     ]
@@ -1183,7 +1183,7 @@ let test_nested_while_loops () =
       LDC (Int 0);
       ASSIGN { frame_index = 0; value_index = 1 };
       POP;
-      LD { sym = "i"; pos = { frame_index = 0; value_index = 1 } };
+      LD { pos = { frame_index = 0; value_index = 1 } };
       LDC (Int 100);
       BINOP { sym = "<" };
       JOF 41;
@@ -1191,18 +1191,18 @@ let test_nested_while_loops () =
       LDC (Int 0);
       ASSIGN { frame_index = 1; value_index = 0 };
       POP;
-      LD { sym = "j"; pos = { frame_index = 1; value_index = 0 } };
+      LD {  pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 100);
       BINOP { sym = "<" };
       JOF 32;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
-      LD { sym = "i"; pos = { frame_index = 0; value_index = 1 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 1 } };
       BINOP { sym = "+" };
-      LD { sym = "j"; pos = { frame_index = 1; value_index = 0 } };
+      LD {  pos = { frame_index = 1; value_index = 0 } };
       BINOP { sym = "+" };
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "j"; pos = { frame_index = 1; value_index = 0 } };
+      LD {  pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 1);
       BINOP { sym = "+" };
       ASSIGN { frame_index = 1; value_index = 0 };
@@ -1210,7 +1210,7 @@ let test_nested_while_loops () =
       GOTO 15;
       LDC Undefined;
       POP;
-      LD { sym = "i"; pos = { frame_index = 0; value_index = 1 } };
+      LD { pos = { frame_index = 0; value_index = 1 } };
       LDC (Int 1);
       BINOP { sym = "+" };
       ASSIGN { frame_index = 0; value_index = 1 };
@@ -1219,7 +1219,7 @@ let test_nested_while_loops () =
       GOTO 7;
       LDC Undefined;
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       EXIT_SCOPE;
       DONE;
     ]
@@ -1428,11 +1428,11 @@ let test_functions_with_while_loops () =
       LDC (Int 0);
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
-      LD { sym = "z"; pos = { frame_index = 2; value_index = 0 } };
+      LD {  pos = { frame_index = 2; value_index = 0 } };
       LDC (Int 5);
       BINOP { sym = "<" };
       JOF 17;
-      LD { sym = "z"; pos = { frame_index = 2; value_index = 0 } };
+      LD {  pos = { frame_index = 2; value_index = 0 } };
       LDC (Int 1);
       BINOP { sym = "+" };
       ASSIGN { frame_index = 2; value_index = 0 };
@@ -1453,16 +1453,16 @@ let test_functions_with_while_loops () =
       LDC (Int 0);
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 4);
       BINOP { sym = ">" };
       JOF 47;
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 1);
       BINOP { sym = "+" };
       ASSIGN { frame_index = 1; value_index = 1 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 1);
       BINOP { sym = "+" };
       ASSIGN { frame_index = 1; value_index = 0 };
@@ -1470,14 +1470,14 @@ let test_functions_with_while_loops () =
       GOTO 32;
       LDC Undefined;
       POP;
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       RESET;
       EXIT_SCOPE;
       LDC Undefined;
       RESET;
       ASSIGN { frame_index = 0; value_index = 1 };
       POP;
-      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 33);
       LDC (Int 22);
       CALL 2;
@@ -1586,7 +1586,7 @@ let test_conditional_function_with_returns () =
       ENTER_SCOPE { num = 1 };
       LDF { arity = 2; addr = 3 };
       GOTO 28;
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 0);
       BINOP { sym = "<" };
       JOF 17;
@@ -1594,8 +1594,8 @@ let test_conditional_function_with_returns () =
       LDC (Int 0);
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "+" };
       RESET;
       EXIT_SCOPE;
@@ -1604,8 +1604,8 @@ let test_conditional_function_with_returns () =
       LDC (Int 3);
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "-" };
       RESET;
       EXIT_SCOPE;
@@ -1613,7 +1613,7 @@ let test_conditional_function_with_returns () =
       RESET;
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 33);
       LDC (Int 22);
       CALL 2;
@@ -1780,11 +1780,11 @@ let test_2_conditional_function () =
       GOTO 49;
       ENTER_SCOPE { num = 1 };
       LDC (Int 3);
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       BINOP { sym = "*" };
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 0);
       BINOP { sym = ">" };
       JOF 18;
@@ -1798,7 +1798,7 @@ let test_2_conditional_function () =
       ASSIGN { frame_index = 3; value_index = 0 };
       EXIT_SCOPE;
       POP;
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 0);
       BINOP { sym = "<" };
       JOF 37;
@@ -1806,8 +1806,8 @@ let test_2_conditional_function () =
       LDC (Int 0);
       ASSIGN { frame_index = 3; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "+" };
       RESET;
       EXIT_SCOPE;
@@ -1816,8 +1816,8 @@ let test_2_conditional_function () =
       LDC (Int 3);
       ASSIGN { frame_index = 3; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "-" };
       RESET;
       EXIT_SCOPE;
@@ -1826,7 +1826,7 @@ let test_2_conditional_function () =
       RESET;
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 33);
       LDC (Int 22);
       CALL 2;
@@ -2051,11 +2051,11 @@ let test_nested_conditional_function () =
       GOTO 68;
       ENTER_SCOPE { num = 2 };
       LDC (Int 3);
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       BINOP { sym = "*" };
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 0);
       BINOP { sym = ">" };
       JOF 18;
@@ -2064,7 +2064,7 @@ let test_nested_conditional_function () =
       ASSIGN { frame_index = 3; value_index = 0 };
       EXIT_SCOPE;
       GOTO 38;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 3);
       UNOP { sym = "-unary" };
       BINOP { sym = ">" };
@@ -2088,7 +2088,7 @@ let test_nested_conditional_function () =
       LDC (Int 0);
       ASSIGN { frame_index = 2; value_index = 1 };
       POP;
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 0);
       BINOP { sym = "<" };
       JOF 56;
@@ -2096,8 +2096,8 @@ let test_nested_conditional_function () =
       LDC (Int 0);
       ASSIGN { frame_index = 3; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "+" };
       RESET;
       EXIT_SCOPE;
@@ -2106,8 +2106,8 @@ let test_nested_conditional_function () =
       LDC (Int 3);
       ASSIGN { frame_index = 3; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
-      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 1 } };
       BINOP { sym = "-" };
       RESET;
       EXIT_SCOPE;
@@ -2116,7 +2116,7 @@ let test_nested_conditional_function () =
       RESET;
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 33);
       LDC (Int 22);
       CALL 2;
@@ -2168,8 +2168,7 @@ let test_borrow_variable () =
       LDC (String "hello");
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD
-        { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 0; value_index = 0 } };
       BORROW;
       ASSIGN { frame_index = 0; value_index = 1 };
       EXIT_SCOPE;

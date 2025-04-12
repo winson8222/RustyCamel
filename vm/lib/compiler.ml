@@ -11,7 +11,7 @@ type compiled_instruction =
   | DEREF
   | ASSIGN of pos_in_env
   | POP
-  | LD of { sym : string; pos : pos_in_env }
+  | LD of { pos : pos_in_env }
   | LDF of { arity : int; addr : int }
   | GOTO of int
   | RESET
@@ -181,7 +181,7 @@ let rec compile (node : Ast.ast_node) state =
       compile (Let { sym; expr = Lam { prms; body }; is_mutable = false }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
-      { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
+      { state with instrs = instrs @ [ LD { pos } ]; wc = wc + 1 }
   | Ret expr -> (
       let state_after_expr = compile expr state in
       match expr with

@@ -24,16 +24,36 @@ let test_borrow () =
       LDC (String "hello");
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
-      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD {  pos = { frame_index = 0; value_index = 0 } };
       BORROW;
       ASSIGN { frame_index = 0; value_index = 1 };
-      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LD {  pos = { frame_index = 0; value_index = 1 } };
       EXIT_SCOPE;
       DONE;
     ]
   in
   let result = run (create ()) instrs in
   check_vm_value "borrow" (Ok (VRef (VString "hello"))) result
+
+  let test_borrow_and_deref () =
+    let open Vm.Compiler in
+    let instrs =
+      [
+        ENTER_SCOPE { num = 2 };
+        LDC (String "hello");
+        ASSIGN { frame_index = 0; value_index = 0 };
+        POP;
+        LD {  pos = { frame_index = 0; value_index = 0 } };
+        BORROW;
+        ASSIGN { frame_index = 0; value_index = 1 };
+        LD {  pos = { frame_index = 0; value_index = 1 } };
+        DEREF;
+        EXIT_SCOPE;
+        DONE;
+      ]
+    in
+    let result = run (create ()) instrs in
+    check_vm_value "borrow" (Ok (VString "hello")) result
 (* let test_run_ldc () =
     let open Vm.Compiler in
   let instrs =
@@ -114,5 +134,6 @@ let () =
           test_case "Unrecognized instruction" `Quick test_unrecognized_instr;
           test_case "assign and load" `Quick test_assign_and_ld;
           test_case "borrow" `Quick test_borrow;
+          test_case "borrow_and_deref" `Quick test_borrow_and_deref;
         ] );
     ]

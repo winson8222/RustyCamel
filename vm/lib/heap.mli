@@ -64,5 +64,5 @@ val debug_print_bytes : t -> int -> int -> unit
 val is_callframe : t -> int -> bool
 val heap_get_callframe_pc : t -> int -> int
 val heap_get_callframe_env : t -> int -> int
-val heap_get_derefed_value: t -> int -> float
+val heap_get_ref_value: t -> int -> int
 val heap_allocate_ref: t -> float -> int

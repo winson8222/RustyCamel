@@ -44,8 +44,8 @@ let rec vm_value_of_address heap addr =
       let s = Heap.heap_get_string_value heap addr in
       VString s
   | Ref_tag ->
-      let v = Heap.heap_get_derefed_value heap addr in
-      VRef (vm_value_of_address heap (Float.to_int v))
+      let v = Heap.heap_get_ref_value heap addr in
+      VRef (vm_value_of_address heap v)
   | Undefined_tag -> VUndefined
   | _ -> failwith "Unexpected tag"
 
@@ -94,7 +94,7 @@ let execute_instruction state instr =
       Heap.heap_set_env_val_addr_at_pos heap ~env_addr
         ~frame_index:pos.frame_index ~val_index:pos.value_index ~val_addr;
       Ok VUndefined
-  | LD { sym = _; pos } ->
+  | LD { pos; _ } ->
       let value_addr =
         Heap.heap_get_env_val_addr_at_pos heap ~env_addr
           ~frame_index:pos.frame_index ~val_index:pos.value_index
@@ -129,14 +129,12 @@ let execute_instruction state instr =
   | BORROW ->
       let operand_addr = Float.of_int (List.hd os) in
       let addr = Heap.heap_allocate_ref state.heap operand_addr in
-      state.os := List.tl os @ [ addr ];
+      state.os := addr :: List.tl os;
       Ok VUndefined
   | DEREF ->
       let operand_addr = List.hd os in
-      let value_addr =
-        Float.to_int (Heap.heap_get_derefed_value state.heap operand_addr)
-      in
-      state.os := List.tl os @ [ value_addr ];
+      let value_addr = Heap.heap_get_ref_value state.heap operand_addr in
+      state.os := value_addr :: List.tl os;
       Ok VUndefined
   | other ->
       Error
