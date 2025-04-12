@@ -1,9 +1,8 @@
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
 import { RustLexer } from './parser/src/RustLexer.js';
-import { RustParser } from './parser/src/RustParser.js';
+import { DerefExprContext, RustParser } from './parser/src/RustParser.js';
 import { RustVisitor } from './parser/src/RustVisitor.js';
 import { readFile } from 'fs/promises';
-import { normalizeRustAst } from './astToJSON.js';
 
 // Import parser context types
 import {
@@ -192,6 +191,11 @@ class RustAstVisitor
             };
         } else if (ctx instanceof UnaryToAtomContext) {
             return this.visit(ctx.exprAtom());
+        } else if (ctx instanceof DerefExprContext) {
+            return {
+                type: 'DerefExpr',
+                expr: this.visit(ctx.exprUnary())
+            };
         }
         return null;
     }

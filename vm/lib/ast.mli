@@ -3,9 +3,11 @@ type ast_node =
   | Nam of string
   | Block of ast_node
   | Sequence of ast_node list
+  | While of { pred : ast_node; body : ast_node }
   | Cond of { pred : ast_node; cons : ast_node; alt : ast_node }
   | Let of { sym : string; expr : ast_node; is_mutable : bool }
   | Const of { sym : string; expr : ast_node }
+  | Assign of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
   | Unop of { sym : string; frst : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
@@ -20,19 +22,21 @@ type typed_ast =
   | Nam of string
   | Block of typed_ast
   | Sequence of typed_ast list
-  | Cond of { pred : typed_ast; cons : typed_ast; alt : typed_ast }
   | Let of {
       sym : string;
       expr : typed_ast;
       declared_type : Types.value_type;
       is_mutable : bool;
     }
-  | Ld of string
+  | While of { pred : typed_ast; body : typed_ast }
+  | Cond of { pred : typed_ast; cons : typed_ast; alt : typed_ast }
+
   | Const of {
       sym : string;
       expr : typed_ast;
       declared_type : Types.value_type;
     }
+  | Assign of { sym : string; expr : typed_ast }
   | Binop of { sym : string; frst : typed_ast; scnd : typed_ast }
   | Unop of { sym : string; frst : typed_ast }
   | Lam of { prms : string list; body : typed_ast }

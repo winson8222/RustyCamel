@@ -199,10 +199,42 @@ let rec compile (node : Ast.ast_node) state =
 
       (* Add CALL instruction with the number of arguments *)
       let new_instr = CALL (List.length args) in
-      {
-        state_after_args with
-        instrs = state_after_args.instrs @ [ new_instr ];
-        wc = state_after_args.wc + 1;
+      { state_after_args with 
+        instrs = state_after_args.instrs @ [new_instr]; 
+        wc = state_after_args.wc + 1 }
+  | While { pred; body } ->
+      (* Compile the predicate *)
+      let state_after_pred = compile pred state in
+      let state_after_jof = {
+        state_after_pred with
+        instrs = state_after_pred.instrs @ [ JOF 0 ];
+        wc = state_after_pred.wc + 1;
+      } in
+
+      (* Compile the body *)
+      let state_after_body = compile body state_after_jof in
+
+      (* Add POP and GOTO *)
+      let state_after_pop_goto = {
+        state_after_body with
+        instrs = state_after_body.instrs @ [ POP; GOTO state.wc ];
+        wc = state_after_body.wc + 2;
+      } in
+
+      (* modify jof to point to the body *)
+      { state_after_pop_goto with
+        instrs = List.mapi (fun i instr -> 
+          if i = state_after_pred.wc
+          then JOF state_after_pop_goto.wc
+          else instr)
+        state_after_pop_goto.instrs @ [ LDC Undefined ];
+        wc = state_after_pop_goto.wc + 1;
+      }
+  | Assign { sym; expr } ->
+      let state_after_expr = compile expr state in
+      { state_after_expr with
+        instrs = state_after_expr.instrs @ [ ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce) ];
+        wc = state_after_expr.wc + 1;
       }
   | Cond { pred; cons; alt } ->
       (* Compile the predicate *)
@@ -252,7 +284,7 @@ let rec compile (node : Ast.ast_node) state =
               if i = state_after_cons.wc then GOTO state_after_alt.wc else instr)
             state_after_alt.instrs;
       }
-  | other ->
+  | other ->  
       failwith
         (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))
 

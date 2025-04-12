@@ -742,7 +742,737 @@ let test_conditional_function () =
       DONE;
     ]
   in
-  check_instr_list "conditional function with assignment" expected result
+  check_instr_list "nested function calls with tail call" expected result
+
+let test_while_loop () =
+  let json =
+    {|{
+        "tag": "blk",
+        "body": {
+          "tag": "while",
+          "pred": {
+            "tag": "lit",
+            "val": false
+          },
+          "body": {
+            "tag": "lit",
+            "val": 1
+          }
+        }
+      }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 0 };
+      LDC (Boolean false);
+      JOF 6;
+      LDC (Int 1);
+      POP;
+      GOTO 1;
+      LDC Undefined;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "while loop with false predicate" expected result
+
+let test_assignment_and_while () =
+  let json =
+    {|{
+        "tag": "blk",
+        "body": {
+          "tag": "seq",
+          "stmts": [
+            {
+              "tag": "let",
+              "sym": "x",
+              "expr": {
+                "tag": "lit",
+                "val": 0
+              },
+              "is_mutable": true,
+              "declared_type": {
+                "kind": "basic",
+                "value": "int"
+              }
+            },
+            {
+              "tag": "assmt",
+              "sym": "x",
+              "expr": {
+                "tag": "lit",
+                "val": 1
+              }
+            },
+            {
+              "tag": "while",
+              "pred": {
+                "tag": "binop",
+                "sym": "<",
+                "frst": {
+                  "tag": "nam",
+                  "sym": "x"
+                },
+                "scnd": {
+                  "tag": "lit",
+                  "val": 10
+                }
+              },
+              "body": {
+                "tag": "seq",
+                "stmts": [
+                  {
+                    "tag": "lit",
+                    "val": 1
+                  },
+                  {
+                    "tag": "assmt",
+                    "sym": "x",
+                    "expr": {
+                      "tag": "binop",
+                      "sym": "+",
+                      "frst": {
+                        "tag": "nam",
+                        "sym": "x"
+                      },
+                      "scnd": {
+                        "tag": "lit",
+                        "val": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "tag": "nam",
+              "sym": "x"
+            }
+          ]
+        }
+      }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LDC (Int 1);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 10);
+      BINOP { sym = "<" };
+      JOF 19;
+      LDC (Int 1);
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      GOTO 7;
+      LDC Undefined;
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "assignment and while loop with variable modification"
+    expected result
+
+let test_while_with_const () =
+  let json =
+    {|{
+        "tag": "blk",
+        "body": {
+          "tag": "seq",
+          "stmts": [
+            {
+              "tag": "let",
+              "sym": "x",
+              "expr": {
+                "tag": "lit",
+                "val": 0
+              },
+              "is_mutable": true,
+              "declared_type": {
+                "kind": "basic",
+                "value": "int"
+              }
+            },
+            {
+              "tag": "assmt",
+              "sym": "x",
+              "expr": {
+                "tag": "lit",
+                "val": 1
+              }
+            },
+            {
+              "tag": "while",
+              "pred": {
+                "tag": "binop",
+                "sym": "<",
+                "frst": {
+                  "tag": "nam",
+                  "sym": "x"
+                },
+                "scnd": {
+                  "tag": "lit",
+                  "val": 10
+                }
+              },
+              "body": {
+                "tag": "blk",
+                "body": {
+                  "tag": "seq",
+                  "stmts": [
+                    {
+                      "tag": "const",
+                      "sym": "k",
+                      "expr": {
+                        "tag": "lit",
+                        "val": 0
+                      },
+                      "declared_type": {
+                        "kind": "basic",
+                        "value": "int"
+                      }
+                    },
+                    {
+                      "tag": "assmt",
+                      "sym": "x",
+                      "expr": {
+                        "tag": "binop",
+                        "sym": "+",
+                        "frst": {
+                          "tag": "nam",
+                          "sym": "x"
+                        },
+                        "scnd": {
+                          "tag": "lit",
+                          "val": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "tag": "nam",
+              "sym": "x"
+            }
+          ]
+        }
+      }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LDC (Int 1);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 10);
+      BINOP { sym = "<" };
+      JOF 22;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 1; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 0; value_index = 0 };
+      EXIT_SCOPE;
+      POP;
+      GOTO 7;
+      LDC Undefined;
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "while loop with constant declaration inside loop body"
+    expected result
+
+let test_nested_while_loops () =
+  let json =
+    {|{
+        "tag": "blk",
+        "body": {
+          "tag": "seq",
+          "stmts": [
+            {
+              "tag": "let",
+              "sym": "x",
+              "expr": {
+                "tag": "lit",
+                "val": 0
+              },
+              "is_mutable": true,
+              "declared_type": {
+                "kind": "basic",
+                "value": "int"
+              }
+            },
+            {
+              "tag": "let",
+              "sym": "i",
+              "expr": {
+                "tag": "lit",
+                "val": 0
+              },
+              "is_mutable": true,
+              "declared_type": {
+                "kind": "basic",
+                "value": "int"
+              }
+            },
+            {
+              "tag": "while",
+              "pred": {
+                "tag": "binop",
+                "sym": "<",
+                "frst": {
+                  "tag": "nam",
+                  "sym": "i"
+                },
+                "scnd": {
+                  "tag": "lit",
+                  "val": 100
+                }
+              },
+              "body": {
+                "tag": "blk",
+                "body": {
+                  "tag": "seq",
+                  "stmts": [
+                    {
+                      "tag": "let",
+                      "sym": "j",
+                      "expr": {
+                        "tag": "lit",
+                        "val": 0
+                      },
+                      "is_mutable": true,
+                      "declared_type": {
+                        "kind": "basic",
+                        "value": "int"
+                      }
+                    },
+                    {
+                      "tag": "while",
+                      "pred": {
+                        "tag": "binop",
+                        "sym": "<",
+                        "frst": {
+                          "tag": "nam",
+                          "sym": "j"
+                        },
+                        "scnd": {
+                          "tag": "lit",
+                          "val": 100
+                        }
+                      },
+                      "body": {
+                        "tag": "seq",
+                        "stmts": [
+                          {
+                            "tag": "assmt",
+                            "sym": "x",
+                            "expr": {
+                              "tag": "binop",
+                              "sym": "+",
+                              "frst": {
+                                "tag": "binop",
+                                "sym": "+",
+                                "frst": {
+                                  "tag": "nam",
+                                  "sym": "x"
+                                },
+                                "scnd": {
+                                  "tag": "nam",
+                                  "sym": "i"
+                                }
+                              },
+                              "scnd": {
+                                "tag": "nam",
+                                "sym": "j"
+                              }
+                            }
+                          },
+                          {
+                            "tag": "assmt",
+                            "sym": "j",
+                            "expr": {
+                              "tag": "binop",
+                              "sym": "+",
+                              "frst": {
+                                "tag": "nam",
+                                "sym": "j"
+                              },
+                              "scnd": {
+                                "tag": "lit",
+                                "val": 1
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "tag": "assmt",
+                      "sym": "i",
+                      "expr": {
+                        "tag": "binop",
+                        "sym": "+",
+                        "frst": {
+                          "tag": "nam",
+                          "sym": "i"
+                        },
+                        "scnd": {
+                          "tag": "lit",
+                          "val": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "tag": "nam",
+              "sym": "x"
+            }
+          ]
+        }
+      }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 2 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 1 };
+      POP;
+      LD { sym = "i"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 100);
+      BINOP { sym = "<" };
+      JOF 41;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 1; value_index = 0 };
+      POP;
+      LD { sym = "j"; pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 100);
+      BINOP { sym = "<" };
+      JOF 32;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LD { sym = "i"; pos = { frame_index = 0; value_index = 1 } };
+      BINOP { sym = "+" };
+      LD { sym = "j"; pos = { frame_index = 1; value_index = 0 } };
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "j"; pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 1; value_index = 0 };
+      POP;
+      GOTO 15;
+      LDC Undefined;
+      POP;
+      LD { sym = "i"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 0; value_index = 1 };
+      EXIT_SCOPE;
+      POP;
+      GOTO 7;
+      LDC Undefined;
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "nested while loops with variable modification" expected
+    result
+
+let test_functions_with_while_loops () =
+  let json =
+    {|{
+        "tag": "blk",
+        "body": {
+          "tag": "seq",
+          "stmts": [
+            {
+              "tag": "fun",
+              "sym": "f",
+              "prms": [
+                { "name": "x" },
+                { "name": "y" }
+              ],
+              "body": {
+                "tag": "blk",
+                "body": {
+                  "tag": "seq",
+                  "stmts": [
+                    {
+                      "tag": "const",
+                      "sym": "z",
+                      "expr": {
+                        "tag": "lit",
+                        "val": 0
+                      },
+                      "declared_type": {
+                        "kind": "basic",
+                        "value": "int"
+                      }
+                    },
+                    {
+                      "tag": "while",
+                      "pred": {
+                        "tag": "binop",
+                        "sym": "<",
+                        "frst": {
+                          "tag": "nam",
+                          "sym": "z"
+                        },
+                        "scnd": {
+                          "tag": "lit",
+                          "val": 5
+                        }
+                      },
+                      "body": {
+                        "tag": "assmt",
+                        "sym": "z",
+                        "expr": {
+                          "tag": "binop",
+                          "sym": "+",
+                          "frst": {
+                            "tag": "nam",
+                            "sym": "z"
+                          },
+                          "scnd": {
+                            "tag": "lit",
+                            "val": 1
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "tag": "ret",
+                      "expr": {
+                        "tag": "lit",
+                        "val": 1
+                      }
+                    }
+                  ]
+                }
+              },
+              "declared_type": {
+                "kind": "function",
+                "ret": "int",
+                "prms": ["int", "int"]
+              }
+            },
+            {
+              "tag": "fun",
+              "sym": "k",
+              "prms": [
+                { "name": "x" },
+                { "name": "y" }
+              ],
+              "body": {
+                "tag": "blk",
+                "body": {
+                  "tag": "seq",
+                  "stmts": [
+                    {
+                      "tag": "const",
+                      "sym": "j",
+                      "expr": {
+                        "tag": "lit",
+                        "val": 0
+                      },
+                      "declared_type": {
+                        "kind": "basic",
+                        "value": "int"
+                      }
+                    },
+                    {
+                      "tag": "while",
+                      "pred": {
+                        "tag": "binop",
+                        "sym": ">",
+                        "frst": {
+                          "tag": "nam",
+                          "sym": "x"
+                        },
+                        "scnd": {
+                          "tag": "lit",
+                          "val": 4
+                        }
+                      },
+                      "body": {
+                        "tag": "seq",
+                        "stmts": [
+                          {
+                            "tag": "assmt",
+                            "sym": "y",
+                            "expr": {
+                              "tag": "binop",
+                              "sym": "+",
+                              "frst": {
+                                "tag": "nam",
+                                "sym": "y"
+                              },
+                              "scnd": {
+                                "tag": "lit",
+                                "val": 1
+                              }
+                            }
+                          },
+                          {
+                            "tag": "assmt",
+                            "sym": "x",
+                            "expr": {
+                              "tag": "binop",
+                              "sym": "+",
+                              "frst": {
+                                "tag": "nam",
+                                "sym": "x"
+                              },
+                              "scnd": {
+                                "tag": "lit",
+                                "val": 1
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "tag": "ret",
+                      "expr": {
+                        "tag": "nam",
+                        "sym": "y"
+                      }
+                    }
+                  ]
+                }
+              },
+              "declared_type": {
+                "kind": "function",
+                "ret": "int",
+                "prms": ["int", "int"]
+              }
+            },
+            {
+              "tag": "app",
+              "fun": {
+                "tag": "nam",
+                "sym": "f"
+              },
+              "args": [
+                {
+                  "tag": "lit",
+                  "val": 33
+                },
+                {
+                  "tag": "lit",
+                  "val": 22
+                }
+              ]
+            }
+          ]
+        }
+      }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 2 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 24;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 2; value_index = 0 };
+      POP;
+      LD { sym = "z"; pos = { frame_index = 2; value_index = 0 } };
+      LDC (Int 5);
+      BINOP { sym = "<" };
+      JOF 17;
+      LD { sym = "z"; pos = { frame_index = 2; value_index = 0 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 2; value_index = 0 };
+      POP;
+      GOTO 7;
+      LDC Undefined;
+      POP;
+      LDC (Int 1);
+      RESET;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LDF { arity = 2; addr = 28 };
+      GOTO 54;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 2; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 4);
+      BINOP { sym = ">" };
+      JOF 47;
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 1; value_index = 1 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 1; value_index = 0 };
+      POP;
+      GOTO 32;
+      LDC Undefined;
+      POP;
+      LD { sym = "y"; pos = { frame_index = 1; value_index = 1 } };
+      RESET;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      POP;
+      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 33);
+      LDC (Int 22);
+      CALL 2;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "functions with while loops" expected result
 
 let test_conditional_function_with_returns () =
   let json =
@@ -1413,10 +2143,19 @@ let () =
           test_case "function application" `Quick test_function_application;
           test_case "nested function calls with tail call" `Quick
            
+           
             test_nested_function_calls;
+          test_case "while loop" `Quick test_while_loop;
+          test_case "assignment and while loop" `Quick test_assignment_and_while;
+          test_case "while with const" `Quick test_while_with_const;
+          test_case "nested while loops" `Quick test_nested_while_loops;
+          test_case "functions with while loops" `Quick
+            test_functions_with_while_loops;
           test_case "conditional function with assignment" `Quick
+           
             test_conditional_function;
           test_case "conditional function with returns" `Quick
+           
             test_conditional_function_with_returns;
           test_case "2 conditional functions" `Quick test_2_conditional_function;
           test_case "nested conditional function" `Quick
