@@ -55,7 +55,7 @@ exprUnary
     : '-' exprUnary                    #UnaryNegation
     | '!' exprUnary                    #UnaryNot
     | REF MUT? exprUnary               #BorrowExpr
-    | '*' exprUnary                    #DerefExpr    // Add dereferencing
+    | '*' exprUnary                    #DerefExpr   
     | exprAtom                         #UnaryToAtom
     ;
 
