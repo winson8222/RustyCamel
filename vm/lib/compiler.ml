@@ -80,6 +80,15 @@ let rec compile (node : Ast.ast_node) state =
   let open Ast in
   let instrs = state.instrs in
   let wc = state.wc in
+
+  (* Print current state at start of each case *)
+  print_endline "\nCompiling node:";
+  Printf.printf "Current wc: %d\n" wc;
+  print_endline "Current instructions:";
+  List.iteri (fun i instr ->
+    Printf.printf "%d: %s\n" i (show_compiled_instruction instr)
+  ) instrs;
+
   match node with
   | Literal lit ->
       let new_instr = LDC lit in
@@ -103,28 +112,60 @@ let rec compile (node : Ast.ast_node) state =
       (* Then compile body *)
       let state_after_body = compile body state_after_enter in
 
+      (* based on locals, find the reference variables *)
+      let borrowed_locals = List.filter (fun sym -> Hashtbl.mem state_after_body.borrowed_last_use sym) locals in
+
+      (* create list of (sym, value) pairs from borrowed locals *)
+      let indexes_of_free_instr = List.map (fun sym -> 
+        (sym, Hashtbl.find state_after_body.borrowed_last_use sym)
+      ) borrowed_locals in
+
+      (* change the free instructions at specific indices to have to_free = true *)
+      let new_marked_instrs = List.mapi (fun i instr -> 
+        match instr with
+        | FREE { pos; _ } when List.exists (fun (_, index) -> index = i) indexes_of_free_instr -> 
+          FREE { pos; to_free = true }
+        | other -> other
+      ) state_after_body.instrs in
+      
+      (* freeing non borrowed locals  *)
+      let non_borrowed_locals = List.filter (fun sym -> not (Hashtbl.mem state_after_body.borrowed_last_use sym)) locals in
+
+      (* add FREE instructions for the non borrowed locals *)
+      let owned_free_instrs =  List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym state_after_body.ce; to_free = true }) non_borrowed_locals in
+
+      (* Finally add EXIT_SCOPE *)
+      let exit_scope_instr = EXIT_SCOPE in
+      let exit_scope_state = {
+        state with
+        wc = List.length new_marked_instrs + List.length owned_free_instrs + 1;
+        instrs =  new_marked_instrs @ owned_free_instrs @ [ exit_scope_instr ];
+      } in
+
+      (* freeing/updating borrowed captured vars *)
       let captured_vars = find_captured_variables body locals in
 
       (* check if the captured vars are borrowed *)
       let borrowed_captured_vars = List.filter (fun sym -> Hashtbl.mem state_after_body.borrowed_last_use sym) captured_vars in
 
       (* add FREE instructions for the borrowed captured vars *)
-      let new_instrs = List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym state_after_body.ce; to_free = false }) borrowed_captured_vars in
+      let new_free_instrs_for_borrowed_captured_vars = List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym state.ce; to_free = false }) borrowed_captured_vars in
 
       (* update last_use indices for the borrowed captured vars *)
       let borrowed_last_use_updated = Hashtbl.copy state_after_enter.borrowed_last_use in
       List.iteri (fun i sym -> 
-        Hashtbl.replace borrowed_last_use_updated sym (state_after_body.wc + i)
+        Hashtbl.replace borrowed_last_use_updated sym (exit_scope_state.wc + i)
       ) borrowed_captured_vars;
 
-      (* Finally add EXIT_SCOPE *)
-      let exit_scope_instr = EXIT_SCOPE in
-      {
-        state with
+      let after_exit_scope_state = {
+        exit_scope_state with
+        instrs = exit_scope_state.instrs @ new_free_instrs_for_borrowed_captured_vars;
+        wc = exit_scope_state.wc + List.length new_free_instrs_for_borrowed_captured_vars;
         borrowed_last_use = borrowed_last_use_updated;
-        wc = state_after_body.wc + List.length new_instrs + 1;
-        instrs = state_after_body.instrs @ new_instrs @ [ exit_scope_instr ];
-      }
+      } in
+
+      after_exit_scope_state
+
   | Binop { sym; frst; scnd } ->
       let frst_state = compile frst state in
       let sec_state = compile scnd frst_state in
@@ -144,6 +185,15 @@ let rec compile (node : Ast.ast_node) state =
         ce = state_aft_frst.ce;
         borrowed_last_use = state_aft_frst.borrowed_last_use;
       }
+  | Borrow { is_mutable; expr } ->
+      let state_aft_expr = compile expr state in
+      let borrow_instr = BORROW is_mutable in
+      {
+        instrs = state_aft_expr.instrs @ [ borrow_instr ];
+        wc = state_aft_expr.wc + 1;
+        ce = state_aft_expr.ce;
+        borrowed_last_use = state_aft_expr.borrowed_last_use;
+      }
   | Sequence stmts -> compile_sequence stmts state
   | Let { sym; expr; _ } ->
       let state_after_expr = compile expr state in
@@ -152,7 +202,7 @@ let rec compile (node : Ast.ast_node) state =
         match expr with
         | Borrow { is_mutable = _; _ } -> 
           (* add sym into borrowed_last_use *)
-          Hashtbl.add state_after_expr.borrowed_last_use sym (-1);
+          Hashtbl.replace state_after_expr.borrowed_last_use sym (state_after_expr.wc + 1);
           [ASSIGN pos; FREE { pos; to_free = false }]
         | _ -> [ASSIGN pos]
       in
@@ -166,11 +216,11 @@ let rec compile (node : Ast.ast_node) state =
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instrs = 
         match expr with
-          | Borrow { is_mutable = _; _ } -> 
-            (* add sym into borrowed_last_use *)
-            Hashtbl.add state_after_expr.borrowed_last_use sym (-1);
-            [ASSIGN pos; FREE { pos; to_free = false }]
-          | _ -> [ASSIGN pos]
+        | Borrow { is_mutable = _; _ } -> 
+          (* add sym into borrowed_last_use *)
+          Hashtbl.replace state_after_expr.borrowed_last_use sym (state_after_expr.wc + 1);
+          [ASSIGN pos; FREE { pos; to_free = false }]
+        | _ -> [ASSIGN pos]
       in
       {
         state_after_expr with
@@ -284,10 +334,22 @@ let rec compile (node : Ast.ast_node) state =
       }
   | Assign { sym; expr } ->
       let state_after_expr = compile expr state in
-      { state_after_expr with
-        instrs = state_after_expr.instrs @ [ ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce) ];
-        wc = state_after_expr.wc + 1;
-      }
+      let pos = get_compile_time_environment_pos sym state_after_expr.ce in
+
+      if Hashtbl.mem state_after_expr.borrowed_last_use sym then
+        let borrowed_last_use_updated = Hashtbl.copy state_after_expr.borrowed_last_use in
+        Hashtbl.replace borrowed_last_use_updated sym (state_after_expr.wc + 1);
+
+        { state_after_expr with
+          instrs = state_after_expr.instrs @ [ ASSIGN pos; FREE { pos = pos; to_free = false } ];
+          wc = state_after_expr.wc + 2;
+          borrowed_last_use = borrowed_last_use_updated;
+        }
+      else
+        { state_after_expr with
+          instrs = state_after_expr.instrs @ [ ASSIGN pos ];
+          wc = state_after_expr.wc + 1;
+        }
   | Cond { pred; cons; alt } ->
       (* Compile the predicate *)
       let state_after_pred = compile pred state in
@@ -336,9 +398,6 @@ let rec compile (node : Ast.ast_node) state =
               if i = state_after_cons.wc then GOTO state_after_alt.wc else instr)
             state_after_alt.instrs;
       }
-  | other ->  
-      failwith
-        (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))
 
 and compile_sequence stmts state =
   match stmts with
