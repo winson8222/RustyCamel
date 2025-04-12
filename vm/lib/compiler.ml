@@ -15,6 +15,7 @@ type compiled_instruction =
   | RESET
   | TAILCALL of int
   | CALL of int
+  | BORROW of bool
   | DONE
 [@@deriving show]
 
@@ -23,10 +24,11 @@ type state = {
   instrs : compiled_instruction list; (* Symbol table with positions *)
   ce : string list list;
   wc : int;
+  borrowed_last_use : (string, int) Hashtbl.t;
 }
 
 (* TODO: Add global compile environment with builtin frames *)
-let initial_state = { instrs = []; ce = []; wc = 0 }
+let initial_state = { instrs = []; ce = []; wc = 0; borrowed_last_use = Hashtbl.create 100 }
 
 (** Helper functions *)
 let rec scan_for_locals (node : Ast.ast_node) =
@@ -76,6 +78,7 @@ let rec compile (node : Ast.ast_node) state =
           instrs = state.instrs @ [ enter_scope_instr ];
           wc = wc + 1;
           ce = extended_ce;
+          borrowed_last_use = state.borrowed_last_use;
         }
       in
 
@@ -97,6 +100,7 @@ let rec compile (node : Ast.ast_node) state =
         instrs = sec_state.instrs @ [ new_instr ];
         wc = sec_state.wc + 1;
         ce = sec_state.ce;
+        borrowed_last_use = sec_state.borrowed_last_use;
       }
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
@@ -105,25 +109,40 @@ let rec compile (node : Ast.ast_node) state =
         instrs = state_aft_frst.instrs @ [ new_instr ];
         wc = state_aft_frst.wc + 1;
         ce = state_aft_frst.ce;
+        borrowed_last_use = state_aft_frst.borrowed_last_use;
       }
   | Sequence stmts -> compile_sequence stmts state
   | Let { sym; expr; _ } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
-      let new_instr = ASSIGN pos in
+      let new_instrs = 
+        match expr with
+        | Borrow { is_mutable = _; _ } -> 
+          (* add sym into borrowed_last_use *)
+          Hashtbl.add state_after_expr.borrowed_last_use sym (-1);
+          [ASSIGN pos]
+        | _ -> [ASSIGN pos]
+      in
       {
         state_after_expr with
-        instrs = state_after_expr.instrs @ [ new_instr ];
-        wc = state_after_expr.wc + 1;
+        instrs = state_after_expr.instrs @ new_instrs;
+        wc = state_after_expr.wc + List.length new_instrs;
       }
   | Const { sym; expr; _ } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
-      let new_instr = ASSIGN pos in
+      let new_instrs = 
+        match expr with
+          | Borrow { is_mutable = _; _ } -> 
+            (* add sym into borrowed_last_use *)
+            Hashtbl.add state_after_expr.borrowed_last_use sym (-1);
+            [ASSIGN pos]
+          | _ -> [ASSIGN pos]
+      in
       {
         state_after_expr with
-        instrs = state_after_expr.instrs @ [ new_instr ];
-        wc = state_after_expr.wc + 1;
+        instrs = state_after_expr.instrs @ new_instrs;
+        wc = state_after_expr.wc + List.length new_instrs;
       }
   | Lam { prms; body } ->
       let loadFunInstr = LDF { arity = List.length prms; addr = wc + 2 } in
