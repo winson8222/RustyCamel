@@ -15,7 +15,7 @@ type compiled_instruction =
   | RESET
   | TAILCALL of int
   | CALL of int
-  | FREE of { sym : string; to_free: bool }
+  | FREE of { pos : pos_in_env; to_free: bool }
   | DONE
 [@@deriving show]
 
@@ -106,7 +106,7 @@ let rec compile (node : Ast.ast_node) state =
       let instrs_with_frees = List.mapi (fun i instr ->
         if List.mem i all_locals_last_used then 
           match instr with
-          | FREE { sym; _ } -> FREE { sym; to_free = true }
+          | FREE { pos; _ } -> FREE { pos; to_free = true }
           | _ -> instr
         else instr
       ) state_after_body.instrs in
@@ -145,7 +145,7 @@ let rec compile (node : Ast.ast_node) state =
       let new_instr = ASSIGN pos in
       let state_with_assign = {
         state_after_expr with
-        instrs = state_after_expr.instrs @ [ new_instr; FREE { sym; to_free = false } ];
+        instrs = state_after_expr.instrs @ [ new_instr; FREE { pos; to_free = false } ];
         wc = state_after_expr.wc + 2;
         sym_pos = state_after_expr.sym_pos;
       } in
@@ -157,7 +157,7 @@ let rec compile (node : Ast.ast_node) state =
       let new_instr = ASSIGN pos in
       let state_with_assign = {
         state_after_expr with
-        instrs = state_after_expr.instrs @ [ new_instr; FREE { sym; to_free = false } ];
+        instrs = state_after_expr.instrs @ [ new_instr; FREE { pos; to_free = false } ];
         wc = state_after_expr.wc + 2;
         sym_pos = state_after_expr.sym_pos;
       } in
@@ -184,7 +184,7 @@ let rec compile (node : Ast.ast_node) state =
       in
 
       (* add free instructions for each parameter *)
-      let free_params_instrs = List.map (fun param -> FREE { sym = param; to_free = true }) param_names in
+      let free_params_instrs = List.map (fun param -> FREE { pos = get_compile_time_environment_pos param extended_ce; to_free = true }) param_names in
 
       (* add undefined and reset *)
       let final_state =
@@ -212,7 +212,7 @@ let rec compile (node : Ast.ast_node) state =
       let pos = get_compile_time_environment_pos sym state.ce in
       let state_with_ld = {
         state with 
-        instrs = instrs @ [ LD { sym; pos }; FREE { sym; to_free = false } ]; 
+        instrs = instrs @ [ LD { sym; pos }; FREE { pos; to_free = false } ]; 
         wc = wc + 2;
       } in
       update_sym_pos sym (state_with_ld.wc - 1) state_with_ld
@@ -230,7 +230,7 @@ let rec compile (node : Ast.ast_node) state =
           in
           { state_after_expr with instrs = new_instrs }
       | _ ->
-          let free_instrs = List.map (fun prm -> FREE { sym = prm; to_free = true }) state.current_params in
+          let free_instrs = List.map (fun prm -> FREE { pos = get_compile_time_environment_pos prm state.ce; to_free = true }) state.current_params in
           {
             state_after_expr with
             instrs = state_after_expr.instrs @ free_instrs @ [ RESET ];
@@ -284,7 +284,7 @@ let rec compile (node : Ast.ast_node) state =
       let state_after_expr = compile expr state in
       let state_with_assign = {
         state_after_expr with
-        instrs = state_after_expr.instrs @ [ ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce); FREE { sym; to_free = false } ];
+        instrs = state_after_expr.instrs @ [ ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce); FREE { pos = get_compile_time_environment_pos sym state.ce; to_free = false } ];
         wc = state_after_expr.wc + 2;
       } in
       update_sym_pos sym (state_with_assign.wc - 1) state_with_assign

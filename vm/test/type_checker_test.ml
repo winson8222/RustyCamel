@@ -94,7 +94,7 @@ let test_fun_uncompatible_prms_args_fails () =
       (Sequence
          [
            Fun
-             {  
+             {
                sym = "f";
                prms = [ "a" ];
                declared_type = TFunction { ret = TInt; prms = [ TInt ] };

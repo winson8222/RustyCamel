@@ -15,7 +15,7 @@ type compiled_instruction =
   | RESET
   | TAILCALL of int
   | CALL of int
-  | FREE of { sym : string; to_free : bool }
+  | FREE of { pos : pos_in_env; to_free : bool }
   | DONE
 [@@deriving show]
 
