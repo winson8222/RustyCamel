@@ -3,6 +3,7 @@ type node_tag =
   | True_tag
   | Number_tag
   | String_tag
+  | Ref_tag
   | Null_tag
   | Unassigned_tag
   | Undefined_tag
@@ -285,3 +286,10 @@ let heap_get_callframe_pc state addr =
 let heap_get_callframe_env state addr =
   let env_addr = heap_get_child state ~address:addr ~child_index:0 in
   Float.to_int env_addr
+
+let heap_get_derefed_value state addr = heap_get_word state (addr + 1)
+
+let heap_allocate_ref state number =
+  let addr = heap_allocate state ~size:2 ~tag:Ref_tag in
+  heap_set_word state ~address:(addr + 1) ~word:number;
+  addr

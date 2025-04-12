@@ -14,6 +14,7 @@ type ast_node =
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
   | Borrow of { is_mutable : bool; expr : ast_node }
+  | Deref of ast_node
   | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
 
@@ -29,11 +30,7 @@ type typed_ast =
       is_mutable : bool;
     }
   | While of { pred : typed_ast; body : typed_ast }
-  | Cond of {
-      pred : typed_ast;
-      cons : typed_ast;
-      alt : typed_ast;
-    }
+  | Cond of { pred : typed_ast; cons : typed_ast; alt : typed_ast }
   | Const of {
       sym : string;
       expr : typed_ast;
@@ -50,6 +47,7 @@ type typed_ast =
       body : typed_ast;
     }
   | Borrow of { is_mutable : bool; expr : typed_ast }
+  | Deref of typed_ast
   | Ret of typed_ast
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
@@ -105,12 +103,13 @@ let rec of_json json =
           frst = of_json (member "frst" json);
         }
   | "nam" -> Nam (member "sym" json |> to_string)
-  | "borrow" ->
+  | "BorrowExpr" ->
       Borrow
         {
           is_mutable = member "mutable" json |> to_bool;
           expr = member "expr" json |> of_json;
         }
+  | "DerefExpr" -> Deref (member "expr" json |> of_json)
   | "fun" ->
       let sym = json |> member "sym" |> to_string in
       let prms =
@@ -183,3 +182,4 @@ let rec strip_types (ast : typed_ast) : ast_node =
       App { fun_nam = strip_types fun_nam; args = List.map strip_types args }
   | Borrow { is_mutable; expr } ->
       Borrow { is_mutable; expr = strip_types expr }
+  | Deref value -> Deref (strip_types value)

@@ -5,6 +5,7 @@ type vm_value =
   | VString of string
   | VUndefined
   | VBoolean of bool
+  | VRef of vm_value
   | VAddress of int (* byte address *)
 [@@deriving show]
 
@@ -34,8 +35,7 @@ let create () =
   Printf.printf "initialized pc: %d\n" !(initial_state.pc);
   initial_state
 
-let vm_value_of_address state addr =
-  let heap = state.heap in
+let rec vm_value_of_address heap addr =
   match Heap.heap_get_tag heap addr with
   | Number_tag ->
       let n = Heap.heap_get_number_value heap addr in
@@ -43,6 +43,9 @@ let vm_value_of_address state addr =
   | String_tag ->
       let s = Heap.heap_get_string_value heap addr in
       VString s
+  | Ref_tag ->
+      let v = Heap.heap_get_derefed_value heap addr in
+      VRef (vm_value_of_address heap (Float.to_int v))
   | Undefined_tag -> VUndefined
   | _ -> failwith "Unexpected tag"
 
@@ -64,7 +67,7 @@ let execute_instruction state instr =
   | DONE -> (
       match !(state.os) with
       | [] -> Ok VUndefined
-      | ops -> Ok (List.hd ops |> vm_value_of_address state))
+      | ops -> Ok (List.hd ops |> vm_value_of_address state.heap))
   | ENTER_SCOPE { num } ->
       let new_blockframe_addr = Heap.heap_allocate_blockframe heap ~env_addr in
       state.rts := new_blockframe_addr :: !(state.rts);
@@ -112,6 +115,29 @@ let execute_instruction state instr =
           else Ok VUndefined)
   | POP -> (
       match pop_stack state.os with Ok _ -> Ok VUndefined | Error e -> Error e)
+  | UNOP { sym } -> (
+      match sym with
+      | "-" ->
+          let operand_addr = List.hd os in
+          let negated_value =
+            Heap.heap_get_number_value state.heap operand_addr
+          in
+          let res_addr = Heap.heap_allocate_number state.heap negated_value in
+          state.os := List.tl os @ [ res_addr ];
+          Ok VUndefined
+      | _ -> failwith "unsupported syn for unop")
+  | BORROW ->
+      let operand_addr = Float.of_int (List.hd os) in
+      let addr = Heap.heap_allocate_ref state.heap operand_addr in
+      state.os := List.tl os @ [ addr ];
+      Ok VUndefined
+  | DEREF ->
+      let operand_addr = List.hd os in
+      let value_addr =
+        Float.to_int (Heap.heap_get_derefed_value state.heap operand_addr)
+      in
+      state.os := List.tl os @ [ value_addr ];
+      Ok VUndefined
   | other ->
       Error
         (TypeError

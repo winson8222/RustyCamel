@@ -13,41 +13,54 @@ let check_instr_list msg expected actual =
 (* ---------- Test cases ---------- *)
 
 let test_literal_immut_borrow () =
-  let json =   {|{
-  "tag": "blk",
-    "body": {
-      "tag": "seq",
-      "stmts": [
-        { "tag": "let", "sym": "x", 
-            "expr": { "tag": "lit", "val": "hello" }, 
-            "is_mutable": false, 
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "let",
+            "sym": "x",
+            "is_mutable": false,
+            "expr": {"tag": "lit", "val": "hello"},
+            "declared_type": {"kind": "basic", "value": "string"}
+          },
+          {
+            "tag": "let",
+            "sym": "y",
+            "is_mutable": false,
+            "expr": {
+              "tag": "BorrowExpr",
+              "mutable": false,
+              "expr": {"tag": "nam", "sym": "x"}
+            },
             "declared_type": {
-                "kind": "basic",
-                "value": "string"
-              }
-        },
-        { "tag": "let", 
-            "sym": "y", 
-            "expr": { 
-                "tag": "borrow",
-                "mutable": false, 
-                  "expr": {
-                    "tag": "nam",
-                    "sym": "x"
-                  } 
-            }, 
-            "is_mutable": false, 
-            "declared_type": {
-                "kind": "ref",
-                "value": "string"
-              }
+              "kind": "ref",
+              "is_mutable": false,
+              "value": "string"
+            }
           }
-      ]
-    }
-  }|} in
+        ]
+      }
+    }|}
+  in
   let result = compile_program json in
-  let expected = [ LDC (Int 42); DONE ] in
-  check_instr_list "literal int" expected result
+  let expected =
+    [
+      ENTER_SCOPE { num = 2 };
+      LDC (String "hello");
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      BORROW;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "literal string borrow" expected result
+
 let test_literal_int () =
   let json = {|{ "tag": "lit", "val": 42 }|} in
   let result = compile_program json in
@@ -2115,6 +2128,56 @@ let test_nested_conditional_function () =
     "nested conditional function with multiple blocks and returns" expected
     result
 
+let test_borrow_variable () =
+  let json =
+    {|{
+  "tag": "blk",
+  "body": {
+    "tag": "seq",
+    "stmts": [
+      {
+        "tag": "let",
+        "sym": "x",
+        "is_mutable": false,
+        "expr": {"tag": "lit", "val": "hello"},
+        "declared_type": {"kind": "basic", "value": "string"}
+      },
+      {
+        "tag": "let",
+        "sym": "y",
+        "is_mutable": false,
+        "expr": {
+          "tag": "BorrowExpr",
+          "mutable": false,
+          "expr": {"tag": "nam", "sym": "x"}
+        },
+        "declared_type": {
+          "kind": "ref",
+          "is_mutable": false,
+          "value": "string"
+        }
+      }
+    ]
+  }
+}|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 2 };
+      LDC (String "hello");
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD
+        { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      BORROW;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "load variable x" expected result
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -2135,15 +2198,11 @@ let () =
           test_case "Function with no parameters" `Quick test_function_no_params;
           test_case "Function with parameters" `Quick test_function_with_params;
           test_case "function with binop parameters" `Quick
-           
             test_function_with_binop;
           test_case "function with block and const" `Quick
-           
             test_function_with_block_and_const;
           test_case "function application" `Quick test_function_application;
           test_case "nested function calls with tail call" `Quick
-           
-           
             test_nested_function_calls;
           test_case "while loop" `Quick test_while_loop;
           test_case "assignment and while loop" `Quick test_assignment_and_while;
@@ -2152,13 +2211,12 @@ let () =
           test_case "functions with while loops" `Quick
             test_functions_with_while_loops;
           test_case "conditional function with assignment" `Quick
-           
             test_conditional_function;
           test_case "conditional function with returns" `Quick
-           
             test_conditional_function_with_returns;
           test_case "2 conditional functions" `Quick test_2_conditional_function;
           test_case "nested conditional function" `Quick
             test_nested_conditional_function;
+          test_case "test_borrow_variable" `Quick test_borrow_variable;
         ] );
     ]

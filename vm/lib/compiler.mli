@@ -7,6 +7,8 @@ type compiled_instruction =
   | JOF of int
   | BINOP of { sym : string }
   | UNOP of { sym : string }
+  | BORROW 
+  | DEREF
   | ASSIGN of pos_in_env
   | POP
   | LD of { sym : string; pos : pos_in_env }
@@ -16,6 +18,7 @@ type compiled_instruction =
   | TAILCALL of int
   | CALL of int
   | DONE
+[@@deriving show]
 
 
 val string_of_instruction : compiled_instruction -> string
