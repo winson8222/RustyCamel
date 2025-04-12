@@ -81,14 +81,6 @@ let rec compile (node : Ast.ast_node) state =
   let instrs = state.instrs in
   let wc = state.wc in
 
-  (* Print current state at start of each case *)
-  print_endline "\nCompiling node:";
-  Printf.printf "Current wc: %d\n" wc;
-  print_endline "Current instructions:";
-  List.iteri (fun i instr ->
-    Printf.printf "%d: %s\n" i (show_compiled_instruction instr)
-  ) instrs;
-
   match node with
   | Literal lit ->
       let new_instr = LDC lit in
@@ -115,6 +107,8 @@ let rec compile (node : Ast.ast_node) state =
       (* based on locals, find the reference variables *)
       let borrowed_locals = List.filter (fun sym -> Hashtbl.mem state_after_body.borrowed_last_use sym) locals in
 
+
+
       (* create list of (sym, value) pairs from borrowed locals *)
       let indexes_of_free_instr = List.map (fun sym -> 
         (sym, Hashtbl.find state_after_body.borrowed_last_use sym)
@@ -130,7 +124,14 @@ let rec compile (node : Ast.ast_node) state =
       
       (* freeing non borrowed locals  *)
       let non_borrowed_locals = List.filter (fun sym -> not (Hashtbl.mem state_after_body.borrowed_last_use sym)) locals in
+      
+      (* print all locals and their last uses *)
+      print_endline "non borrowed locals:";
+      List.iter (fun sym ->
+        Printf.printf "%s\n" sym
+      ) non_borrowed_locals;
 
+     
       (* add FREE instructions for the non borrowed locals *)
       let owned_free_instrs =  List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym state_after_body.ce; to_free = true }) non_borrowed_locals in
 
@@ -167,14 +168,32 @@ let rec compile (node : Ast.ast_node) state =
       after_exit_scope_state
 
   | Binop { sym; frst; scnd } ->
+    (* scan for all used symols in frst and scnd*)
+    
       let frst_state = compile frst state in
       let sec_state = compile scnd frst_state in
       let new_instr = BINOP { sym } in
-      {
+      let after_binop_state = {
         instrs = sec_state.instrs @ [ new_instr ];
         wc = sec_state.wc + 1;
         ce = sec_state.ce;
         borrowed_last_use = sec_state.borrowed_last_use;
+      } in
+      let used_symbols = scan_for_used_symbols frst @ scan_for_used_symbols scnd in
+      (* filter out the borrowed locals *)
+      let used_symbols = List.filter (fun sym -> (Hashtbl.mem sec_state.borrowed_last_use sym)) used_symbols in
+      (* create a list of free instructions for the used symbols *)
+      let free_instrs = List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym sec_state.ce; to_free = false }) used_symbols in
+      (* update the borrowed_last_use *)
+      let borrowed_last_use_updated = Hashtbl.copy sec_state.borrowed_last_use in
+      List.iteri (fun i sym -> 
+        Hashtbl.replace borrowed_last_use_updated sym (after_binop_state.wc + i)
+      ) used_symbols;
+      {
+        after_binop_state with
+        instrs = after_binop_state.instrs @ free_instrs;
+        wc = after_binop_state.wc + List.length free_instrs;
+        borrowed_last_use = borrowed_last_use_updated;
       }
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in

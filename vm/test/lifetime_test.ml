@@ -480,6 +480,173 @@ let test_complex_nested_borrow_lifetime () =
   in
   check_instr_list "complex nested borrow lifetime" expected result
 
+let test_borrow_in_binop_lifetime () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "let",
+            "sym": "x",
+            "expr": { "tag": "lit", "val": 0 },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "y",
+            "expr": { "tag": "borrow", "mutable": false, "expr": { "tag": "nam", "sym": "x" } },
+            "is_mutable": false,
+            "declared_type": { "kind": "ref", "is_mutable": false, "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "k",
+            "expr": { 
+              "tag": "binop", 
+              "sym": "+", 
+              "frst": { "tag": "nam", "sym": "y" },
+              "scnd": { "tag": "lit", "val": 3 }
+            },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          { "tag": "nam", "sym": "x" }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 3 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      BORROW false;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 3);
+      BINOP { sym = "+" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+      ASSIGN { frame_index = 0; value_index = 2 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+      FREE { pos = { frame_index = 0; value_index = 2 }; to_free = true };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "borrow in binop lifetime" expected result
+
+let test_multiple_borrow_uses_lifetime () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "let",
+            "sym": "x",
+            "expr": { "tag": "lit", "val": 0 },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "y",
+            "expr": { "tag": "borrow", "mutable": false, "expr": { "tag": "nam", "sym": "x" } },
+            "is_mutable": false,
+            "declared_type": { "kind": "ref", "is_mutable": false, "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "k",
+            "expr": { 
+              "tag": "binop", 
+              "sym": "+", 
+              "frst": { "tag": "nam", "sym": "y" },
+              "scnd": { "tag": "lit", "val": 3 }
+            },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "m",
+            "expr": { 
+              "tag": "binop", 
+              "sym": "+", 
+              "frst": { "tag": "nam", "sym": "x" },
+              "scnd": { "tag": "lit", "val": 2 }
+            },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "testvariable",
+            "expr": { 
+              "tag": "binop", 
+              "sym": "+", 
+              "frst": { "tag": "nam", "sym": "y" },
+              "scnd": { "tag": "lit", "val": 4 }
+            },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          { "tag": "nam", "sym": "x" }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 5 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      BORROW false;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 3);
+      BINOP { sym = "+" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      ASSIGN { frame_index = 0; value_index = 2 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 2);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 0; value_index = 3 };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 4);
+      BINOP { sym = "+" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+      ASSIGN { frame_index = 0; value_index = 4 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+      FREE { pos = { frame_index = 0; value_index = 2 }; to_free = true };
+      FREE { pos = { frame_index = 0; value_index = 3 }; to_free = true };
+      FREE { pos = { frame_index = 0; value_index = 4 }; to_free = true };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "multiple borrow uses lifetime" expected result
+
 let () =
   let open Alcotest in
   run "Lifetime Tests"
@@ -493,5 +660,7 @@ let () =
           test_case "test_nested_borrow_through_ref_lifetime" `Quick test_nested_borrow_through_ref_lifetime;
           test_case "test_nested_borrow_with_owned_lifetime" `Quick test_nested_borrow_with_owned_lifetime;
           test_case "test_complex_nested_borrow_lifetime" `Quick test_complex_nested_borrow_lifetime;
+          test_case "test_borrow_in_binop_lifetime" `Quick test_borrow_in_binop_lifetime;
+          test_case "test_multiple_borrow_uses_lifetime" `Quick test_multiple_borrow_uses_lifetime;
         ] );
     ]
