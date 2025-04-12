@@ -16,6 +16,7 @@ type compiled_instruction =
   | TAILCALL of int
   | CALL of int
   | BORROW of bool
+  | FREE of { pos : pos_in_env; to_free: bool }
   | DONE
   
 

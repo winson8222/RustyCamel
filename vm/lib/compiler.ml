@@ -16,6 +16,7 @@ type compiled_instruction =
   | TAILCALL of int
   | CALL of int
   | BORROW of bool
+  | FREE of { pos : pos_in_env; to_free: bool}
   | DONE
 [@@deriving show]
 
@@ -38,6 +39,23 @@ let rec scan_for_locals (node : Ast.ast_node) =
   | Sequence stmts ->
       List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
   | _ -> []
+
+let rec scan_for_used_symbols (node : Ast.ast_node) =
+  let open Ast in
+  match node with
+  | Nam sym -> [sym]
+  | Let { expr; _ } | Const { expr; _ } | Borrow { expr; _ } -> scan_for_used_symbols expr
+  | Binop { frst; scnd; _ } -> scan_for_used_symbols frst @ scan_for_used_symbols scnd
+  | Unop { frst; _ } -> scan_for_used_symbols frst
+  | Sequence stmts -> List.fold_left (fun acc x -> acc @ scan_for_used_symbols x) [] stmts
+  | Block body -> scan_for_used_symbols body
+  | _ -> []
+
+let find_captured_variables block locals =
+  let used_symbols = scan_for_used_symbols block in
+  let used_symbols = List.sort_uniq String.compare used_symbols in
+  let locals = List.sort_uniq String.compare locals in
+  List.filter (fun sym -> not (List.mem sym locals)) used_symbols
 
 let get_compile_time_environment_pos sym ce =
   let reversed_ce = List.rev ce in
@@ -85,12 +103,27 @@ let rec compile (node : Ast.ast_node) state =
       (* Then compile body *)
       let state_after_body = compile body state_after_enter in
 
+      let captured_vars = find_captured_variables body locals in
+
+      (* check if the captured vars are borrowed *)
+      let borrowed_captured_vars = List.filter (fun sym -> Hashtbl.mem state_after_body.borrowed_last_use sym) captured_vars in
+
+      (* add FREE instructions for the borrowed captured vars *)
+      let new_instrs = List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym state_after_body.ce; to_free = false }) borrowed_captured_vars in
+
+      (* update last_use indices for the borrowed captured vars *)
+      let borrowed_last_use_updated = Hashtbl.copy state_after_enter.borrowed_last_use in
+      List.iteri (fun i sym -> 
+        Hashtbl.replace borrowed_last_use_updated sym (state_after_body.wc + i)
+      ) borrowed_captured_vars;
+
       (* Finally add EXIT_SCOPE *)
       let exit_scope_instr = EXIT_SCOPE in
       {
         state with
-        wc = state_after_body.wc + 1;
-        instrs = state_after_body.instrs @ [ exit_scope_instr ];
+        borrowed_last_use = borrowed_last_use_updated;
+        wc = state_after_body.wc + List.length new_instrs + 1;
+        instrs = state_after_body.instrs @ new_instrs @ [ exit_scope_instr ];
       }
   | Binop { sym; frst; scnd } ->
       let frst_state = compile frst state in
@@ -120,7 +153,7 @@ let rec compile (node : Ast.ast_node) state =
         | Borrow { is_mutable = _; _ } -> 
           (* add sym into borrowed_last_use *)
           Hashtbl.add state_after_expr.borrowed_last_use sym (-1);
-          [ASSIGN pos]
+          [ASSIGN pos; FREE { pos; to_free = false }]
         | _ -> [ASSIGN pos]
       in
       {
@@ -136,7 +169,7 @@ let rec compile (node : Ast.ast_node) state =
           | Borrow { is_mutable = _; _ } -> 
             (* add sym into borrowed_last_use *)
             Hashtbl.add state_after_expr.borrowed_last_use sym (-1);
-            [ASSIGN pos]
+            [ASSIGN pos; FREE { pos; to_free = false }]
           | _ -> [ASSIGN pos]
       in
       {
