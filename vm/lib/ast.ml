@@ -5,7 +5,7 @@ type ast_node =
   | Sequence of ast_node list
   | While of { pred : ast_node; body : ast_node }
   | Cond of { pred : ast_node; cons : ast_node; alt : ast_node }
-  | Let of { sym : string; expr : ast_node; is_mutable : bool }
+  | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
   | Assign of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
@@ -13,7 +13,7 @@ type ast_node =
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
-  | Borrow of { is_mutable : bool; expr : ast_node }
+  | Borrow of { expr : ast_node }
   | Deref of ast_node
   | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
@@ -167,8 +167,7 @@ let rec strip_types (ast : typed_ast) : ast_node =
           cons = strip_types cons;
           alt = strip_types alt;
         }
-  | Let { sym; expr; is_mutable; _ } ->
-      Let { sym; expr = strip_types expr; is_mutable }
+  | Let { sym; expr; _ } -> Let { sym; expr = strip_types expr }
   | Const { sym; expr; _ } -> Const { sym; expr = strip_types expr }
   | Assign { sym; expr } -> Assign { sym; expr = strip_types expr }
   | Binop { sym; frst; scnd } ->
@@ -180,6 +179,5 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->
       App { fun_nam = strip_types fun_nam; args = List.map strip_types args }
-  | Borrow { is_mutable; expr } ->
-      Borrow { is_mutable; expr = strip_types expr }
+  | Borrow { expr; _ } -> Borrow { expr = strip_types expr }
   | Deref value -> Deref (strip_types value)

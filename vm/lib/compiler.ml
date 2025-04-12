@@ -108,7 +108,7 @@ let rec compile (node : Ast.ast_node) state =
         wc = state_aft_frst.wc + 1;
         ce = state_aft_frst.ce;
       }
-  | Borrow { expr; _ } ->
+  | Borrow { expr } ->
       let state_aft_expr = compile expr state in
       let borrow_instr = BORROW in
       {
@@ -120,7 +120,7 @@ let rec compile (node : Ast.ast_node) state =
       let s = compile expr state in
       { instrs = s.instrs @ [ DEREF ]; wc = s.wc + 1; ce = s.ce }
   | Sequence stmts -> compile_sequence stmts state
-  | Let { sym; expr; _ } ->
+  | Let { sym; expr } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
@@ -178,7 +178,7 @@ let rec compile (node : Ast.ast_node) state =
       in
       { final_state with instrs = updated_instrs }
   | Fun { sym; prms; body; _ } ->
-      compile (Let { sym; expr = Lam { prms; body }; is_mutable = false }) state
+      compile (Let { sym; expr = Lam { prms; body } }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
       { state with instrs = instrs @ [ LD { pos } ]; wc = wc + 1 }
