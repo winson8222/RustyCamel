@@ -38,7 +38,7 @@ let rec scan_for_locals (node : Ast.ast_node) =
   match node with
   | Let { sym; _ } | Const { sym; _ } | Fun { sym; _ } -> [ sym ]
   | Sequence stmts ->
-      List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
+          List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
   | _ -> []
 
 let rec scan_for_used_symbols (node : Ast.ast_node) =
@@ -85,7 +85,7 @@ let rec compile (node : Ast.ast_node) state =
   match node with
   | Literal lit ->
       let new_instr = LDC lit in
-      { state with instrs = instrs @ [ new_instr ]; wc = state.wc + 1 }
+        { state with instrs = instrs @ [ new_instr ]; wc = state.wc + 1 }
   | Block body ->
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
@@ -176,9 +176,9 @@ let rec compile (node : Ast.ast_node) state =
       let sec_state = compile scnd frst_state in
       let new_instr = BINOP { sym } in
       let after_binop_state = {
-        instrs = sec_state.instrs @ [ new_instr ];
-        wc = sec_state.wc + 1;
-        ce = sec_state.ce;
+          instrs = sec_state.instrs @ [ new_instr ];
+          wc = sec_state.wc + 1;
+          ce = sec_state.ce;
         borrowed_last_use = sec_state.borrowed_last_use;
         current_params = sec_state.current_params;
       } in

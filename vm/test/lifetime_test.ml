@@ -790,7 +790,7 @@ let test_function_borrow_lifetime () =
     [
       ENTER_SCOPE { num = 4 };
       LDF { arity = 2; addr = 3 };
-      GOTO 10;
+      GOTO 12;
       ENTER_SCOPE { num = 0 };
       LD { sym = "a"; pos = { frame_index = 1; value_index = 0 } };
       POP;
@@ -829,6 +829,253 @@ let test_function_borrow_lifetime () =
   in
   check_instr_list "function borrow lifetime" expected result
 
+let test_conditional_borrow_modify_lifetime () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "let",
+            "sym": "x",
+            "expr": { "tag": "lit", "val": 0 },
+            "is_mutable": true,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "y",
+            "expr": { "tag": "borrow", "mutable": false, "expr": { "tag": "nam", "sym": "x" } },
+            "is_mutable": false,
+            "declared_type": { "kind": "ref", "is_mutable": false, "value": "int" }
+          },
+          {
+            "tag": "cond",
+            "pred": {
+              "tag": "binop",
+              "sym": ">",
+              "frst": { "tag": "nam", "sym": "y" },
+              "scnd": { "tag": "lit", "val": 0 }
+            },
+            "cons": {
+              "tag": "assmt",
+              "sym": "x",
+              "expr": { "tag": "lit", "val": 3 }
+            },
+            "alt": {
+              "tag": "assmt",
+              "sym": "x",
+              "expr": { "tag": "lit", "val": 2 }
+            }
+          },
+          { "tag": "nam", "sym": "x" }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 2 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      BORROW false;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 0);
+      BINOP { sym = ">" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+      JOF 17;
+      LDC (Int 3);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      GOTO 19;
+      LDC (Int 2);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "conditional borrow and modify" expected result
+
+let test_conditional_borrow_modify_use_lifetime () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "let",
+            "sym": "x",
+            "expr": { "tag": "lit", "val": 0 },
+            "is_mutable": true,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "y",
+            "expr": { "tag": "borrow", "mutable": false, "expr": { "tag": "nam", "sym": "x" } },
+            "is_mutable": false,
+            "declared_type": { "kind": "ref", "is_mutable": false, "value": "int" }
+          },
+          {
+            "tag": "cond",
+            "pred": {
+              "tag": "binop",
+              "sym": ">",
+              "frst": { "tag": "nam", "sym": "y" },
+              "scnd": { "tag": "lit", "val": 0 }
+            },
+            "cons": {
+              "tag": "assmt",
+              "sym": "x",
+              "expr": { "tag": "lit", "val": 3 }
+            },
+            "alt": {
+              "tag": "assmt",
+              "sym": "x",
+              "expr": { "tag": "lit", "val": 2 }
+            }
+          },
+          {
+            "tag": "binop",
+            "sym": "+",
+            "frst": { "tag": "nam", "sym": "y" },
+            "scnd": { "tag": "lit", "val": 1 }
+          },
+          { "tag": "nam", "sym": "x" }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 2 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      BORROW false;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 0);
+      BINOP { sym = ">" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      JOF 17;
+      LDC (Int 3);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      GOTO 19;
+      LDC (Int 2);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "conditional borrow, modify, and use" expected result
+
+let test_conditional_borrow_use_in_modify_lifetime () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "let",
+            "sym": "x",
+            "expr": { "tag": "lit", "val": 0 },
+            "is_mutable": true,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "y",
+            "expr": { "tag": "borrow", "mutable": false, "expr": { "tag": "nam", "sym": "x" } },
+            "is_mutable": false,
+            "declared_type": { "kind": "ref", "is_mutable": false, "value": "int" }
+          },
+          {
+            "tag": "cond",
+            "pred": {
+              "tag": "binop",
+              "sym": ">",
+              "frst": { "tag": "nam", "sym": "y" },
+              "scnd": { "tag": "lit", "val": 0 }
+            },
+            "cons": {
+              "tag": "assmt",
+              "sym": "x",
+              "expr": {
+                "tag": "binop",
+                "sym": "+",
+                "frst": { "tag": "nam", "sym": "y" },
+                "scnd": { "tag": "lit", "val": 1 }
+              }
+            },
+            "alt": {
+              "tag": "assmt",
+              "sym": "x",
+              "expr": { "tag": "lit", "val": 2 }
+            }
+          },
+          { "tag": "nam", "sym": "x" }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 2 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      BORROW false;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 0);
+      BINOP { sym = ">" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      JOF 20;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+      ASSIGN { frame_index = 0; value_index = 0 };
+      GOTO 22;
+      LDC (Int 2);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "conditional borrow use in modify" expected result
+
 let () =
   let open Alcotest in
   run "Lifetime Tests"
@@ -846,6 +1093,9 @@ let () =
           test_case "test_multiple_borrow_uses_lifetime" `Quick test_multiple_borrow_uses_lifetime;
           test_case "test_unop_borrow_lifetime" `Quick test_unop_borrow_lifetime;
           test_case "test_function_borrow_lifetime" `Quick test_function_borrow_lifetime;
+          test_case "test_conditional_borrow_modify_lifetime" `Quick test_conditional_borrow_modify_lifetime;
+          test_case "test_conditional_borrow_modify_use_lifetime" `Quick test_conditional_borrow_modify_use_lifetime;
+          test_case "test_conditional_borrow_use_in_modify_lifetime" `Quick test_conditional_borrow_use_in_modify_lifetime;
         ] );
     ]
 
