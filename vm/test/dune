@@ -1,4 +1,9 @@
 (tests
- (names compiler_test runner_test  buffer_test ownership_checker_test type_checker_test)
+ (names
+  compiler_test
+  runner_test
+  buffer_test
+  ownership_checker_test
+  type_checker_test
+  lifetime_test)
  (libraries vm alcotest))
-

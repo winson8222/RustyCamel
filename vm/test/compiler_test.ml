@@ -2098,15 +2098,11 @@ let () =
           test_case "Function with no parameters" `Quick test_function_no_params;
           test_case "Function with parameters" `Quick test_function_with_params;
           test_case "function with binop parameters" `Quick
-           
             test_function_with_binop;
           test_case "function with block and const" `Quick
-           
             test_function_with_block_and_const;
           test_case "function application" `Quick test_function_application;
           test_case "nested function calls with tail call" `Quick
-           
-           
             test_nested_function_calls;
           test_case "while loop" `Quick test_while_loop;
           test_case "assignment and while loop" `Quick test_assignment_and_while;
@@ -2115,10 +2111,8 @@ let () =
           test_case "functions with while loops" `Quick
             test_functions_with_while_loops;
           test_case "conditional function with assignment" `Quick
-           
             test_conditional_function;
           test_case "conditional function with returns" `Quick
-           
             test_conditional_function_with_returns;
           test_case "2 conditional functions" `Quick test_2_conditional_function;
           test_case "nested conditional function" `Quick
