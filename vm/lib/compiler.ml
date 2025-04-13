@@ -342,9 +342,26 @@ let rec compile (node : Ast.ast_node) state =
 
       (* Add CALL instruction with the number of arguments *)
       let new_instr = CALL (List.length args) in
-      { state_after_args with 
+      let after_call_state = { state_after_args with 
         instrs = state_after_args.instrs @ [new_instr]; 
-        wc = state_after_args.wc + 1 }
+        wc = state_after_args.wc + 1 } in
+
+      (* check in args to filter all nam, if there are any borrowed locals used *)
+      let used_symbols = List.fold_left (fun acc arg -> acc @ scan_for_used_symbols arg) [] args in
+      let borrowed_locals = List.filter (fun sym -> Hashtbl.mem after_call_state.borrowed_last_use sym) used_symbols in
+
+      (* add free for each of the borrowed locals *)
+      let free_instrs = List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym after_call_state.ce; to_free = false }) borrowed_locals in
+
+      (* update borrowed_last_use *)
+      let borrowed_last_use_updated = Hashtbl.copy after_call_state.borrowed_last_use in
+      List.iteri (fun i sym -> 
+        Hashtbl.replace borrowed_last_use_updated sym (after_call_state.wc + i)
+      ) borrowed_locals;
+
+      (* add free instructions to the instrs *)
+      { after_call_state with instrs = after_call_state.instrs @ free_instrs; wc = after_call_state.wc + List.length free_instrs; borrowed_last_use = borrowed_last_use_updated }
+
   | While { pred; body } ->
       (* Compile the predicate *)
       let state_after_pred = compile pred state in

@@ -718,6 +718,115 @@ let test_unop_borrow_lifetime () =
   in
   check_instr_list "unop borrow lifetime" expected result
 
+let test_function_borrow_lifetime () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "fun",
+            "sym": "f",
+            "prms": [
+              { "name": "a", "declared_type": { "kind": "ref", "is_mutable": false, "value": "int" } },
+              { "name": "b", "declared_type": { "kind": "basic", "value": "int" } }
+            ],
+            "body": {
+              "tag": "blk",
+              "body": {
+                "tag": "seq",
+                "stmts": [
+                  { "tag": "nam", "sym": "a" },
+                  { "tag": "nam", "sym": "b" }
+                ]
+              }
+            },
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "x",
+            "expr": { "tag": "lit", "val": 4 },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "y",
+            "expr": { "tag": "borrow", "mutable": false, "expr": { "tag": "nam", "sym": "x" } },
+            "is_mutable": false,
+            "declared_type": { "kind": "ref", "is_mutable": false, "value": "int" }
+          },
+          {
+            "tag": "app",
+            "fun": {
+              "tag": "nam",
+              "sym": "f"
+            },
+            "args": [
+              { "tag": "nam", "sym": "y" },
+              { "tag": "lit", "val": 5 }
+            ]
+          },
+          {
+            "tag": "let",
+            "sym": "k",
+            "expr": { 
+              "tag": "binop", 
+              "sym": "+", 
+              "frst": { "tag": "nam", "sym": "x" },
+              "scnd": { "tag": "lit", "val": 1 }
+            },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 4 };
+      LDF { arity = 2; addr = 3 };
+      GOTO 10;
+      ENTER_SCOPE { num = 0 };
+      LD { sym = "a"; pos = { frame_index = 1; value_index = 0 } };
+      POP;
+      LD { sym = "b"; pos = { frame_index = 1; value_index = 1 } };
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LDC (Int 4);
+      ASSIGN { frame_index = 0; value_index = 1 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 1 } };
+      BORROW false;
+      ASSIGN { frame_index = 0; value_index = 2 };
+      FREE { pos = { frame_index = 0; value_index = 2 }; to_free = false };
+      POP;
+      LD { sym = "f"; pos = { frame_index = 0; value_index = 0 } };
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 2 } };
+      LDC (Int 5);
+      CALL 2;
+      FREE { pos = { frame_index = 0; value_index = 2 }; to_free = true };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 1 } };
+      LDC (Int 1);
+      BINOP { sym = "+" };
+      ASSIGN { frame_index = 0; value_index = 3 };
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+      FREE { pos = { frame_index = 0; value_index = 3 }; to_free = true };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "function borrow lifetime" expected result
+
 let () =
   let open Alcotest in
   run "Lifetime Tests"
@@ -734,5 +843,7 @@ let () =
           test_case "test_borrow_in_binop_lifetime" `Quick test_borrow_in_binop_lifetime;
           test_case "test_multiple_borrow_uses_lifetime" `Quick test_multiple_borrow_uses_lifetime;
           test_case "test_unop_borrow_lifetime" `Quick test_unop_borrow_lifetime;
+          test_case "test_function_borrow_lifetime" `Quick test_function_borrow_lifetime;
         ] );
     ]
+
