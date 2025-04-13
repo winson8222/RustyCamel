@@ -3,6 +3,7 @@ type node_tag =
   | True_tag
   | Number_tag
   | String_tag
+  | Ref_tag
   | Null_tag
   | Unassigned_tag
   | Undefined_tag
@@ -37,7 +38,7 @@ type t = {
   mutable canonical_values : canonical_values;
 }
 
-let heap_size_words = 300
+let heap_size_words = 1000
 let to_space = heap_size_words / 2
 
 let initial_config =
@@ -107,6 +108,7 @@ let heap_allocate state ~size ~tag =
   if !(state.free) = -1 then failwith "Heap ran out of memory"
   else
     let addr = !(state.free) in
+    Printf.printf "address:%s\n" (Int.to_string addr);
     heap_set_tag state addr tag;
     heap_set_size state addr size;
     state.free := Float.to_int (heap_get_word state addr);
@@ -285,3 +287,11 @@ let heap_get_callframe_pc state addr =
 let heap_get_callframe_env state addr =
   let env_addr = heap_get_child state ~address:addr ~child_index:0 in
   Float.to_int env_addr
+
+let heap_get_ref_value state addr =
+  heap_get_word state (addr + 1) |> Float.to_int
+
+let heap_allocate_ref state number =
+  let addr = heap_allocate state ~size:2 ~tag:Ref_tag in
+  heap_set_word state ~address:(addr + 1) ~word:number;
+  addr

@@ -7,9 +7,11 @@ type compiled_instruction =
   | JOF of int
   | BINOP of { sym : string }
   | UNOP of { sym : string }
+  | BORROW
+  | DEREF
   | ASSIGN of pos_in_env
   | POP
-  | LD of { sym : string; pos : pos_in_env }
+  | LD of { pos : pos_in_env }
   | LDF of { arity : int; addr : int }
   | GOTO of int
   | RESET
@@ -106,8 +108,19 @@ let rec compile (node : Ast.ast_node) state =
         wc = state_aft_frst.wc + 1;
         ce = state_aft_frst.ce;
       }
+  | Borrow { expr } ->
+      let state_aft_expr = compile expr state in
+      let borrow_instr = BORROW in
+      {
+        instrs = state_aft_expr.instrs @ [ borrow_instr ];
+        wc = state_aft_expr.wc + 1;
+        ce = state_aft_expr.ce;
+      }
+  | Deref expr ->
+      let s = compile expr state in
+      { instrs = s.instrs @ [ DEREF ]; wc = s.wc + 1; ce = s.ce }
   | Sequence stmts -> compile_sequence stmts state
-  | Let { sym; expr; _ } ->
+  | Let { sym; expr } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
       let new_instr = ASSIGN pos in
@@ -165,10 +178,10 @@ let rec compile (node : Ast.ast_node) state =
       in
       { final_state with instrs = updated_instrs }
   | Fun { sym; prms; body; _ } ->
-      compile (Let { sym; expr = Lam { prms; body }; is_mutable = false }) state
+      compile (Let { sym; expr = Lam { prms; body } }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
-      { state with instrs = instrs @ [ LD { sym; pos } ]; wc = wc + 1 }
+      { state with instrs = instrs @ [ LD { pos } ]; wc = wc + 1 }
   | Ret expr -> (
       let state_after_expr = compile expr state in
       match expr with
@@ -199,41 +212,55 @@ let rec compile (node : Ast.ast_node) state =
 
       (* Add CALL instruction with the number of arguments *)
       let new_instr = CALL (List.length args) in
-      { state_after_args with 
-        instrs = state_after_args.instrs @ [new_instr]; 
-        wc = state_after_args.wc + 1 }
+      {
+        state_after_args with
+        instrs = state_after_args.instrs @ [ new_instr ];
+        wc = state_after_args.wc + 1;
+      }
   | While { pred; body } ->
       (* Compile the predicate *)
       let state_after_pred = compile pred state in
-      let state_after_jof = {
-        state_after_pred with
-        instrs = state_after_pred.instrs @ [ JOF 0 ];
-        wc = state_after_pred.wc + 1;
-      } in
+      let state_after_jof =
+        {
+          state_after_pred with
+          instrs = state_after_pred.instrs @ [ JOF 0 ];
+          wc = state_after_pred.wc + 1;
+        }
+      in
 
       (* Compile the body *)
       let state_after_body = compile body state_after_jof in
 
       (* Add POP and GOTO *)
-      let state_after_pop_goto = {
-        state_after_body with
-        instrs = state_after_body.instrs @ [ POP; GOTO state.wc ];
-        wc = state_after_body.wc + 2;
-      } in
+      let state_after_pop_goto =
+        {
+          state_after_body with
+          instrs = state_after_body.instrs @ [ POP; GOTO state.wc ];
+          wc = state_after_body.wc + 2;
+        }
+      in
 
       (* modify jof to point to the body *)
-      { state_after_pop_goto with
-        instrs = List.mapi (fun i instr -> 
-          if i = state_after_pred.wc
-          then JOF state_after_pop_goto.wc
-          else instr)
-        state_after_pop_goto.instrs @ [ LDC Undefined ];
+      {
+        state_after_pop_goto with
+        instrs =
+          List.mapi
+            (fun i instr ->
+              if i = state_after_pred.wc then JOF state_after_pop_goto.wc
+              else instr)
+            state_after_pop_goto.instrs
+          @ [ LDC Undefined ];
         wc = state_after_pop_goto.wc + 1;
       }
   | Assign { sym; expr } ->
       let state_after_expr = compile expr state in
-      { state_after_expr with
-        instrs = state_after_expr.instrs @ [ ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce) ];
+      {
+        state_after_expr with
+        instrs =
+          state_after_expr.instrs
+          @ [
+              ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce);
+            ];
         wc = state_after_expr.wc + 1;
       }
   | Cond { pred; cons; alt } ->
@@ -284,9 +311,6 @@ let rec compile (node : Ast.ast_node) state =
               if i = state_after_cons.wc then GOTO state_after_alt.wc else instr)
             state_after_alt.instrs;
       }
-  | other ->  
-      failwith
-        (Printf.sprintf "Unexpected json tag %s" (Ast.show_ast_node other))
 
 and compile_sequence stmts state =
   match stmts with

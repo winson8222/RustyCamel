@@ -17,6 +17,8 @@ and value_type =
 let is_type_implement_copy typ =
   match typ with TInt | TBoolean | TUndefined -> true | _ -> false
 
+let is_ref_type typ = match typ with TRef _ -> true | _ -> false
+
 let of_basic_type_string s =
   match s with
   | "string" -> TString

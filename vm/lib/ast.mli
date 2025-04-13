@@ -5,7 +5,7 @@ type ast_node =
   | Sequence of ast_node list
   | While of { pred : ast_node; body : ast_node }
   | Cond of { pred : ast_node; cons : ast_node; alt : ast_node }
-  | Let of { sym : string; expr : ast_node; is_mutable : bool }
+  | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
   | Assign of { sym : string; expr : ast_node }
   | Binop of { sym : string; frst : ast_node; scnd : ast_node }
@@ -13,7 +13,8 @@ type ast_node =
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
-  | Borrow of { is_mutable : bool; expr : ast_node }
+  | Borrow of { expr : ast_node }
+  | Deref of ast_node
   | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
 
@@ -47,10 +48,10 @@ type typed_ast =
       body : typed_ast;
     }
   | Borrow of { is_mutable : bool; expr : typed_ast }
+  | Deref of typed_ast
   | Ret of typed_ast
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
-
 
 val of_json : Yojson.Basic.t -> typed_ast
 

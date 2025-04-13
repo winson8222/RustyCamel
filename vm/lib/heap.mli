@@ -1,10 +1,11 @@
-type t
+type  t
 
 type node_tag =
   | False_tag
   | True_tag
   | Number_tag
   | String_tag
+  | Ref_tag
   | Null_tag
   | Unassigned_tag
   | Undefined_tag
@@ -63,3 +64,5 @@ val debug_print_bytes : t -> int -> int -> unit
 val is_callframe : t -> int -> bool
 val heap_get_callframe_pc : t -> int -> int
 val heap_get_callframe_env : t -> int -> int
+val heap_get_ref_value: t -> int -> int
+val heap_allocate_ref: t -> float -> int
