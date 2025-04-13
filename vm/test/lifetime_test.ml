@@ -3,8 +3,6 @@ open Vm.Value
 
 (* Pretty-printer & equality for compiled_instruction *)
 
-
-
 (* New testable type for indexed instructions *)
 let pp_indexed_instr fmt (i, instr) =
   Format.fprintf fmt "%d: %s" i (string_of_instruction instr)
@@ -14,7 +12,8 @@ let testable_indexed_instr = Alcotest.testable pp_indexed_instr ( = )
 let check_instr_list msg expected actual =
   let expected_with_indices = List.mapi (fun i instr -> (i, instr)) expected in
   let actual_with_indices = List.mapi (fun i instr -> (i, instr)) actual in
-  Alcotest.(check (list testable_indexed_instr)) msg expected_with_indices actual_with_indices
+  Alcotest.(check (list testable_indexed_instr))
+    msg expected_with_indices actual_with_indices
 
 (* ---------- Test cases ---------- *)
 
@@ -473,7 +472,7 @@ let test_complex_nested_borrow_lifetime () =
       ASSIGN { frame_index = 0; value_index = 2 };
       FREE { pos = { frame_index = 0; value_index = 2 }; to_free = true };
       FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
-      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true }; 
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
       EXIT_SCOPE;
       DONE;
     ]
@@ -545,9 +544,7 @@ let test_borrow_in_binop_lifetime () =
   in
   check_instr_list "borrow in binop lifetime" expected result
 
-
-
-  (* let x = 0 
+(* let x = 0 
 let y = &x
 let k = y + 3
 let m = x +2;
@@ -1082,20 +1079,32 @@ let () =
     [
       ( "Lifetime rules",
         [
-          test_case "test_simple_borrow_lifetime" `Quick test_simple_borrow_lifetime;
-          test_case "test_borrow_after_use_lifetime" `Quick test_borrow_after_use_lifetime;
-          test_case "test_nested_borrow_lifetime" `Quick test_nested_borrow_lifetime;
-          test_case "test_function_no_return_lifetime" `Quick test_function_no_return_lifetime;
-          test_case "test_nested_borrow_through_ref_lifetime" `Quick test_nested_borrow_through_ref_lifetime;
-          test_case "test_nested_borrow_with_owned_lifetime" `Quick test_nested_borrow_with_owned_lifetime;
-          test_case "test_complex_nested_borrow_lifetime" `Quick test_complex_nested_borrow_lifetime;
-          test_case "test_borrow_in_binop_lifetime" `Quick test_borrow_in_binop_lifetime;
-          test_case "test_multiple_borrow_uses_lifetime" `Quick test_multiple_borrow_uses_lifetime;
+          test_case "test_simple_borrow_lifetime" `Quick
+            test_simple_borrow_lifetime;
+          test_case "test_borrow_after_use_lifetime" `Quick
+            test_borrow_after_use_lifetime;
+          test_case "test_nested_borrow_lifetime" `Quick
+            test_nested_borrow_lifetime;
+          test_case "test_function_no_return_lifetime" `Quick
+            test_function_no_return_lifetime;
+          test_case "test_nested_borrow_through_ref_lifetime" `Quick
+            test_nested_borrow_through_ref_lifetime;
+          test_case "test_nested_borrow_with_owned_lifetime" `Quick
+            test_nested_borrow_with_owned_lifetime;
+          test_case "test_complex_nested_borrow_lifetime" `Quick
+            test_complex_nested_borrow_lifetime;
+          test_case "test_borrow_in_binop_lifetime" `Quick
+            test_borrow_in_binop_lifetime;
+          test_case "test_multiple_borrow_uses_lifetime" `Quick
+            test_multiple_borrow_uses_lifetime;
           test_case "test_unop_borrow_lifetime" `Quick test_unop_borrow_lifetime;
-          test_case "test_function_borrow_lifetime" `Quick test_function_borrow_lifetime;
-          test_case "test_conditional_borrow_modify_lifetime" `Quick test_conditional_borrow_modify_lifetime;
-          test_case "test_conditional_borrow_modify_use_lifetime" `Quick test_conditional_borrow_modify_use_lifetime;
-          test_case "test_conditional_borrow_use_in_modify_lifetime" `Quick test_conditional_borrow_use_in_modify_lifetime;
+          test_case "test_function_borrow_lifetime" `Quick
+            test_function_borrow_lifetime;
+          test_case "test_conditional_borrow_modify_lifetime" `Quick
+            test_conditional_borrow_modify_lifetime;
+          test_case "test_conditional_borrow_modify_use_lifetime" `Quick
+            test_conditional_borrow_modify_use_lifetime;
+          test_case "test_conditional_borrow_use_in_modify_lifetime" `Quick
+            test_conditional_borrow_use_in_modify_lifetime;
         ] );
     ]
-
