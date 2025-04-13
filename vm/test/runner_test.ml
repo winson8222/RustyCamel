@@ -16,11 +16,113 @@ let test_run_ldc () =
   let result = run (create ()) instrs in
   check_vm_value "run ldc int" (Ok (VNumber 123.0)) result
 
-let test_binop () =
+let test_binop_arithmetic () =
   let open Vm.Compiler in
-  let instrs = [ LDC (Int 6); LDC (Int 4); BINOP Add; DONE ] in
-  let result = run (create ()) instrs in
-  check_vm_value "run ldc int" (Ok (VNumber 10.0)) result
+  let test_cases =
+    [
+      (* Addition *)
+      ( [ LDC (Int 6); LDC (Int 4); BINOP Add; DONE ],
+        Ok (VNumber 10.0),
+        "addition test" );
+      (* Subtraction *)
+      ( [ LDC (Int 10); LDC (Int 4); BINOP Subtract; DONE ],
+        Ok (VNumber 6.0),
+        "subtraction test" );
+      (* Multiplication *)
+      ( [ LDC (Int 5); LDC (Int 4); BINOP Multiply; DONE ],
+        Ok (VNumber 20.0),
+        "multiplication test" );
+      (* Division *)
+      ( [ LDC (Int 10); LDC (Int 2); BINOP Divide; DONE ],
+        Ok (VNumber 5.0),
+        "division test" );
+    ]
+  in
+  List.iter
+    (fun (instrs, expected, msg) ->
+      let result = run (create ()) instrs in
+      check_vm_value msg expected result)
+    test_cases
+
+let test_binop_comparison () =
+  let open Vm.Compiler in
+  let test_cases =
+    [
+      (* Less Than *)
+      ( [ LDC (Int 4); LDC (Int 6); BINOP LessThan; DONE ],
+        Ok (VBoolean true),
+        "less than true test" );
+      ( [ LDC (Int 6); LDC (Int 4); BINOP LessThan; DONE ],
+        Ok (VBoolean false),
+        "less than false test" );
+      (* Less Than Equal *)
+      ( [ LDC (Int 4); LDC (Int 4); BINOP LessThanEqual; DONE ],
+        Ok (VBoolean true),
+        "less than equal same value test" );
+      ( [ LDC (Int 6); LDC (Int 4); BINOP LessThanEqual; DONE ],
+        Ok (VBoolean false),
+        "less than equal false test" );
+      (* Greater Than *)
+      ( [ LDC (Int 6); LDC (Int 4); BINOP GreaterThan; DONE ],
+        Ok (VBoolean true),
+        "greater than true test" );
+      ( [ LDC (Int 4); LDC (Int 6); BINOP GreaterThan; DONE ],
+        Ok (VBoolean false),
+        "greater than false test" );
+      (* Greater Than Equal *)
+      ( [ LDC (Int 4); LDC (Int 4); BINOP GreaterThanEqual; DONE ],
+        Ok (VBoolean true),
+        "greater than equal same value test" );
+      ( [ LDC (Int 4); LDC (Int 6); BINOP GreaterThanEqual; DONE ],
+        Ok (VBoolean false),
+        "greater than equal false test" );
+    ]
+  in
+  List.iter
+    (fun (instrs, expected, msg) ->
+      let result = run (create ()) instrs in
+      check_vm_value msg expected result)
+    test_cases
+
+let test_binop_equality () =
+  let open Vm.Compiler in
+  let test_cases =
+    [
+      (* Equal - Numbers *)
+      ( [ LDC (Int 4); LDC (Int 4); BINOP Equal; DONE ],
+        Ok (VBoolean true),
+        "equal numbers true test" );
+      ( [ LDC (Int 4); LDC (Int 5); BINOP Equal; DONE ],
+        Ok (VBoolean false),
+        "equal numbers false test" );
+      (* Equal - Booleans *)
+      ( [ LDC (Boolean true); LDC (Boolean true); BINOP Equal; DONE ],
+        Ok (VBoolean true),
+        "equal booleans true test" );
+      ( [ LDC (Boolean true); LDC (Boolean false); BINOP Equal; DONE ],
+        Ok (VBoolean false),
+        "equal booleans false test" );
+      (* Equal - Strings *)
+      ( [ LDC (String "hello"); LDC (String "hello"); BINOP Equal; DONE ],
+        Ok (VBoolean true),
+        "equal strings true test" );
+      ( [ LDC (String "hello"); LDC (String "world"); BINOP Equal; DONE ],
+        Ok (VBoolean false),
+        "equal strings false test" );
+      (* Not Equal *)
+      ( [ LDC (Int 4); LDC (Int 5); BINOP NotEqual; DONE ],
+        Ok (VBoolean true),
+        "not equal true test" );
+      ( [ LDC (Int 4); LDC (Int 4); BINOP NotEqual; DONE ],
+        Ok (VBoolean false),
+        "not equal false test" );
+    ]
+  in
+  List.iter
+    (fun (instrs, expected, msg) ->
+      let result = run (create ()) instrs in
+      check_vm_value msg expected result)
+    test_cases
 
 let test_unop_negate () =
   let open Vm.Compiler in
@@ -109,19 +211,6 @@ let test_run_empty_stack () =
   let result = run (create ()) instrs in
   check_vm_value "empty operand stack" (Ok VUndefined) result
 
-(* let test_unrecognized_instr () =
-  let open Vm.Compiler in
-  (* We inject an instruction the VM doesn't yet handle, like BINOP *)
-  let instrs = [ BINOP Add; DONE ] in
-  let result = run (create ()) instrs in
-  match result with
-  | Error (TypeError msg) ->
-      Alcotest.(check bool)
-        "error contains BINOP" true (String.contains msg 'B')
-  | _ -> Alcotest.fail "Expected TypeError for unsupported BINOP" *)
-
-(* ---------- Run tests ---------- *)
-
 let () =
   let open Alcotest in
   run "VM Runner Tests"
@@ -130,7 +219,9 @@ let () =
         [
           test_case "test_unop_not" `Quick test_unop_not;
           test_case "Run LDC Int" `Quick test_run_ldc;
-          test_case "test_binop" `Quick test_binop;
+          test_case "test_binop_arithmetic" `Quick test_binop_arithmetic;
+          test_case "test_binop_comparison" `Quick test_binop_comparison;
+          test_case "test_binop_equality" `Quick test_binop_equality;
           test_case "test_unop_negate" `Quick test_unop_negate;
           test_case "Run LDC String" `Quick test_run_string_literal;
           test_case "Enter/Exit Scope" `Quick test_enter_exit_scope;

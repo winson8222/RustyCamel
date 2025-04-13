@@ -95,8 +95,8 @@ let apply_unop ~op state =
 let apply_binop ~op state =
   let os = !(state.os) in
   let heap = state.heap in
-  let frst = List.hd os |> vm_value_of_address heap in
-  let scnd = List.nth os 1 |> vm_value_of_address heap in
+  let scnd = List.hd os |> vm_value_of_address heap in
+  let frst = List.nth os 1 |> vm_value_of_address heap in
 
   let compute_number_op op =
     match op with
@@ -124,6 +124,18 @@ let apply_binop ~op state =
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VBoolean (n1 < n2)
         | _ -> failwith "Comparison requires matching numeric operands")
+    | LessThanEqual -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VBoolean (n1 <= n2)
+        | _ -> failwith "Comparison requires matching numeric operands")
+    | GreaterThanEqual -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VBoolean (n1 >= n2)
+        | _ -> failwith "Comparison requires matching numeric operands")
+    | GreaterThan -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VBoolean (n1 > n2)
+        | _ -> failwith "Comparison requires matching numeric operands")
     | Equal -> (
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VBoolean (n1 = n2)
@@ -131,6 +143,13 @@ let apply_binop ~op state =
         | VString s1, VString s2 -> VBoolean (String.equal s1 s2)
         | VUndefined, VUndefined -> VBoolean true
         | _ -> VBoolean false)
+    | NotEqual -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VBoolean (n1 <> n2)
+        | VBoolean b1, VBoolean b2 -> VBoolean (b1 <> b2)
+        | VString s1, VString s2 -> VBoolean (not (String.equal s1 s2))
+        | VUndefined, VUndefined -> VBoolean false
+        | _ -> VBoolean true)
     | _ -> failwith "Unsupported comparison operator"
   in
 
