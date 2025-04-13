@@ -1,12 +1,44 @@
 type pos_in_env = { frame_index : int; value_index : int } [@@deriving show]
+type unop_sym = Negate | LogicalNot [@@deriving show]
+
+type binop_sym =
+  | Add
+  | Subtract
+  | Multiply
+  | Divide
+  | LessThan
+  | LessThanEqual
+  | GreaterThan
+  | GreaterThanEqual
+  | Equal
+  | NotEqual
+[@@deriving show]
+
+let binop_of_string = function
+  | "+" -> Add
+  | "-" -> Subtract
+  | "*" -> Multiply
+  | "/" -> Divide
+  | "<" -> LessThan
+  | "<=" -> LessThanEqual
+  | ">" -> GreaterThan
+  | ">=" -> GreaterThanEqual
+  | "==" -> Equal
+  | "!=" -> NotEqual
+  | op -> failwith ("Unknown binary operator: " ^ op)
+
+let unop_of_string = function
+  | "UnaryNegation" -> Negate
+  | "UnaryNot" -> LogicalNot
+  | op -> failwith ("Unknown unary operator: " ^ op)
 
 type compiled_instruction =
   | LDC of Value.lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | JOF of int
-  | BINOP of { sym : string }
-  | UNOP of { sym : string }
+  | BINOP of binop_sym
+  | UNOP of unop_sym
   | BORROW
   | DEREF
   | ASSIGN of pos_in_env
@@ -94,7 +126,7 @@ let rec compile (node : Ast.ast_node) state =
   | Binop { sym; frst; scnd } ->
       let frst_state = compile frst state in
       let sec_state = compile scnd frst_state in
-      let new_instr = BINOP { sym } in
+      let new_instr = BINOP (binop_of_string sym) in
       {
         instrs = sec_state.instrs @ [ new_instr ];
         wc = sec_state.wc + 1;
@@ -102,7 +134,7 @@ let rec compile (node : Ast.ast_node) state =
       }
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
-      let new_instr = UNOP { sym } in
+      let new_instr = UNOP (unop_of_string sym) in
       {
         instrs = state_aft_frst.instrs @ [ new_instr ];
         wc = state_aft_frst.wc + 1;

@@ -1,12 +1,30 @@
 type pos_in_env = { frame_index : int; value_index : int }
 
+type unop_sym = 
+  | Negate 
+  | LogicalNot
+[@@deriving show]
+
+type binop_sym = 
+  | Add
+  | Subtract
+  | Multiply
+  | Divide
+  | LessThan
+  | LessThanEqual
+  | GreaterThan
+  | GreaterThanEqual
+  | Equal
+  | NotEqual
+[@@deriving show]
+
 type compiled_instruction =
   | LDC of Value.lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | JOF of int
-  | BINOP of { sym : string }
-  | UNOP of { sym : string }
+  | BINOP of binop_sym
+  | UNOP of unop_sym
   | BORROW
   | DEREF
   | ASSIGN of pos_in_env
@@ -19,7 +37,6 @@ type compiled_instruction =
   | CALL of int
   | DONE
 [@@deriving show]
-
 val string_of_instruction : compiled_instruction -> string
 
 type state = {

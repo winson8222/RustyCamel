@@ -1,7 +1,7 @@
 open Compiler
 
 type vm_value =
-  | VNumber of int
+  | VNumber of float
   | VString of string
   | VUndefined
   | VBoolean of bool
@@ -39,7 +39,7 @@ let rec vm_value_of_address heap addr =
   match Heap.heap_get_tag heap addr with
   | Number_tag ->
       let n = Heap.heap_get_number_value heap addr in
-      VNumber (Int.of_float n)
+      VNumber n
   | String_tag ->
       let s = Heap.heap_get_string_value heap addr in
       VString s
@@ -47,6 +47,8 @@ let rec vm_value_of_address heap addr =
       let v = Heap.heap_get_ref_value heap addr in
       VRef (vm_value_of_address heap v)
   | Undefined_tag -> VUndefined
+  | False_tag -> VBoolean false
+  | True_tag -> VBoolean true
   | _ -> failwith "Unexpected tag"
 
 (* PC is modified by the caller, this function only modifies the rest: heap, os, env_addr *)
@@ -57,8 +59,95 @@ let pop_stack stack_ref =
       Ok hd
   | [] -> Error (TypeError "Stack underflow")
 
+let rec vm_value_to_address (heap : Heap.t) (value : vm_value) : int =
+  match value with
+  | VNumber n -> Heap.heap_allocate_number heap n
+  | VString s -> Heap.heap_allocate_string heap s
+  | VBoolean b ->
+      if b then Heap.heap_get_true heap else Heap.heap_get_false heap
+  | VUndefined -> Heap.heap_get_undefined heap
+  | VRef v ->
+      let addr = vm_value_to_address heap v in
+      Heap.heap_allocate_ref heap (Float.of_int addr)
+  | VAddress addr -> addr
+
+let apply_unop ~op state =
+  let os = !(state.os) in
+  let heap = state.heap in
+  let operand = List.hd os |> vm_value_of_address heap in
+
+  let res_addr =
+    match op with
+    | LogicalNot -> (
+        match operand with
+        | VBoolean b -> VBoolean (not b) |> vm_value_to_address heap
+        | other ->
+            failwith
+              (Printf.sprintf "unexpected type for unary not: %s"
+                 (show_vm_value other)))
+    | Negate -> (
+        match operand with
+        | VNumber n -> VNumber (Float.mul (-1.0) n) |> vm_value_to_address heap
+        | _ -> failwith "wrong")
+  in
+  state.os := res_addr :: List.tl os
+
+let apply_binop ~op state =
+  let os = !(state.os) in
+  let heap = state.heap in
+  let frst = List.hd os |> vm_value_of_address heap in
+  let scnd = List.nth os 1 |> vm_value_of_address heap in
+
+  let compute_number_op op =
+    match op with
+    | Add -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VNumber (Float.add n1 n2)
+        | _ -> failwith "Addition requires number operands")
+    | Subtract -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VNumber (Float.sub n1 n2)
+        | _ -> failwith "Subtraction requires integer operands")
+    | Multiply -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VNumber (Float.mul n1 n2)
+        | _ -> failwith "Multiplication requires matching numeric operands")
+    | Divide -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VNumber (Float.div n1 n2)
+        | _ -> failwith "Division requires float operands")
+    | _ -> failwith "Not number operation"
+  in
+
+  let compute_comparison = function
+    | LessThan -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VBoolean (n1 < n2)
+        | _ -> failwith "Comparison requires matching numeric operands")
+    | Equal -> (
+        match (frst, scnd) with
+        | VNumber n1, VNumber n2 -> VBoolean (n1 = n2)
+        | VBoolean b1, VBoolean b2 -> VBoolean (b1 = b2)
+        | VString s1, VString s2 -> VBoolean (String.equal s1 s2)
+        | VUndefined, VUndefined -> VBoolean true
+        | _ -> VBoolean false)
+    | _ -> failwith "Unsupported comparison operator"
+  in
+
+  let res_value =
+    match op with
+    | Add | Subtract | Multiply | Divide -> compute_number_op op
+    | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual | Equal
+    | NotEqual ->
+        compute_comparison op
+  in
+
+  let res_addr = vm_value_to_address heap res_value in
+  state.os := res_addr :: List.tl (List.tl os)
+
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
+  Printf.printf "executing instruction:%s" (show_compiled_instruction instr);
   let heap = state.heap in
   let env_addr = !(state.env_addr) in
   let os = !(state.os) in
@@ -115,17 +204,12 @@ let execute_instruction state instr =
           else Ok VUndefined)
   | POP -> (
       match pop_stack state.os with Ok _ -> Ok VUndefined | Error e -> Error e)
-  | UNOP { sym } -> (
-      match sym with
-      | "-" ->
-          let operand_addr = List.hd os in
-          let negated_value =
-            Heap.heap_get_number_value state.heap operand_addr
-          in
-          let res_addr = Heap.heap_allocate_number state.heap negated_value in
-          state.os := List.tl os @ [ res_addr ];
-          Ok VUndefined
-      | _ -> failwith "unsupported syn for unop")
+  | UNOP op ->
+      apply_unop ~op state;
+      Ok VUndefined
+  | BINOP op ->
+      apply_binop ~op state;
+      Ok VUndefined
   | BORROW ->
       let operand_addr = Float.of_int (List.hd os) in
       let addr = Heap.heap_allocate_ref state.heap operand_addr in

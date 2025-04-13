@@ -83,7 +83,7 @@ let test_binop_add () =
   }|}
   in
   let result = compile_program json in
-  let expected = [ LDC (Int 1); LDC (Int 2); BINOP { sym = "+" }; DONE ] in
+  let expected = [ LDC (Int 1); LDC (Int 2); BINOP Add; DONE ] in
   check_instr_list "binary op + " expected result
 
 let test_seq_two_exprs () =
@@ -151,14 +151,14 @@ let test_ld_variable () =
 
 let test_unary_minus () =
   let json =
-    {|{"tag": "blk", "body": {"tag": "unop", "sym": "-unary", "frst": {"tag": "lit", "val": 3}}}|}
+    {|{"tag": "blk", "body": {"tag": "unop", "sym": "UnaryNegation", "frst": {"tag": "lit", "val": 3}}}|}
   in
   let result = compile_program json in
   let expected =
     [
       ENTER_SCOPE { num = 0 };
       LDC (Int 3);
-      UNOP { sym = "-unary" };
+      UNOP Negate;
       EXIT_SCOPE;
       DONE;
     ]
@@ -167,14 +167,14 @@ let test_unary_minus () =
 
 let test_unary_not () =
   let json =
-    {|{"tag": "blk", "body": {"tag": "unop", "sym": "!", "frst": {"tag": "lit", "val": true}}}|}
+    {|{"tag": "blk", "body": {"tag": "unop", "sym": "UnaryNot", "frst": {"tag": "lit", "val": true}}}|}
   in
   let result = compile_program json in
   let expected =
     [
       ENTER_SCOPE { num = 0 };
       LDC (Boolean true);
-      UNOP { sym = "!" };
+      UNOP LogicalNot;
       EXIT_SCOPE;
       DONE;
     ]
@@ -323,7 +323,7 @@ let test_function_with_binop () =
       ENTER_SCOPE { num = 0 };
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "+" };
+      BINOP Add;
       RESET;
       EXIT_SCOPE;
       LDC Undefined;
@@ -395,7 +395,7 @@ let test_function_with_block_and_const () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "+" };
+      BINOP Add;
       RESET;
       EXIT_SCOPE;
       LDC Undefined;
@@ -460,7 +460,7 @@ let test_function_application () =
       ENTER_SCOPE { num = 0 };
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "+" };
+      BINOP Add;
       RESET;
       EXIT_SCOPE;
       LDC Undefined;
@@ -727,7 +727,7 @@ let test_conditional_function () =
       GOTO 23;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 0);
-      BINOP { sym = ">" };
+      BINOP GreaterThan;
       JOF 12;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
@@ -741,7 +741,7 @@ let test_conditional_function () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "-" };
+      BINOP Subtract;
       RESET;
       LDC Undefined;
       RESET;
@@ -878,13 +878,13 @@ let test_assignment_and_while () =
       POP;
       LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 10);
-      BINOP { sym = "<" };
+      BINOP LessThan;
       JOF 19;
       LDC (Int 1);
       POP;
       LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 1);
-      BINOP { sym = "+" };
+      BINOP Add;
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
       GOTO 7;
@@ -997,7 +997,7 @@ let test_while_with_const () =
       POP;
       LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 10);
-      BINOP { sym = "<" };
+      BINOP LessThan;
       JOF 22;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
@@ -1005,7 +1005,7 @@ let test_while_with_const () =
       POP;
       LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 1);
-      BINOP { sym = "+" };
+      BINOP Add;
       ASSIGN { frame_index = 0; value_index = 0 };
       EXIT_SCOPE;
       POP;
@@ -1185,7 +1185,7 @@ let test_nested_while_loops () =
       POP;
       LD { pos = { frame_index = 0; value_index = 1 } };
       LDC (Int 100);
-      BINOP { sym = "<" };
+      BINOP LessThan;
       JOF 41;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
@@ -1193,18 +1193,18 @@ let test_nested_while_loops () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 100);
-      BINOP { sym = "<" };
+      BINOP LessThan;
       JOF 32;
       LD { pos = { frame_index = 0; value_index = 0 } };
       LD { pos = { frame_index = 0; value_index = 1 } };
-      BINOP { sym = "+" };
+      BINOP Add;
       LD { pos = { frame_index = 1; value_index = 0 } };
-      BINOP { sym = "+" };
+      BINOP Add;
       ASSIGN { frame_index = 0; value_index = 0 };
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 1);
-      BINOP { sym = "+" };
+      BINOP Add;
       ASSIGN { frame_index = 1; value_index = 0 };
       POP;
       GOTO 15;
@@ -1212,7 +1212,7 @@ let test_nested_while_loops () =
       POP;
       LD { pos = { frame_index = 0; value_index = 1 } };
       LDC (Int 1);
-      BINOP { sym = "+" };
+      BINOP Add;
       ASSIGN { frame_index = 0; value_index = 1 };
       EXIT_SCOPE;
       POP;
@@ -1430,11 +1430,11 @@ let test_functions_with_while_loops () =
       POP;
       LD { pos = { frame_index = 2; value_index = 0 } };
       LDC (Int 5);
-      BINOP { sym = "<" };
+      BINOP LessThan;
       JOF 17;
       LD { pos = { frame_index = 2; value_index = 0 } };
       LDC (Int 1);
-      BINOP { sym = "+" };
+      BINOP Add;
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
       GOTO 7;
@@ -1455,16 +1455,16 @@ let test_functions_with_while_loops () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 4);
-      BINOP { sym = ">" };
+      BINOP GreaterThan;
       JOF 47;
       LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 1);
-      BINOP { sym = "+" };
+      BINOP Add;
       ASSIGN { frame_index = 1; value_index = 1 };
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 1);
-      BINOP { sym = "+" };
+      BINOP Add;
       ASSIGN { frame_index = 1; value_index = 0 };
       POP;
       GOTO 32;
@@ -1588,7 +1588,7 @@ let test_conditional_function_with_returns () =
       GOTO 28;
       LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 0);
-      BINOP { sym = "<" };
+      BINOP LessThan;
       JOF 17;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
@@ -1596,7 +1596,7 @@ let test_conditional_function_with_returns () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "+" };
+      BINOP Add;
       RESET;
       EXIT_SCOPE;
       GOTO 26;
@@ -1606,7 +1606,7 @@ let test_conditional_function_with_returns () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "-" };
+      BINOP Subtract;
       RESET;
       EXIT_SCOPE;
       LDC Undefined;
@@ -1781,12 +1781,12 @@ let test_2_conditional_function () =
       ENTER_SCOPE { num = 1 };
       LDC (Int 3);
       LD { pos = { frame_index = 1; value_index = 0 } };
-      BINOP { sym = "*" };
+      BINOP Multiply;
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 0);
-      BINOP { sym = ">" };
+      BINOP GreaterThan;
       JOF 18;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
@@ -1800,7 +1800,7 @@ let test_2_conditional_function () =
       POP;
       LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 0);
-      BINOP { sym = "<" };
+      BINOP LessThan;
       JOF 37;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
@@ -1808,7 +1808,7 @@ let test_2_conditional_function () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "+" };
+      BINOP Add;
       RESET;
       EXIT_SCOPE;
       GOTO 46;
@@ -1818,7 +1818,7 @@ let test_2_conditional_function () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "-" };
+      BINOP Subtract;
       RESET;
       EXIT_SCOPE;
       EXIT_SCOPE;
@@ -1902,7 +1902,7 @@ let test_nested_conditional_function () =
                             "frst": { "tag": "nam", "sym": "x" },
                             "scnd": {
                               "tag": "unop",
-                              "sym": "-unary",
+                              "sym": "UnaryNegation",
                               "frst": { "tag": "lit", "val": 3 }
                             }
                           },
@@ -2052,12 +2052,12 @@ let test_nested_conditional_function () =
       ENTER_SCOPE { num = 2 };
       LDC (Int 3);
       LD { pos = { frame_index = 1; value_index = 0 } };
-      BINOP { sym = "*" };
+      BINOP Multiply;
       ASSIGN { frame_index = 2; value_index = 0 };
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 0);
-      BINOP { sym = ">" };
+      BINOP GreaterThan;
       JOF 18;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
@@ -2066,8 +2066,8 @@ let test_nested_conditional_function () =
       GOTO 38;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LDC (Int 3);
-      UNOP { sym = "-unary" };
-      BINOP { sym = ">" };
+      UNOP Negate;
+      BINOP GreaterThan;
       JOF 31;
       ENTER_SCOPE { num = 2 };
       LDC (Int 3);
@@ -2090,7 +2090,7 @@ let test_nested_conditional_function () =
       POP;
       LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 0);
-      BINOP { sym = "<" };
+      BINOP LessThan;
       JOF 56;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
@@ -2098,7 +2098,7 @@ let test_nested_conditional_function () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "+" };
+      BINOP Add;
       RESET;
       EXIT_SCOPE;
       GOTO 65;
@@ -2108,7 +2108,7 @@ let test_nested_conditional_function () =
       POP;
       LD { pos = { frame_index = 1; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP { sym = "-" };
+      BINOP Subtract;
       RESET;
       EXIT_SCOPE;
       EXIT_SCOPE;

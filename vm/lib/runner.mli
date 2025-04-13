@@ -1,14 +1,14 @@
 type t
 
+
 type vm_value =
-  | VNumber of int
+  | VNumber of float
   | VString of string
   | VUndefined
   | VBoolean of bool
   | VRef of vm_value
   | VAddress of int (* byte address *)
 [@@deriving show]
-
 
 type vm_error = TypeError of string
 

@@ -35,7 +35,7 @@ type t = {
   buffer : Buffer.t;
   free : int ref;
   env_addr : int ref;
-  mutable canonical_values : canonical_values;
+  mutable canonical_values : canonical_values option;
 }
 
 let heap_size_words = 1000
@@ -114,14 +114,13 @@ let heap_allocate state ~size ~tag =
     state.free := Float.to_int (heap_get_word state addr);
     addr
 
-let heap_allocate_canonical_values : t -> unit =
- fun state ->
+let heap_allocate_canonical_values state =
   let unassigned_addr = heap_allocate state ~size:1 ~tag:Unassigned_tag in
   let undefined_addr = heap_allocate state ~size:1 ~tag:Undefined_tag in
   let false_addr = heap_allocate state ~size:1 ~tag:False_tag in
   let true_addr = heap_allocate state ~size:1 ~tag:True_tag in
   state.canonical_values <-
-    { unassigned_addr; undefined_addr; true_addr; false_addr }
+    Some { unassigned_addr; undefined_addr; true_addr; false_addr }
 
 let callframe_pc_offset = 2
 
@@ -142,12 +141,6 @@ let heap_allocate_callframe state ~pc ~env_addr =
   addr
 
 let create =
-  let rec set_free_pointers state prev_addr cur_addr =
-    if cur_addr >= heap_size_words then () (* Base case: reached end of heap *)
-    else (
-      heap_set_word state ~address:prev_addr ~word:(Float.of_int cur_addr);
-      set_free_pointers state cur_addr (cur_addr + state.config.word_size))
-  in
   let state =
     {
       config = initial_config;
@@ -155,17 +148,21 @@ let create =
         Buffer.create (initial_config.heap_size_words * initial_config.word_size);
       free = ref to_space;
       env_addr = ref 0;
-      canonical_values =
-        {
-          unassigned_addr = 0;
-          undefined_addr = 0;
-          true_addr = 0;
-          false_addr = 0;
-        };
+      canonical_values = None;
+      (* Start with None *)
     }
   in
+  (* Initialize free pointers first *)
+  let rec set_free_pointers prev_addr cur_addr =
+    if cur_addr >= heap_size_words then ()
+    else (
+      heap_set_word state ~address:prev_addr ~word:(Float.of_int cur_addr);
+      set_free_pointers cur_addr (cur_addr + state.config.word_size))
+  in
+  set_free_pointers 0 initial_config.word_size;
+
+  (* Then allocate canonical values *)
   heap_allocate_canonical_values state;
-  set_free_pointers state 0 initial_config.word_size;
   state
 
 (* One child : Blockframe address *)
@@ -217,12 +214,17 @@ let heap_env_extend state ~new_frame_addr =
     ~value:(Float.of_int new_frame_addr);
   new_env_addr
 
+let get_canonical_values state =
+  match state.canonical_values with
+  | Some values -> values
+  | None -> failwith "Canonical values not initialized"
+
 let heap_set_frame_children_to_unassigned state ~frame_addr ~num_children =
   let rec helper cur_child_index =
     if cur_child_index >= num_children then ()
     else (
       heap_set_child state ~address:frame_addr ~child_index:cur_child_index
-        ~value:(Float.of_int state.canonical_values.unassigned_addr);
+        ~value:(Float.of_int (get_canonical_values state).unassigned_addr);
       helper (cur_child_index + 1))
   in
   helper 0
@@ -249,17 +251,25 @@ let heap_allocate_string state str =
   helper_set_char 0;
   addr
 
+let heap_get_true state = (get_canonical_values state).true_addr
+let heap_get_false state = (get_canonical_values state).false_addr
+let heap_get_undefined state = (get_canonical_values state).undefined_addr
+
 let heap_allocate_value state lit_value =
   match lit_value with
   | Value.Int i -> heap_allocate_number state (Float.of_int i)
   | String s -> heap_allocate_string state s
   | Boolean b -> (
-      match b with
-      | true -> state.canonical_values.true_addr
-      | false -> state.canonical_values.false_addr)
-  | Undefined -> state.canonical_values.undefined_addr
+      match b with true -> heap_get_true state | false -> heap_get_false state)
+  | Undefined -> heap_get_undefined state
 
 let heap_get_number_value state addr = heap_get_word state (addr + 1)
+
+let heap_get_bool_value state addr =
+  match heap_get_tag state addr with
+  | True_tag -> true
+  | False_tag -> false
+  | _ -> failwith "Unexpected non-boolean tag in get bool value"
 
 let heap_get_string_value state addr =
   let num_chars = heap_get_num_children state addr in

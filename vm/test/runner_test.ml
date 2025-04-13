@@ -14,7 +14,25 @@ let test_run_ldc () =
   let open Vm.Compiler in
   let instrs = [ LDC (Int 123); DONE ] in
   let result = run (create ()) instrs in
-  check_vm_value "run ldc int" (Ok (VNumber 123)) result
+  check_vm_value "run ldc int" (Ok (VNumber 123.0)) result
+
+let test_binop () =
+  let open Vm.Compiler in
+  let instrs = [ LDC (Int 6); LDC (Int 4); BINOP Add; DONE ] in
+  let result = run (create ()) instrs in
+  check_vm_value "run ldc int" (Ok (VNumber 10.0)) result
+
+let test_unop_negate () =
+  let open Vm.Compiler in
+  let instrs = [ LDC (Int 6); UNOP Negate; DONE ] in
+  let result = run (create ()) instrs in
+  check_vm_value "run ldc int" (Ok (VNumber (-6.0))) result
+
+let test_unop_not () =
+  let open Vm.Compiler in
+  let instrs = [ LDC (Boolean false); UNOP LogicalNot; DONE ] in
+  let result = run (create ()) instrs in
+  check_vm_value "test_unop_not" (Ok (VBoolean true)) result
 
 let test_borrow () =
   let open Vm.Compiler in
@@ -71,7 +89,7 @@ let test_assign_and_ld () =
     ]
   in
   let result = run (create ()) instrs in
-  check_vm_value "run assign and load" (Ok (VNumber 4)) result
+  check_vm_value "run assign and load" (Ok (VNumber 4.0)) result
 
 let test_run_string_literal () =
   let open Vm.Compiler in
@@ -91,16 +109,16 @@ let test_run_empty_stack () =
   let result = run (create ()) instrs in
   check_vm_value "empty operand stack" (Ok VUndefined) result
 
-let test_unrecognized_instr () =
+(* let test_unrecognized_instr () =
   let open Vm.Compiler in
   (* We inject an instruction the VM doesn't yet handle, like BINOP *)
-  let instrs = [ BINOP { sym = "+" }; DONE ] in
+  let instrs = [ BINOP Add; DONE ] in
   let result = run (create ()) instrs in
   match result with
   | Error (TypeError msg) ->
       Alcotest.(check bool)
         "error contains BINOP" true (String.contains msg 'B')
-  | _ -> Alcotest.fail "Expected TypeError for unsupported BINOP"
+  | _ -> Alcotest.fail "Expected TypeError for unsupported BINOP" *)
 
 (* ---------- Run tests ---------- *)
 
@@ -110,13 +128,15 @@ let () =
     [
       ( "runner",
         [
+          test_case "test_unop_not" `Quick test_unop_not;
           test_case "Run LDC Int" `Quick test_run_ldc;
+          test_case "test_binop" `Quick test_binop;
+          test_case "test_unop_negate" `Quick test_unop_negate;
           test_case "Run LDC String" `Quick test_run_string_literal;
           test_case "Enter/Exit Scope" `Quick test_enter_exit_scope;
           test_case "DONE on empty stack" `Quick test_run_empty_stack;
-          test_case "Unrecognized instruction" `Quick test_unrecognized_instr;
           test_case "assign and load" `Quick test_assign_and_ld;
           test_case "borrow" `Quick test_borrow;
           test_case "borrow_and_deref" `Quick test_borrow_and_deref;
-          ] );
+        ] );
     ]
