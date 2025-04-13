@@ -545,6 +545,14 @@ let test_borrow_in_binop_lifetime () =
   in
   check_instr_list "borrow in binop lifetime" expected result
 
+
+
+  (* let x = 0 
+let y = &x
+let k = y + 3
+let m = x +2;
+let l = y + 4
+x; *)
 let test_multiple_borrow_uses_lifetime () =
   let json =
     {|{
@@ -647,6 +655,69 @@ let test_multiple_borrow_uses_lifetime () =
   in
   check_instr_list "multiple borrow uses lifetime" expected result
 
+let test_unop_borrow_lifetime () =
+  let json =
+    {|{
+      "tag": "blk",
+      "body": {
+        "tag": "seq",
+        "stmts": [
+          {
+            "tag": "let",
+            "sym": "x",
+            "expr": { "tag": "lit", "val": 5 },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "y",
+            "expr": { "tag": "borrow", "mutable": false, "expr": { "tag": "nam", "sym": "x" } },
+            "is_mutable": false,
+            "declared_type": { "kind": "ref", "is_mutable": false, "value": "int" }
+          },
+          {
+            "tag": "let",
+            "sym": "k",
+            "expr": { 
+              "tag": "unop", 
+              "sym": "-", 
+              "frst": { "tag": "nam", "sym": "y" }
+            },
+            "is_mutable": false,
+            "declared_type": { "kind": "basic", "value": "int" }
+          },
+          { "tag": "nam", "sym": "x" }
+        ]
+      }
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 3 };
+      LDC (Int 5);
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      BORROW false;
+      ASSIGN { frame_index = 0; value_index = 1 };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = false };
+      POP;
+      LD { sym = "y"; pos = { frame_index = 0; value_index = 1 } };
+      UNOP { sym = "-" };
+      FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+      ASSIGN { frame_index = 0; value_index = 2 };
+      POP;
+      LD { sym = "x"; pos = { frame_index = 0; value_index = 0 } };
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+      FREE { pos = { frame_index = 0; value_index = 2 }; to_free = true };
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "unop borrow lifetime" expected result
+
 let () =
   let open Alcotest in
   run "Lifetime Tests"
@@ -662,5 +733,6 @@ let () =
           test_case "test_complex_nested_borrow_lifetime" `Quick test_complex_nested_borrow_lifetime;
           test_case "test_borrow_in_binop_lifetime" `Quick test_borrow_in_binop_lifetime;
           test_case "test_multiple_borrow_uses_lifetime" `Quick test_multiple_borrow_uses_lifetime;
+          test_case "test_unop_borrow_lifetime" `Quick test_unop_borrow_lifetime;
         ] );
     ]

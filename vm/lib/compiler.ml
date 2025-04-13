@@ -198,11 +198,33 @@ let rec compile (node : Ast.ast_node) state =
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
       let new_instr = UNOP { sym } in
-      {
+      let after_unop_state = {
         instrs = state_aft_frst.instrs @ [ new_instr ];
         wc = state_aft_frst.wc + 1;
         ce = state_aft_frst.ce;
         borrowed_last_use = state_aft_frst.borrowed_last_use;
+      } in
+      let used_symbols = scan_for_used_symbols frst in
+
+  
+
+      (* filter out borrowed locals *)
+      let used_symbols = List.filter (fun sym -> (Hashtbl.mem state_aft_frst.borrowed_last_use sym)) used_symbols in
+      (* create a list of free instructions for the used symbols *)
+      let free_instrs = List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym state_aft_frst.ce; to_free = false }) used_symbols in
+
+      (* print length of free_instrs *)
+
+      (* update the borrowed_last_use *)
+      let borrowed_last_use_updated = Hashtbl.copy state_aft_frst.borrowed_last_use in
+      List.iteri (fun i sym -> 
+        Hashtbl.replace borrowed_last_use_updated sym (after_unop_state.wc + i)
+      ) used_symbols;
+      {
+        after_unop_state with
+        instrs = after_unop_state.instrs @ free_instrs;
+        wc = after_unop_state.wc + List.length free_instrs;
+        borrowed_last_use = borrowed_last_use_updated;
       }
   | Borrow { is_mutable; expr } ->
       let state_aft_expr = compile expr state in
