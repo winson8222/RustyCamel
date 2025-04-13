@@ -796,6 +796,8 @@ let test_function_borrow_lifetime () =
       POP;
       LD { sym = "b"; pos = { frame_index = 1; value_index = 1 } };
       EXIT_SCOPE;
+      FREE { pos = { frame_index = 1; value_index = 0 }; to_free = true };
+      FREE { pos = { frame_index = 1; value_index = 1 }; to_free = true };
       LDC Undefined;
       RESET;
       ASSIGN { frame_index = 0; value_index = 0 };

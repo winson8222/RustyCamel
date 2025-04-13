@@ -27,6 +27,7 @@ type state = {
   ce : string list list; (* list of frames—list of syms *)
   wc : int;
   borrowed_last_use : (string, int) Hashtbl.t;
+  current_params : string list;
 }
 
 val get_compile_time_environment_pos : string -> string list list -> pos_in_env

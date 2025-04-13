@@ -26,10 +26,11 @@ type state = {
   ce : string list list;
   wc : int;
   borrowed_last_use : (string, int) Hashtbl.t;
+  current_params : string list;
 }
 
 (* TODO: Add global compile environment with builtin frames *)
-let initial_state = { instrs = []; ce = []; wc = 0; borrowed_last_use = Hashtbl.create 100 }
+let initial_state = { instrs = []; ce = []; wc = 0; borrowed_last_use = Hashtbl.create 100; current_params = [] }
 
 (** Helper functions *)
 let rec scan_for_locals (node : Ast.ast_node) =
@@ -98,6 +99,7 @@ let rec compile (node : Ast.ast_node) state =
           wc = wc + 1;
           ce = extended_ce;
           borrowed_last_use = state.borrowed_last_use;
+          current_params = state.current_params;
         }
       in
 
@@ -178,6 +180,7 @@ let rec compile (node : Ast.ast_node) state =
         wc = sec_state.wc + 1;
         ce = sec_state.ce;
         borrowed_last_use = sec_state.borrowed_last_use;
+        current_params = sec_state.current_params;
       } in
       let used_symbols = scan_for_used_symbols frst @ scan_for_used_symbols scnd in
       (* filter out the borrowed locals *)
@@ -203,6 +206,7 @@ let rec compile (node : Ast.ast_node) state =
         wc = state_aft_frst.wc + 1;
         ce = state_aft_frst.ce;
         borrowed_last_use = state_aft_frst.borrowed_last_use;
+        current_params = state_aft_frst.current_params;
       } in
       let used_symbols = scan_for_used_symbols frst in
 
@@ -234,6 +238,7 @@ let rec compile (node : Ast.ast_node) state =
         wc = state_aft_expr.wc + 1;
         ce = state_aft_expr.ce;
         borrowed_last_use = state_aft_expr.borrowed_last_use;
+        current_params = state_aft_expr.current_params;
       }
   | Sequence stmts -> compile_sequence stmts state
   | Let { sym; expr; _ } ->
@@ -251,6 +256,7 @@ let rec compile (node : Ast.ast_node) state =
         state_after_expr with
         instrs = state_after_expr.instrs @ new_instrs;
         wc = state_after_expr.wc + List.length new_instrs;
+        current_params = state_after_expr.current_params;
       }
   | Const { sym; expr; _ } ->
       let state_after_expr = compile expr state in
@@ -267,6 +273,7 @@ let rec compile (node : Ast.ast_node) state =
         state_after_expr with
         instrs = state_after_expr.instrs @ new_instrs;
         wc = state_after_expr.wc + List.length new_instrs;
+        current_params = state_after_expr.current_params;
       }
   | Lam { prms; body } ->
       let loadFunInstr = LDF { arity = List.length prms; addr = wc + 2 } in
@@ -278,6 +285,7 @@ let rec compile (node : Ast.ast_node) state =
           instrs = instrs @ [ loadFunInstr; GOTO 0 ];
           (* add LDF, then GOTO 0 placeholder *)
           wc = wc + 2;
+          current_params = prms;
         }
       in
 
@@ -288,12 +296,16 @@ let rec compile (node : Ast.ast_node) state =
         compile body { state_after_ldf_goto with ce = extended_ce }
       in
 
+      (* add free instructions for all params *)
+      let free_instrs = List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym after_body_state.ce; to_free = true }) param_names in
+
       (* add undefined and reset *)
       let final_state =
         {
           state_after_ldf_goto with
-          instrs = after_body_state.instrs @ [ LDC Undefined; RESET ];
-          wc = after_body_state.wc + 2;
+          instrs = after_body_state.instrs @ free_instrs @ [ LDC Undefined; RESET ];
+          wc = after_body_state.wc + List.length free_instrs + 2;
+          current_params = param_names;
         }
       in
 
@@ -315,6 +327,8 @@ let rec compile (node : Ast.ast_node) state =
   | Ret expr -> (
       let state_after_expr = compile expr state in
       match expr with
+
+      
       | App { args; _ } ->
           let new_instrs =
             List.mapi
@@ -326,10 +340,12 @@ let rec compile (node : Ast.ast_node) state =
           in
           { state_after_expr with instrs = new_instrs }
       | _ ->
+        (* ADD FREE INSTRUCTIONS FOR ALL PARAMS before the reset *)
+        let free_instrs = List.map (fun sym -> FREE { pos = get_compile_time_environment_pos sym state_after_expr.ce; to_free = true }) state.current_params in
           {
             state_after_expr with
-            instrs = state_after_expr.instrs @ [ RESET ];
-            wc = state_after_expr.wc + 1;
+            instrs = state_after_expr.instrs @ free_instrs @ [ RESET ];
+            wc = state_after_expr.wc + List.length free_instrs + 1;
           })
   | App { fun_nam; args } ->
       (* Compile the function expression *)
