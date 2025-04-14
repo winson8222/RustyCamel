@@ -35,6 +35,7 @@ type compiled_instruction =
   | RESET
   | TAILCALL of int
   | CALL of int
+  | FREE of { pos : pos_in_env; to_free: bool}
   | DONE
 [@@deriving show]
 val string_of_instruction : compiled_instruction -> string

@@ -16,6 +16,25 @@ type node_tag =
   | Builtin_tag
 [@@deriving enum]
 
+let string_of_node_tag = function
+  | False_tag -> "False_tag"
+  | True_tag -> "True_tag"
+  | Number_tag -> "Number_tag"
+  | String_tag -> "String_tag"
+  | Ref_tag -> "Ref_tag"
+  | Null_tag -> "Null_tag"
+  | Unassigned_tag -> "Unassigned_tag"
+  | Undefined_tag -> "Undefined_tag"
+  | Blockframe_tag -> "Blockframe_tag"
+  | Callframe_tag -> "Callframe_tag"
+  | Closure_tag -> "Closure_tag"
+  | Frame_tag -> "Frame_tag"
+  | Environment_tag -> "Environment_tag"
+  | Pair_tag -> "Pair_tag"
+  | Builtin_tag -> "Builtin_tag"
+
+
+
 type config = {
   heap_size_words : int;
   word_size : int;
@@ -305,3 +324,79 @@ let heap_allocate_ref state number =
   let addr = heap_allocate state ~size:2 ~tag:Ref_tag in
   heap_set_word state ~address:(addr + 1) ~word:number;
   addr
+
+let heap_free state addr =
+  (* 1. Get the current free pointer *)
+  let current_free = !(state.free) in
+  
+  (* 2. Set the freed node's first word to point to the current free node *)
+  heap_set_word state ~address:addr ~word:(Float.of_int current_free);
+  
+  (* 3. Update the free pointer to point to the newly freed node *)
+  state.free := addr
+
+let heap_free_at_pos state ~env_addr ~frame_index ~val_index =
+  (* 1. Get the frame address from the environment *)
+  let frame_addr = 
+    heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
+  in
+  
+  (* 2. Get the value address from the frame *)
+  let value_addr = 
+    heap_get_child_as_int state ~address:frame_addr ~child_index:val_index
+  in
+  
+  (* 3. Check if the value is unassigned *)
+  match heap_get_tag state value_addr with
+  | Unassigned_tag -> 
+      failwith "Nothing to free: slot is already unassigned"
+  | _ -> (
+      (* 4. Free the value *)
+      heap_free state value_addr;
+      
+      (* 5. Mark the slot as unassigned *)
+      heap_set_child state 
+        ~address:frame_addr 
+        ~child_index:val_index
+        ~value:(Float.of_int (get_canonical_values state).unassigned_addr)
+  )
+
+let heap_set_byte_at_offset state ~addr ~offset ~value =
+  (* Calculate the byte address *)
+  let byte_addr = (addr * state.config.word_size) + offset in
+  
+  (* Set the byte value at the calculated address *)
+  Buffer.set_uint8_at_offset state.buffer byte_addr value
+
+let heap_get_byte_at_offset state ~addr ~offset =
+  (* Calculate the byte address *)
+  let byte_addr = (addr * state.config.word_size) + offset in
+  
+  (* Get the byte value at the calculated address *)
+  Buffer.get_uint8_at_offset state.buffer byte_addr
+
+let heap_allocate_closure state ~arity ~code_addr ~env_addr =
+  (* 1. Allocate space for closure (2 words) *)
+  let addr = heap_allocate state ~size:2 ~tag:Closure_tag in
+  
+  (* 2. Set arity at offset 1 *)
+  heap_set_byte_at_offset state ~addr ~offset:1 ~value:arity;
+  
+  (* 3. Set code address (PC) at offset 2 using 2 bytes *)
+  heap_set_two_bytes_in_word_at_offset state ~addr ~offset:2 ~value:code_addr;
+  
+  (* 4. Set environment address at address + 1 *)
+  heap_set_word state ~address:(addr + 1) ~word:(Float.of_int env_addr);
+  
+  addr
+
+let heap_get_closure_arity state addr =
+  heap_get_byte_at_offset state ~addr ~offset:1
+
+let heap_get_closure_code_addr state addr =
+  heap_get_two_bytes_in_word_at_offset state ~addr ~offset:2
+
+let heap_get_closure_env_addr state addr =
+  heap_get_child_as_int state ~address:addr ~child_index:0
+
+

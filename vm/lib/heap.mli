@@ -68,8 +68,16 @@ val heap_get_callframe_pc : t -> int -> int
 val heap_get_callframe_env : t -> int -> int
 val heap_get_ref_value: t -> int -> int
 val heap_allocate_ref: t -> float -> int
-
+val heap_free: t -> int -> unit
+val heap_free_at_pos: t -> env_addr:int -> frame_index:int -> val_index:int -> unit
 val heap_get_true: t -> int
 val heap_get_false: t -> int
 val heap_get_undefined: t -> int
+val heap_allocate_closure: t -> arity:int -> code_addr:int -> env_addr:int -> int
+val heap_get_closure_arity: t -> int -> int
+val heap_get_closure_code_addr: t -> int -> int
+val heap_get_closure_env_addr: t -> int -> int
+
+val string_of_node_tag: node_tag -> string
+
 

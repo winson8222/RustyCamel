@@ -211,6 +211,87 @@ let test_run_empty_stack () =
   let result = run (create ()) instrs in
   check_vm_value "empty operand stack" (Ok VUndefined) result
 
+let test_function_definition_and_execution () =
+  let open Vm.Compiler in
+  let instrs = [
+    ENTER_SCOPE { num = 1 };  (* Scope for function *)
+    LDF { arity = 2; addr = 3 };  (* Function with 2 parameters *)
+    GOTO 11;  (* Skip function body *)
+    ENTER_SCOPE { num = 0 };  (* Function scope *)
+    LD { pos = { frame_index = 1; value_index = 0 } };  (* Load first param *)
+    LD { pos = { frame_index = 1; value_index = 1 } };  (* Load second param *)
+    BINOP Add;  (* Add them *)
+    RESET;  (* Return from function *)
+    EXIT_SCOPE;  (* Exit function scope *)
+    LDC Undefined;  (* After function definition *)
+    RESET;  (* Return to main scope *)
+    ASSIGN { frame_index = 0; value_index = 0 };  (* Store function *)
+    EXIT_SCOPE;  (* Exit main scope *)
+    DONE;
+  ] in
+
+  (* First run to get the closure *)
+  let result = run (create ()) instrs in
+  check_vm_value "function definition and execution" (Ok (VClosure (2, 3, 8))) result
+
+let test_multiple_binops_across_statements () =
+  let open Vm.Compiler in
+  let state = create () in
+  let instrs = [
+    (* First statement: (5 + 3) * 2 *)
+    LDC (Int 5);
+    LDC (Int 3);
+    BINOP Add;           (* 5 + 3 = 8 *)
+    LDC (Int 2);
+    BINOP Multiply;      (* 8 * 2 = 16 *)
+    ASSIGN { frame_index = 0; value_index = 0 };  (* Store result in x *)
+    
+    (* Second statement: (10 - 4) / 2 *)
+    LDC (Int 10);
+    LDC (Int 4);
+    BINOP Subtract;      (* 10 - 4 = 6 *)
+    LDC (Int 2);
+    BINOP Divide;        (* 6 / 2 = 3 *)
+    ASSIGN { frame_index = 0; value_index = 1 };  (* Store result in y *)
+    
+    (* Third statement: x + y *)
+    LD { pos = { frame_index = 0; value_index = 0 } };  (* Load x *)
+    LD { pos = { frame_index = 0; value_index = 1 } };  (* Load y *)
+    BINOP Add;           (* 16 + 3 = 19 *)
+    DONE
+  ] in
+  
+
+  let result = run state instrs in
+  check_vm_value "multiple binops across statements" (Ok (VNumber 19.0)) result
+
+let test_function_call_with_args () =
+  let open Vm.Compiler in
+  let instrs = [
+    ENTER_SCOPE { num = 1 };  (* Scope for function *)
+    LDF { arity = 2; addr = 3 };  (* Function with 2 parameters *)
+    GOTO 11;  (* Skip function body *)
+    ENTER_SCOPE { num = 0 };  (* Function scope *)
+    LD { pos = { frame_index = 1; value_index = 0 } };  (* Load first param *)
+    LD { pos = { frame_index = 1; value_index = 1 } };  (* Load second param *)
+    BINOP Add;  (* Add them *)
+    RESET;  (* Return from function *)
+    EXIT_SCOPE;  (* Exit function scope *)
+    LDC Undefined;  (* After function definition *)
+    RESET;  (* Return to main scope *)
+    ASSIGN { frame_index = 0; value_index = 0 };  (* Store function *)
+    POP;  (* Clean up stack *)
+    LD { pos = { frame_index = 0; value_index = 0 } };  (* Load function *)
+    LDC (Int 33);  (* First argument *)
+    LDC (Int 22);  (* Second argument *)
+    CALL 2;  (* Call function with 2 arguments *)
+    EXIT_SCOPE;  (* Exit main scope *)
+    DONE;
+  ] in
+
+  let result = run (create ()) instrs in
+  check_vm_value "function call with arguments" (Ok (VNumber 55.0)) result
+
 let () =
   let open Alcotest in
   run "VM Runner Tests"
@@ -229,5 +310,8 @@ let () =
           test_case "assign and load" `Quick test_assign_and_ld;
           test_case "borrow" `Quick test_borrow;
           test_case "borrow_and_deref" `Quick test_borrow_and_deref;
+          test_case "function definition and execution" `Quick test_function_definition_and_execution;
+          test_case "multiple binops across statements" `Quick test_multiple_binops_across_statements;
+          test_case "function call with arguments" `Quick test_function_call_with_args;
         ] );
     ]

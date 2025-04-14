@@ -8,6 +8,8 @@ type vm_value =
   | VBoolean of bool
   | VRef of vm_value
   | VAddress of int (* byte address *)
+  | VClosure of int * int * int
+  | VFrame of int
 [@@deriving show]
 
 type vm_error = TypeError of string
