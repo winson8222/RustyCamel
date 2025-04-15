@@ -28,12 +28,12 @@ let binop_of_string = function
   | op -> failwith ("Unknown binary operator: " ^ op)
 
 let unop_of_string = function
-  | "UnaryNegation" -> Negate
-  | "UnaryNot" -> LogicalNot
+  | "-" -> Negate
+  | "!" -> LogicalNot
   | op -> failwith ("Unknown unary operator: " ^ op)
 
 type compiled_instruction =
-  | LDC of Value.lit_value
+  | LDC of Types.lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | JOF of int

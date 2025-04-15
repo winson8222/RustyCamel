@@ -1,5 +1,4 @@
 open Vm.Compiler
-open Vm.Value
 
 (* Pretty-printer & equality for compiled_instruction *)
 let pp_instr fmt instr =

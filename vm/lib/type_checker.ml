@@ -77,6 +77,7 @@ let rec type_ast ast_node state =
   | Literal lit -> (
       match lit with
       | Int _ -> Types.TInt
+      | Float _ -> Types.TFloat
       | Boolean _ -> Types.TBoolean
       | String _ -> Types.TString
       | Undefined -> Types.TUndefined)
@@ -157,8 +158,7 @@ let rec type_ast ast_node state =
       let expr_type = type_ast expr state in
       match expr_type with
       | Types.TRef { base; _ } -> base
-      | other ->
-          failwith (make_deref_non_ref_val_msg other))
+      | other -> failwith (make_deref_non_ref_val_msg other))
   | Borrow { is_mutable; expr } ->
       let expr_type = type_ast expr state in
       Types.TRef { is_mutable; base = expr_type }
