@@ -27,7 +27,7 @@ type config = {
 }
 
 val initial_config : config
-val create : t (* TODO: Take in heap size as arg *)
+val create : unit -> t (* TODO: Take in heap size as arg *)
 
 val heap_env_extend :
   t ->

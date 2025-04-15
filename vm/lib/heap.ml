@@ -134,6 +134,8 @@ let heap_allocate state ~size ~tag =
     heap_set_tag state addr tag;
     heap_set_size state addr size;
     state.free := Float.to_int (heap_get state addr);
+
+    
     addr
 
 let heap_allocate_canonical_values state =
@@ -162,7 +164,7 @@ let heap_allocate_callframe state ~pc ~env_addr =
     ~value:(Float.of_int env_addr);
   addr
 
-let create =
+let create () =
   let state =
     {
       config = initial_config;
@@ -200,6 +202,8 @@ let heap_set_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index
   let frame_addr =
     heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
   in
+  Printf.printf "frame_addr: %d\n" frame_addr;
+  (* Set the value at the specified index in the frame *)
   ignore
     (heap_set_child state ~address:frame_addr ~child_index:val_index
        ~value:(Float.of_int val_addr))
@@ -208,6 +212,7 @@ let heap_get_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index =
   let frame_addr =
     heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
   in
+  Printf.printf "frame_addr: %d\n" frame_addr;
   Float.to_int (heap_get_child state ~address:frame_addr ~child_index:val_index)
 
 let heap_env_extend state ~new_frame_addr ~env_addr =
@@ -270,7 +275,10 @@ let heap_allocate_string state str =
   addr
 
 let heap_get_true state = (get_canonical_values state).true_addr
-let heap_get_false state = (get_canonical_values state).false_addr
+let heap_get_false state =
+   (
+    Printf.printf "heap get false";
+    get_canonical_values state).false_addr
 let heap_get_undefined state = (get_canonical_values state).undefined_addr
 
 let heap_allocate_value state lit_value =
@@ -401,11 +409,13 @@ let heap_allocate_frame state ~num_values =
 let pretty_print_heap state =
   Printf.printf "\n======= HEAP WORD DUMP =======\n";
   for i = 0 to heap_size_words - 1 do
-    let word = heap_get state i in
-    if i mod state.config.node_size = 0 then
+
+    try 
       let tag = heap_get_tag state i in
-      Printf.printf "[%04d]: %.17g \t(tag: %s)\n" i word
-        (string_of_node_tag tag)
-    else Printf.printf "[%04d]: %.17g\n" i word
+      Printf.printf "[%04d]: %s\n" i (string_of_node_tag tag)
+   with
+  | Failure _ ->
+      Printf.printf "[%04d]: %s\n" i "Unknown tag";
+      Printf.printf "Error: Unknown tag at address %d\n" i
   done;
   Printf.printf "================================\n"

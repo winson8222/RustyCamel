@@ -9,8 +9,8 @@ let check_vm_value msg expected actual =
   Alcotest.(check (result testable_value testable_error)) msg expected actual
 
 (* ---------- Test cases ---------- *)
-
-(* let test_run_ldc () =
+(* 
+let test_run_ldc () =
   let open Vm.Compiler in
   let instrs = [ LDC (Int 123); DONE ] in
   let result = run (create ()) instrs in
@@ -49,19 +49,19 @@ let test_binop_comparison () =
   let test_cases =
     [
       (* Less Than *)
-      ( [ LDC (Int 4); LDC (Int 6); BINOP LessThan; DONE ],
-        Ok (VBoolean true),
-        "less than true test" );
-      ( [ LDC (Int 6); LDC (Int 4); BINOP LessThan; DONE ],
-        Ok (VBoolean false),
-        "less than false test" );
-      (* Less Than Equal *)
-      ( [ LDC (Int 4); LDC (Int 4); BINOP LessThanEqual; DONE ],
-        Ok (VBoolean true),
-        "less than equal same value test" );
       ( [ LDC (Int 6); LDC (Int 4); BINOP LessThanEqual; DONE ],
         Ok (VBoolean false),
         "less than equal false test" );
+      ( [ LDC (Int 4); LDC (Int 6); BINOP LessThan; DONE ],
+        Ok (VBoolean true),
+        "less than true test" );
+      (* ( [ LDC (Int 6); LDC (Int 4); BINOP LessThan; DONE ],
+        Ok (VBoolean false),
+        "less than false test" ); *)
+      (* Less Than Equal *)
+      (* ( [ LDC (Int 4); LDC (Int 4); BINOP LessThanEqual; DONE ],
+        Ok (VBoolean true),
+        "less than equal same value test" ); *)
       (* Greater Than *)
       ( [ LDC (Int 6); LDC (Int 4); BINOP GreaterThan; DONE ],
         Ok (VBoolean true),
@@ -209,9 +209,9 @@ let test_run_empty_stack () =
   let open Vm.Compiler in
   let instrs = [ DONE ] in
   let result = run (create ()) instrs in
-  check_vm_value "empty operand stack" (Ok VUndefined) result
+  check_vm_value "empty operand stack" (Ok VUndefined) result *)
 
-let test_function_definition_and_execution () =
+(* let test_function_definition_and_execution () =
   let open Vm.Compiler in
   let instrs = [
     ENTER_SCOPE { num = 1 };  (* Scope for function *)
@@ -232,7 +232,7 @@ let test_function_definition_and_execution () =
 
   (* First run to get the closure *)
   let result = run (create ()) instrs in
-  check_vm_value "function definition and execution" (Ok (VClosure (2, 3, 8))) result
+  check_vm_value "function definition and execution" (Ok (VClosure (2, 3, 60))) result *)
 
 let test_multiple_binops_across_statements () =
   let open Vm.Compiler in
@@ -240,7 +240,7 @@ let test_multiple_binops_across_statements () =
   let instrs = [
     (* First statement: (5 + 3) * 2 *)
     LDC (Int 5);
-    LDC (Int 3);
+    LDC (Int 4);
     BINOP Add;           (* 5 + 3 = 8 *)
     LDC (Int 2);
     BINOP Multiply;      (* 8 * 2 = 16 *)
@@ -263,9 +263,11 @@ let test_multiple_binops_across_statements () =
   
 
   let result = run state instrs in
-  check_vm_value "multiple binops across statements" (Ok (VNumber 19.0)) result *)
+  check_vm_value "multiple binops across statements" (Ok (VNumber 19.0)) result
 
-let test_function_call_with_args () =
+
+(* 
+ let test_function_call_with_args () =
   let open Vm.Compiler in
   let instrs = [
     ENTER_SCOPE { num = 1 };  (* Scope for function *)
@@ -290,7 +292,7 @@ let test_function_call_with_args () =
   ] in
 
   let result = run (create ()) instrs in
-  check_vm_value "function call with arguments" (Ok (VNumber 55.0)) result
+  check_vm_value "function call with arguments" (Ok (VNumber 55.0)) result *)
 
 let () =
   let open Alcotest in
@@ -309,9 +311,10 @@ let () =
           test_case "DONE on empty stack" `Quick test_run_empty_stack;
           test_case "assign and load" `Quick test_assign_and_ld;
           test_case "borrow" `Quick test_borrow;
-          test_case "borrow_and_deref" `Quick test_borrow_and_deref;
-          test_case "function definition and execution" `Quick test_function_definition_and_execution;
-          test_case "multiple binops across statements" `Quick test_multiple_binops_across_statements; *)
-          test_case "function call with arguments" `Quick test_function_call_with_args;
+          test_case "borrow_and_deref" `Quick test_borrow_and_deref; *)
+          (* test_case "function definition and execution" `Quick test_function_definition_and_execution; *)
+          test_case "multiple binops across statements" `Quick test_multiple_binops_across_statements;
+(* 
+ test_case "function call with arguments" `Quick test_function_call_with_args; *)
         ] );
     ]

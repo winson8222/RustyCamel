@@ -28,17 +28,20 @@ let string_of_vm_error = show_vm_error
 let create () =
   let initial_state =
     {
-      heap = Heap.create;
+      heap = Heap.create ();
       pc = ref 0;
       os = ref [];
       env_addr = ref 0;
       rts = ref [];
     }
-  in
+in
   (* Printf.printf "initialized pc: %d\n" !(initial_state.pc); *)
   initial_state
 
 let rec vm_value_of_address heap addr =
+  let tag = Heap.heap_get_tag heap addr |> Heap.string_of_node_tag in
+  Printf.printf "vm_value_of_address: %d\n" addr;
+  Printf.printf "tag: %s\n" tag;
   match Heap.heap_get_tag heap addr with
   | Number_tag ->
       let n = Heap.heap_get_number_value heap addr in
@@ -211,31 +214,23 @@ let apply_binop ~op state =
 
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
-  
-  Heap.pretty_print_heap state.heap ;
+
+  (* Heap.pretty_print_heap state.heap ; *)
   (* heap_environment_display state.heap  !(state.env_addr); *)
-  let len = List.length !(state.os) in
-  Printf.printf "OS length: %d\n" (List.length !(state.os));
-  if len > 0 then
-    (* pritn everything in os*)
-    for i = 0 to len - 1 do
-      Printf.printf "OS[%d]: %s\n" i
-        (show_vm_value
-           (List.nth !(state.os) i |> vm_value_of_address state.heap))
-    done
-  else
-    Printf.printf "OS head: None\n";
-  (* Printf.printf "RTS length: %d" (List.length !(state.rts)); *)
-  (* Printf.printf "RTS: ["; *)
-  (* Printf.printf "RTS length: %d" (List.length !(state.rts)); *)
-  (* Printf.printf "RTS: ["; *)
-  (* Printf.printf "RTS length: %d" (List.length !(state.rts)); *)
-  (* Printf.printf "RTS: ["; *)
-  (* List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts); *)
-  (* Printf.printf "]\n"; *)
   let heap = state.heap in
   let env_addr = !(state.env_addr) in
   let os = !(state.os) in
+
+  (* print the instruction *)
+  Printf.printf "Executing instruction: %s\n" (Compiler.string_of_instruction instr);
+  (* Printf.printf "OS: ["; *)
+  (* List.iter (fun addr -> Printf.printf "%d; " addr) os; *)
+  (* Printf.printf "]\n"; *)
+
+  (* Printf.printf "env_addr: %d\n" env_addr; *)
+  (* Printf.printf "rts: ["; *)
+  (* List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts); *)
+  (* Printf.printf "]\n"; *)
 
   match instr with
   | DONE -> (
@@ -276,10 +271,22 @@ let execute_instruction state instr =
         ~frame_index:pos.frame_index ~val_index:pos.value_index ~val_addr;
       Ok VUndefined
   | LD { pos; _ } ->
+
+
+    (* print the positions *)
+
+      Printf.printf "pos frame index: %d\n" pos.frame_index;
+      Printf.printf "pos value index: %d\n" pos.value_index;
+      (* 1. Get current environment address *)
       let value_addr =
         Heap.heap_get_env_val_addr_at_pos heap ~env_addr
           ~frame_index:pos.frame_index ~val_index:pos.value_index
       in
+
+      (* print the value address *)
+      Printf.printf "LD value_addr: %d\n" value_addr;
+
+      (* print the value *)
 
       (* print the type of the value address *)
       Printf.printf "LD got tag: %s\n"

@@ -155,13 +155,7 @@ let test_unary_minus () =
   in
   let result = compile_program json in
   let expected =
-    [
-      ENTER_SCOPE { num = 0 };
-      LDC (Int 3);
-      UNOP Negate;
-      EXIT_SCOPE;
-      DONE;
-    ]
+    [ ENTER_SCOPE { num = 0 }; LDC (Int 3); UNOP Negate; EXIT_SCOPE; DONE ]
   in
   check_instr_list "unary minus operation" expected result
 
