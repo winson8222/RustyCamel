@@ -7,6 +7,7 @@ echo "=== Building TypeScript Parser ==="
 cd tsParser
 yarn install
 yarn build
+yarn generate-parser
 yarn tsc
 echo "=== Running TypeScript Parser ==="
 node dist/index.js

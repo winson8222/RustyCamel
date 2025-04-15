@@ -57,12 +57,17 @@ class RustAstVisitor
 
 
     visitLetDecl(ctx: any): any {
+        if (!ctx.expr() || !ctx.typeExpr()) {
+            throw new Error("Invalid let declaration: both expr and typeExpr are required");
+        }
+        
         // Does not handle this case: let ref x = 10; 
         console.log("Visiting Let Declaration");
         return {
             type: 'LetDecl',
             name: ctx.IDENTIFIER().getText() ,
             value: ctx.expr() ? this.visit(ctx.expr()) : null,
+            declaredType: ctx.typeExpr() ? this.visit(ctx.typeExpr()) : null,
             isMutable: ctx.MUT() !== null,
         };
     }
@@ -255,7 +260,7 @@ class RustAstVisitor
         return {
             type: 'RefType',
             isMutable: ctx.MUT() !== null,
-            baseType: ctx.IDENTIFIER().getText()
+            value: this.visit(ctx.typeExpr())
         };
     }
     

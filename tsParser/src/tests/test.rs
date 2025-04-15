@@ -1,16 +1,17 @@
-fn f() -> i32 {
-    let x = 5 + 10;
-    x ;
-}
-
-f();
-
-// fn factorial(n: i32) -> i32 {
-//     if n == 0 {
-//         1
-//     } else {
-//         n * factorial(n - 1)
-//     }
+// fn f() -> &&i32 {
+//     let x: i32 = 5 + 10;
+//     let ref_x: &i32 = &x;
+//     &ref_x
 // }
 
-// factorial(5);
+// f();
+fn factorial(n: i32) -> i32 {
+    -n
+    // if n == 0 {
+    //     1
+    // } else {
+    //     n * factorial(n - 1)
+    // }
+}
+
+factorial(5);
