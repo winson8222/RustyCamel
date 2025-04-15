@@ -2,10 +2,9 @@ open Vm.Compiler
 (* For printing instruction *)
 
 let () =
-  let test_json =
-    "{\"tag\": \"blk\", \"body\": {\"tag\": \"lit\", \"val\": 1}}"
-  in
-  let instructions = compile_program test_json in
+  let filename = "lib/ast.json" in
+  let json = Yojson.Basic.from_file filename |> Yojson.Basic.to_string in
+  let instructions = compile_program json in
   List.iter
     (fun instr -> Printf.printf "%s\n" (string_of_instruction instr))
     instructions;
