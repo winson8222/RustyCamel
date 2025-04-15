@@ -1,6 +1,6 @@
 (library
  (name vm)
- (modules compiler runner buffer heap ast value types ownership_checker type_checker utils)
+ (modules compiler runner buffer heap ast types ownership_checker type_checker utils)
  (libraries yojson ppx_deriving_yojson)
  (preprocess
   (pps ppx_deriving_yojson ppx_deriving.show ppx_deriving.enum)))

@@ -166,7 +166,6 @@ let apply_binop ~op state =
 
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
-  Printf.printf "executing instruction:%s" (show_compiled_instruction instr);
   let heap = state.heap in
   let env_addr = !(state.env_addr) in
   let os = !(state.os) in
@@ -249,7 +248,6 @@ let execute_instruction state instr =
 let run state instrs =
   let rec run_helper state =
     let pc = !(state.pc) in
-    Printf.printf "pc:%d\n" pc;
 
     match List.nth_opt instrs pc with
     | None -> Error (TypeError (Printf.sprintf "Invalid program counter:%d" pc))
@@ -257,7 +255,6 @@ let run state instrs =
         match execute_instruction state instr with
         | Ok res -> (
             state.pc := pc + 1;
-            Printf.printf "instr:%s" (string_of_instruction instr);
             match instr with DONE -> Ok res | _ -> run_helper state)
         | Error e -> Error e (* Early exit in case of error *))
   in

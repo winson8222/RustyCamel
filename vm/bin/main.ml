@@ -12,7 +12,7 @@ let () =
   let runner = Vm.Runner.create () in
   let program_result = Vm.Runner.run runner instructions in
   match program_result with
-  | Ok res -> Printf.printf "%s\n" (Vm.Runner.string_of_vm_value res)
+  | Ok res -> Printf.printf "Program Result: %s\n" (Vm.Runner.string_of_vm_value res)
   | Error e ->
       Printf.printf "%s\n" (Vm.Runner.string_of_vm_error e);
       ()

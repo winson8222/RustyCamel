@@ -1,3 +1,7 @@
+TODO: 
+- Check scope logic. Seems like function always becomes a block
+- We don't support lambda, const in the cur parser
+
 ## Formatting
 
 1. Install [ocamlformat](https://github.com/ocaml-ppx/ocamlformat#installation)
