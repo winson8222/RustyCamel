@@ -31,7 +31,6 @@ type typed_ast =
     }
   | While of { pred : typed_ast; body : typed_ast }
   | Cond of { pred : typed_ast; cons : typed_ast; alt : typed_ast }
-
   | Const of {
       sym : string;
       expr : typed_ast;
@@ -55,7 +54,6 @@ type typed_ast =
 
 val of_json : Yojson.Basic.t -> typed_ast
 
-
 val strip_types : typed_ast -> ast_node
-(** [strip_types ast] removes all type annotations from the AST. This is useful for
-    converting a typed AST to a core AST. *)
+(** [strip_types ast] removes all type annotations from the AST. This is useful
+    for converting a typed AST to a core AST. *)

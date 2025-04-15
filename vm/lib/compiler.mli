@@ -1,11 +1,7 @@
 type pos_in_env = { frame_index : int; value_index : int }
+type unop_sym = Negate | LogicalNot [@@deriving show]
 
-type unop_sym = 
-  | Negate 
-  | LogicalNot
-[@@deriving show]
-
-type binop_sym = 
+type binop_sym =
   | Add
   | Subtract
   | Multiply
@@ -35,9 +31,10 @@ type compiled_instruction =
   | RESET
   | TAILCALL of int
   | CALL of int
-  | FREE of { pos : pos_in_env; to_free: bool}
+  | FREE of { pos : pos_in_env; to_free : bool }
   | DONE
 [@@deriving show]
+
 val string_of_instruction : compiled_instruction -> string
 
 type state = {

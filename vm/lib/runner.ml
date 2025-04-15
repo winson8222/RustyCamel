@@ -3,12 +3,13 @@ open Compiler
 type vm_value =
   | VNumber of float
   | VString of string
-  | VUndefined 
+  | VUndefined
   | VBoolean of bool
   | VRef of vm_value
   | VAddress of int (* byte address *)
   | VClosure of int * int * int
   | VFrame of int
+  | VEnvironment of int (* TODO : Remove *)
 [@@deriving show]
 
 type vm_error = TypeError of string [@@deriving show]
@@ -34,7 +35,7 @@ let create () =
       rts = ref [];
     }
   in
-  Printf.printf "initialized pc: %d\n" !(initial_state.pc);
+  (* Printf.printf "initialized pc: %d\n" !(initial_state.pc); *)
   initial_state
 
 let rec vm_value_of_address heap addr =
@@ -58,8 +59,13 @@ let rec vm_value_of_address heap addr =
       VClosure (arity, code_addr, env_addr)
   | Frame_tag ->
       let num_children = Heap.heap_get_num_children heap addr in
-      VFrame (num_children)
-  | tag -> failwith (Printf.sprintf "Unexpected tag: %s" (Heap.string_of_node_tag tag))
+      VFrame num_children
+  | Environment_tag ->
+      let num_children = Heap.heap_get_num_children heap addr in
+      VEnvironment num_children
+  | tag ->
+      failwith
+        (Printf.sprintf "Unexpected tag: %s" (Heap.string_of_node_tag tag))
 
 (* PC is modified by the caller, this function only modifies the rest: heap, os, env_addr *)
 let pop_stack stack_ref =
@@ -80,10 +86,8 @@ let rec vm_value_to_address (heap : Heap.t) (value : vm_value) : int =
       let addr = vm_value_to_address heap v in
       Heap.heap_allocate_ref heap (Float.of_int addr)
   | VAddress addr -> addr
-  | other -> 
-    Printf.sprintf "Unexpected value: %s" (show_vm_value other)
-    |> failwith
-
+  | other ->
+      Printf.sprintf "Unexpected value: %s" (show_vm_value other) |> failwith
 
 let apply_unop ~op state =
   let os = !(state.os) in
@@ -109,6 +113,11 @@ let apply_unop ~op state =
 let apply_binop ~op state =
   let os = !(state.os) in
   let heap = state.heap in
+  Printf.printf "os element head: %s\n"
+    (show_vm_value (List.hd os |> vm_value_of_address heap));
+  Printf.printf "os element tail: %s\n"
+    (show_vm_value (List.hd (List.tl os) |> vm_value_of_address heap));
+
   let scnd = List.hd os |> vm_value_of_address heap in
   let frst = List.nth os 1 |> vm_value_of_address heap in
 
@@ -117,7 +126,11 @@ let apply_binop ~op state =
     | Add -> (
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VNumber (Float.add n1 n2)
-        | _ -> failwith "Addition requires number operands")
+        | _ ->
+            failwith
+              (Printf.sprintf
+                 "Addition requires number operands. Instead received %s and %s"
+                 (show_vm_value frst) (show_vm_value scnd)))
     | Subtract -> (
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VNumber (Float.sub n1 n2)
@@ -176,15 +189,50 @@ let apply_binop ~op state =
   in
 
   let res_addr = vm_value_to_address heap res_value in
+  (* Printf.printf "res_addr: %d\n" res_addr; *)
+  (* Printf.printf "os after pop: ["; *)
   state.os := res_addr :: List.tl (List.tl os)
+(* let heap_frame_display heap frame_addr =
+  let num_children = Heap.heap_get_num_children heap frame_addr in
+  Printf.printf "[frame display] num  frame vals: %d\n" num_children;
+  for i = 0 to num_children - 1 do
+    Printf.printf "frame index: %d value: %s\n" i (show_vm_value (vm_value_of_address heap (Float.to_int (Heap.heap_get_child heap ~address:frame_addr ~child_index:i))));
+  done
+
+  let heap_environment_display heap env_addr =
+
+    Printf.printf "--------Displaying env---------\n";
+    let num_children = Heap.heap_get_num_children heap env_addr in
+    Printf.printf "num_children: %d\n" num_children;
+    for i = 0 to num_children - 1 do
+      Printf.printf "frame index: %d " i;
+      heap_frame_display heap (Float.to_int (Heap.heap_get_child heap ~address:env_addr ~child_index:i))
+    done *)
 
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
-  Printf.printf "executing instruction:%s\n" (show_compiled_instruction instr);
-  Printf.printf "RTS before: [";
-  List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts);
-  Printf.printf "]\n";
   
+  Heap.pretty_print_heap state.heap ;
+  (* heap_environment_display state.heap  !(state.env_addr); *)
+  let len = List.length !(state.os) in
+  Printf.printf "OS length: %d\n" (List.length !(state.os));
+  if len > 0 then
+    (* pritn everything in os*)
+    for i = 0 to len - 1 do
+      Printf.printf "OS[%d]: %s\n" i
+        (show_vm_value
+           (List.nth !(state.os) i |> vm_value_of_address state.heap))
+    done
+  else
+    Printf.printf "OS head: None\n";
+  (* Printf.printf "RTS length: %d" (List.length !(state.rts)); *)
+  (* Printf.printf "RTS: ["; *)
+  (* Printf.printf "RTS length: %d" (List.length !(state.rts)); *)
+  (* Printf.printf "RTS: ["; *)
+  (* Printf.printf "RTS length: %d" (List.length !(state.rts)); *)
+  (* Printf.printf "RTS: ["; *)
+  (* List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts); *)
+  (* Printf.printf "]\n"; *)
   let heap = state.heap in
   let env_addr = !(state.env_addr) in
   let os = !(state.os) in
@@ -195,19 +243,19 @@ let execute_instruction state instr =
       | [] -> Ok VUndefined
       | ops -> Ok (List.hd ops |> vm_value_of_address state.heap))
   | ENTER_SCOPE { num } ->
+
       let new_blockframe_addr = Heap.heap_allocate_blockframe heap ~env_addr in
       state.rts := new_blockframe_addr :: !(state.rts);
-      Printf.printf "RTS after ENTER_SCOPE: [";
+      (* Printf.printf "RTS after ENTER_SCOPE: ["; *)
       List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts);
-      Printf.printf "]\n";
 
-      let new_frame_addr =
-        Heap.heap_allocate heap ~size:num ~tag:Heap.Frame_tag
-      in
+      (* Printf.printf "]\n"; *)
+      let new_frame_addr = Heap.heap_allocate_frame heap ~num_values:num in
       Heap.heap_set_frame_children_to_unassigned heap ~frame_addr:new_frame_addr
         ~num_children:num;
 
-      state.env_addr := Heap.heap_env_extend heap ~new_frame_addr;
+      state.env_addr :=
+        Heap.heap_env_extend heap ~env_addr:!(state.env_addr) ~new_frame_addr;
       Ok VUndefined
       (* The value is not actually used. Only to signal that there's no error *)
   | EXIT_SCOPE ->
@@ -215,11 +263,15 @@ let execute_instruction state instr =
       state.env_addr := Heap.heap_get_blockframe_env heap blockframe_addr;
       Ok VUndefined
   | LDC lit_value ->
+      Printf.printf "LDC: %s\n" (Value.show_lit_value lit_value);
       let value_addr = Heap.heap_allocate_value heap lit_value in
       state.os := value_addr :: os;
       Ok VUndefined
   | ASSIGN pos ->
       let val_addr = List.hd !(state.os) in
+      Printf.printf "val: %s val_addr: %d\n"
+        (show_vm_value (vm_value_of_address heap val_addr))
+        val_addr;
       Heap.heap_set_env_val_addr_at_pos heap ~env_addr
         ~frame_index:pos.frame_index ~val_index:pos.value_index ~val_addr;
       Ok VUndefined
@@ -229,32 +281,28 @@ let execute_instruction state instr =
           ~frame_index:pos.frame_index ~val_index:pos.value_index
       in
 
+      (* print the type of the value address *)
+      Printf.printf "LD got tag: %s\n"
+        (Heap.string_of_node_tag (Heap.heap_get_tag heap value_addr));
+
       (* print the value address *)
-
-
       state.os := value_addr :: !(state.os);
       Ok VUndefined
-
   | LDF { arity; addr } ->
       (* 1. Get current environment address *)
       let env_addr = !(state.env_addr) in
-      
+
       (* 2. Allocate closure with arity, code address, and environment *)
-      let closure_addr = 
-        Heap.heap_allocate_closure state.heap 
-          ~arity 
-          ~code_addr:addr 
-          ~env_addr
+      let closure_addr =
+        Heap.heap_allocate_closure state.heap ~arity ~code_addr:addr ~env_addr
       in
 
       (* print the closure address *)
-      Printf.printf "closure_addr: %d\n" closure_addr;
-
-
+      (* Printf.printf "closure_addr: %d\n" closure_addr; *)
 
       (* 3. Push closure address to operand stack *)
       state.os := closure_addr :: !(state.os);
-      
+
       Ok VUndefined
   | RESET -> (
       (* pc - 1*)
@@ -276,6 +324,7 @@ let execute_instruction state instr =
       apply_unop ~op state;
       Ok VUndefined
   | BINOP op ->
+      (* print the entire heap *)
       apply_binop ~op state;
       Ok VUndefined
   | BORROW ->
@@ -299,75 +348,82 @@ let execute_instruction state instr =
       (* 1. Pop boolean value from operand stack *)
       let bool_addr = List.hd os in
       let is_true = Heap.heap_get_bool_value state.heap bool_addr in
-      
+
       (* 2. Update PC based on boolean value *)
       if is_true then
-        state.pc := !(state.pc) + 1  (* Continue to next instruction *)
-      else
-        state.pc := addr;            (* Jump to target address *)
-      
+        state.pc := !(state.pc) + 1 (* Continue to next instruction *)
+      else state.pc := addr;
+
+      (* Jump to target address *)
+
       (* 3. Update operand stack *)
       state.os := List.tl os;
-      
+
       Ok (VAddress addr)
   | GOTO addr ->
       (* Simply set PC to target address *)
       state.pc := addr;
       Ok (VAddress addr)
   | CALL arity ->
-
       (* print the operand stack *)
-      Printf.printf "before os: [";
+      (* Printf.printf "before os: ["; *)
       List.iter (fun addr -> Printf.printf "%d; " addr) !(state.os);
-      Printf.printf "]\n";
+
+      (* Printf.printf "]\n"; *)
 
       (* 1. Get the function from the top n of the operand stack *)
       let fun_addr = List.nth !(state.os) arity in
 
       (* print the address of the function *)
-      Printf.printf "fun_addr: %d\n" fun_addr;
+      (* Printf.printf "fun_addr: %d\n" fun_addr; *)
       (* 2. Check if it's a builtin *)
-      if Heap.heap_get_tag state.heap fun_addr = Heap.Builtin_tag then (
-          (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
-          (* TODO: Implement apply_builtin *)
-          failwith "Builtin functions not implemented yet"
-      ) else (
-          (* 3. Allocate frame for arguments *)
-          let frame_addr = Heap.heap_allocate state.heap ~size:arity ~tag:Heap.Frame_tag in
-          
-          (* 4. Pop arguments from operand stack and set them in the frame *)
-          let rec set_args i =
-              if i < 0 then ()
-              else (
-                  let arg_addr = List.hd !(state.os) in
-                  state.os := List.tl !(state.os);
-                  Printf.printf "arg_addr: %d\n" arg_addr;
-                  Heap.heap_set_child state.heap ~address:frame_addr ~child_index:i ~value:(Float.of_int arg_addr);
-                  set_args (i - 1)
-              )
-          in
-          set_args (arity - 1);
-          
-          (* 5. Pop the function *)
-          state.os := List.tl !(state.os);
-          
-          (* 6. Push callframe to runtime stack *)
-          let callframe_addr = Heap.heap_allocate_callframe state.heap ~pc:!(state.pc) ~env_addr:!(state.env_addr) in
-          state.rts := callframe_addr :: !(state.rts);
-          
-          (* 7. Update environment *)
-          let closure_env = Heap.heap_get_closure_env_addr state.heap fun_addr in
-          state.env_addr := Heap.heap_env_extend state.heap ~new_frame_addr:closure_env;
-          
+      if Heap.heap_get_tag state.heap fun_addr = Heap.Builtin_tag then
+        (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
+        (* TODO: Implement apply_builtin *)
+        failwith "Builtin functions not implemented yet"
+      else
+        (* 3. Allocate frame for arguments *)
+        let frame_addr =
+          Heap.heap_allocate_frame state.heap ~num_values:arity
+        in
+        (* Printf.printf "[call] num frame vals: %d\n" (Heap.heap_get_num_children state.heap frame_addr); *)
+        (* 4. Pop arguments from operand stack and set them in the frame *)
+        let rec set_args i =
+          if i < 0 then ()
+          else
+            let arg_addr = List.hd !(state.os) in
+            Printf.printf "setting child %d to %d\n" i arg_addr;
+            state.os := List.tl !(state.os);
+            (* Printf.printf "arg_addr: %d\n" arg_addr; *)
+            Heap.heap_set_child state.heap ~address:frame_addr ~child_index:i
+              ~value:(Float.of_int arg_addr);
+            set_args (i - 1)
+        in
+        set_args (arity - 1);
 
-         
-          
-          (* 8. Update PC to function's code address *)
-          state.pc := Heap.heap_get_closure_code_addr state.heap fun_addr;
+        (* print the frame adn values of the args *)
 
+        (* 5. Pop the function *)
+        state.os := List.tl !(state.os);
 
-          Ok (VAddress !(state.pc))
-      )
+        (* 6. Push callframe to runtime stack *)
+        let callframe_addr =
+          Heap.heap_allocate_callframe state.heap ~pc:!(state.pc)
+            ~env_addr:!(state.env_addr)
+        in
+        state.rts := callframe_addr :: !(state.rts);
+
+        (* 7. Update environment *)
+        let closure_env = Heap.heap_get_closure_env_addr state.heap fun_addr in
+        state.env_addr :=
+          Heap.heap_env_extend state.heap ~new_frame_addr:frame_addr
+            ~env_addr:closure_env;
+        Printf.printf "[CALL] env address: %d" !(state.env_addr);
+
+        (* 8. Update PC to function's code address *)
+        state.pc := Heap.heap_get_closure_code_addr state.heap fun_addr;
+
+        Ok (VAddress !(state.pc))
   | other ->
       Error
         (TypeError
@@ -378,13 +434,13 @@ let execute_instruction state instr =
 let run state instrs =
   let rec run_helper state =
     let pc = !(state.pc) in
-    Printf.printf "pc:%d\n" pc;
-    Printf.printf "OS: [";
-    List.iter (fun addr -> 
+    (* Printf.printf "pc:%d\n" pc; *)
+    (* Printf.printf "OS: ["; *)
+    (* List.iter (fun addr -> 
       let value = vm_value_of_address state.heap addr in
-      Printf.printf "%s; " (string_of_vm_value value)
-    ) !(state.os);
-    Printf.printf "]\n";
+      Printf.printf "%s; \n" (string_of_vm_value value)
+    ) !(state.os); *)
+    (* Printf.printf "]\n"; *)
 
     match List.nth_opt instrs pc with
     | None -> Error (TypeError (Printf.sprintf "Invalid program counter:%d" pc))
@@ -392,15 +448,12 @@ let run state instrs =
         match execute_instruction state instr with
         | Ok res -> (
             state.pc := pc + 1;
-            Printf.printf "res:%s\n" (show_vm_value res);
+            (* Printf.printf "res:%s\n" (show_vm_value res); *)
             match res with
             | VAddress addr ->
                 state.pc := addr;
                 if instr = DONE then Ok res else run_helper state
-            | _ ->
-                if instr = DONE then Ok res else run_helper state
-        )
-        | Error e -> Error e (* Early exit in case of error *)
-    )
+            | _ -> if instr = DONE then Ok res else run_helper state)
+        | Error e -> Error e (* Early exit in case of error *))
   in
   run_helper state

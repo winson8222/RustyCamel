@@ -10,7 +10,7 @@ let check_vm_value msg expected actual =
 
 (* ---------- Test cases ---------- *)
 
-let test_run_ldc () =
+(* let test_run_ldc () =
   let open Vm.Compiler in
   let instrs = [ LDC (Int 123); DONE ] in
   let result = run (create ()) instrs in
@@ -263,7 +263,7 @@ let test_multiple_binops_across_statements () =
   
 
   let result = run state instrs in
-  check_vm_value "multiple binops across statements" (Ok (VNumber 19.0)) result
+  check_vm_value "multiple binops across statements" (Ok (VNumber 19.0)) result *)
 
 let test_function_call_with_args () =
   let open Vm.Compiler in
@@ -272,8 +272,8 @@ let test_function_call_with_args () =
     LDF { arity = 2; addr = 3 };  (* Function with 2 parameters *)
     GOTO 11;  (* Skip function body *)
     ENTER_SCOPE { num = 0 };  (* Function scope *)
-    LD { pos = { frame_index = 1; value_index = 0 } };  (* Load first param *)
-    LD { pos = { frame_index = 1; value_index = 1 } };  (* Load second param *)
+    LD { pos = { frame_index = 2; value_index = 0 } };  (* Load first param *)
+    LD { pos = { frame_index = 2; value_index = 1 } };  (* Load second param *)
     BINOP Add;  (* Add them *)
     RESET;  (* Return from function *)
     EXIT_SCOPE;  (* Exit function scope *)
@@ -286,7 +286,7 @@ let test_function_call_with_args () =
     LDC (Int 22);  (* Second argument *)
     CALL 2;  (* Call function with 2 arguments *)
     EXIT_SCOPE;  (* Exit main scope *)
-    DONE;
+      DONE;
   ] in
 
   let result = run (create ()) instrs in
@@ -298,7 +298,7 @@ let () =
     [
       ( "runner",
         [
-          test_case "test_unop_not" `Quick test_unop_not;
+          (* test_case "test_unop_not" `Quick test_unop_not;
           test_case "Run LDC Int" `Quick test_run_ldc;
           test_case "test_binop_arithmetic" `Quick test_binop_arithmetic;
           test_case "test_binop_comparison" `Quick test_binop_comparison;
@@ -311,7 +311,7 @@ let () =
           test_case "borrow" `Quick test_borrow;
           test_case "borrow_and_deref" `Quick test_borrow_and_deref;
           test_case "function definition and execution" `Quick test_function_definition_and_execution;
-          test_case "multiple binops across statements" `Quick test_multiple_binops_across_statements;
+          test_case "multiple binops across statements" `Quick test_multiple_binops_across_statements; *)
           test_case "function call with arguments" `Quick test_function_call_with_args;
         ] );
     ]

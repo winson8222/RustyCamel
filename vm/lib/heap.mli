@@ -1,4 +1,4 @@
-type  t
+type t
 
 type node_tag =
   | False_tag
@@ -20,6 +20,7 @@ type node_tag =
 
 type config = {
   heap_size_words : int;
+  node_size : int;
   word_size : int;
   tag_offset : int;
   size_offset : int;
@@ -29,10 +30,13 @@ val initial_config : config
 val create : t (* TODO: Take in heap size as arg *)
 
 val heap_env_extend :
-  t -> new_frame_addr:int -> int (* returns new address of the head env *)
+  t ->
+  new_frame_addr:int ->
+  env_addr:int ->
+  int (* returns new address of the head env *)
 
-val heap_get_word : t -> int -> float
-val heap_set_word : t -> address:int -> word:float -> unit
+val heap_get : t -> int -> float
+val heap_set : t -> address:int -> word:float -> unit
 val heap_get_child : t -> address:int -> child_index:int -> float
 val heap_set_child : t -> address:int -> child_index:int -> value:float -> unit
 val heap_get_tag : t -> int -> node_tag
@@ -66,18 +70,23 @@ val debug_print_bytes : t -> int -> int -> unit
 val is_callframe : t -> int -> bool
 val heap_get_callframe_pc : t -> int -> int
 val heap_get_callframe_env : t -> int -> int
-val heap_get_ref_value: t -> int -> int
-val heap_allocate_ref: t -> float -> int
-val heap_free: t -> int -> unit
-val heap_free_at_pos: t -> env_addr:int -> frame_index:int -> val_index:int -> unit
-val heap_get_true: t -> int
-val heap_get_false: t -> int
-val heap_get_undefined: t -> int
-val heap_allocate_closure: t -> arity:int -> code_addr:int -> env_addr:int -> int
-val heap_get_closure_arity: t -> int -> int
-val heap_get_closure_code_addr: t -> int -> int
-val heap_get_closure_env_addr: t -> int -> int
+val heap_get_ref_value : t -> int -> int
+val heap_allocate_ref : t -> float -> int
+val heap_free : t -> int -> unit
 
-val string_of_node_tag: node_tag -> string
+val heap_free_at_pos :
+  t -> env_addr:int -> frame_index:int -> val_index:int -> unit
 
+val heap_get_true : t -> int
+val heap_get_false : t -> int
+val heap_get_undefined : t -> int
 
+val heap_allocate_closure :
+  t -> arity:int -> code_addr:int -> env_addr:int -> int
+
+val heap_get_closure_arity : t -> int -> int
+val heap_get_closure_code_addr : t -> int -> int
+val heap_get_closure_env_addr : t -> int -> int
+val string_of_node_tag : node_tag -> string
+val heap_allocate_frame : t -> num_values:int -> int
+val pretty_print_heap : t -> unit
