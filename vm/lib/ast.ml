@@ -58,7 +58,9 @@ let extract_basic_type (t : Yojson.Basic.t) =
   | "i32" -> Types.TInt
   | "bool" -> Types.TBoolean
   | "f32" -> Types.TFloat
-  | _ -> failwith "unsupported type to extraact in json"
+  | "String" -> Types.TString
+  | other ->
+      failwith (Printf.sprintf "unsupported type to extraact in json: %s" other)
 
 let rec extract_type declared_type_json =
   let open Yojson.Basic.Util in
