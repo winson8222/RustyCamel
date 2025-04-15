@@ -11,6 +11,8 @@ import {
     UnaryNegationContext,
     UnaryNotContext,
     BorrowExprContext,
+    RefTypeContext,
+    BasicTypeContext,
     UnaryToAtomContext,
     FunctionCallContext,
     MacroCallContext,
@@ -53,12 +55,13 @@ class RustAstVisitor
         return null;
     }
 
+
     visitLetDecl(ctx: any): any {
         // Does not handle this case: let ref x = 10; 
         console.log("Visiting Let Declaration");
         return {
             type: 'LetDecl',
-            name: ctx.IDENTIFIER().getText(),
+            name: ctx.IDENTIFIER().getText() ,
             value: ctx.expr() ? this.visit(ctx.expr()) : null,
             isMutable: ctx.MUT() !== null,
         };
