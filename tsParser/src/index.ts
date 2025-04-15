@@ -17,4 +17,4 @@ const parseRustToJson = async (file: string, outputPath: string) => {
 };
 
 (async () =>
-  await parseRustToJson("./src/tests/test.rs", "./src/tests/ast.json"))();
+  await parseRustToJson("./src/input/test.rs", "./src/output/ast.json"))();

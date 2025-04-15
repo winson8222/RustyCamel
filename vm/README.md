@@ -1,6 +1,6 @@
 TODO: 
 - Check scope logic. Seems like function always becomes a block
-- We dont' support lambda in the cur parser
+- We don't support lambda, const in the cur parser
 
 ## Formatting
 
