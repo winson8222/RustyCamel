@@ -926,7 +926,7 @@ export class RustParser extends antlr.Parser {
                 }
 
                 this.state = 188;
-                this.match(RustParser.IDENTIFIER);
+                this.typeExpr();
                 }
                 break;
             case RustParser.IDENTIFIER:
@@ -1051,7 +1051,7 @@ export class RustParser extends antlr.Parser {
         175,1,0,0,0,178,181,1,0,0,0,179,177,1,0,0,0,179,180,1,0,0,0,180,
         31,1,0,0,0,181,179,1,0,0,0,182,183,7,0,0,0,183,33,1,0,0,0,184,186,
         5,29,0,0,185,187,5,28,0,0,186,185,1,0,0,0,186,187,1,0,0,0,187,188,
-        1,0,0,0,188,191,5,30,0,0,189,191,5,30,0,0,190,184,1,0,0,0,190,189,
+        1,0,0,0,188,191,3,34,17,0,189,191,5,30,0,0,190,184,1,0,0,0,190,189,
         1,0,0,0,191,35,1,0,0,0,192,193,7,1,0,0,193,37,1,0,0,0,21,41,57,61,
         66,70,76,80,89,107,111,119,126,136,145,151,156,163,172,179,186,190
     ];
@@ -1979,8 +1979,8 @@ export class RefTypeContext extends TypeExprContext {
     public REF(): antlr.TerminalNode {
         return this.getToken(RustParser.REF, 0)!;
     }
-    public IDENTIFIER(): antlr.TerminalNode {
-        return this.getToken(RustParser.IDENTIFIER, 0)!;
+    public typeExpr(): TypeExprContext {
+        return this.getRuleContext(0, TypeExprContext)!;
     }
     public MUT(): antlr.TerminalNode | null {
         return this.getToken(RustParser.MUT, 0);

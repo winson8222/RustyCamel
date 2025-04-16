@@ -282,7 +282,8 @@ let heap_get_undefined state = (get_canonical_values state).undefined_addr
 
 let heap_allocate_value state lit_value =
   match lit_value with
-  | Value.Int i -> heap_allocate_number state (Float.of_int i)
+  | Types.Int i -> heap_allocate_number state (Float.of_int i)
+  | Float f ->  heap_allocate_number state f
   | String s -> heap_allocate_string state s
   | Boolean b -> (
       match b with true -> heap_get_true state | false -> heap_get_false state)

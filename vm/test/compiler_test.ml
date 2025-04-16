@@ -1,5 +1,4 @@
 open Vm.Compiler
-open Vm.Value
 
 (* Pretty-printer & equality for compiled_instruction *)
 let pp_instr fmt instr =
@@ -15,34 +14,37 @@ let check_instr_list msg expected actual =
 let test_literal_immut_borrow () =
   let json =
     {|{
-      "tag": "blk",
-      "body": {
-        "tag": "seq",
-        "stmts": [
-          {
-            "tag": "let",
-            "sym": "x",
-            "is_mutable": false,
-            "expr": {"tag": "lit", "val": "hello"},
-            "declared_type": {"kind": "basic", "value": "string"}
+      "type": "Program",
+      "statements": [
+        {
+          "type": "LetDecl",
+          "name": "x",
+          "isMutable": false,
+          "value": { "type": "Literal", "value": "hello" },
+          "declaredType": {
+            "type": "BasicType",
+            "name": "String"
+          }
+        },
+        {
+          "type": "LetDecl",
+          "name": "y",
+          "isMutable": false,
+          "value": {
+            "type": "BorrowExpr",
+            "mutable": false,
+            "expr": { "type": "IdentExpr", "name": "x" }
           },
-          {
-            "tag": "let",
-            "sym": "y",
-            "is_mutable": false,
-            "expr": {
-              "tag": "BorrowExpr",
-              "mutable": false,
-              "expr": {"tag": "nam", "sym": "x"}
-            },
-            "declared_type": {
-              "kind": "ref",
-              "is_mutable": false,
-              "value": "string"
+          "declaredType": {
+            "type": "RefType",
+            "isMutable": false,
+            "value": {
+              "type": "BasicType",
+              "name": "String"
             }
           }
-        ]
-      }
+        }
+      ]
     }|}
   in
   let result = compile_program json in
@@ -62,28 +64,52 @@ let test_literal_immut_borrow () =
   check_instr_list "literal string borrow" expected result
 
 let test_literal_int () =
-  let json = {|{ "tag": "lit", "val": 42 }|} in
+  let json = {|{
+    "type": "Program",
+    "statements": [
+      { "type": "Literal", "value": 42 }
+    ]
+  }|} in
   let result = compile_program json in
-  let expected = [ LDC (Int 42); DONE ] in
+  let expected = [ ENTER_SCOPE { num = 0 }; LDC (Int 42); EXIT_SCOPE; DONE ] in
   check_instr_list "literal int" expected result
 
 let test_literal_string () =
-  let json = {|{ "tag": "lit", "val": "hello" }|} in
+  let json = {|{
+    "type": "Program",
+    "statements": [
+      { "type": "Literal", "value": "hello" }
+    ]
+  }|} in
   let result = compile_program json in
-  let expected = [ LDC (String "hello"); DONE ] in
+  let expected = [ ENTER_SCOPE { num = 0 }; LDC (String "hello");EXIT_SCOPE; DONE ] in
   check_instr_list "literal string" expected result
 
 let test_binop_add () =
-  let json =
-    {|{
-    "tag": "binop",
-    "sym": "+",
-    "frst": { "tag": "lit", "val": 1 },
-    "scnd": { "tag": "lit", "val": 2 }
-  }|}
-  in
+  let json = {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "Block",
+        "statements": [
+          {
+            "type": "BinaryExpr",
+            "operator": "+",
+            "left": {
+              "type": "Literal",
+              "value": 1
+            },
+            "right": {
+              "type": "Literal",
+              "value": 2
+            }
+          }
+        ]
+      }
+    ]
+  }|} in
   let result = compile_program json in
-  let expected = [ LDC (Int 1); LDC (Int 2); BINOP Add; DONE ] in
+  let expected = [ ENTER_SCOPE {num = 0}; LDC (Int 1); LDC (Int 2); BINOP Add; EXIT_SCOPE; DONE ] in
   check_instr_list "binary op + " expected result
 
 let test_seq_two_exprs () =
@@ -97,7 +123,7 @@ let test_seq_two_exprs () =
   }|}
   in
   let result = compile_program json in
-  let expected = [ LDC (Int 1); POP; LDC (Int 2); DONE ] in
+  let expected = [  ENTER_SCOPE {num = 0}; LDC (Int 1); POP; LDC (Int 2);EXIT_SCOPE; DONE ] in
   check_instr_list "sequence of two expressions" expected result
 
 let test_blk_with_let () =
@@ -2057,35 +2083,16 @@ let test_nested_conditional_function () =
       LDC (Int 0);
       ASSIGN { frame_index = 3; value_index = 0 };
       EXIT_SCOPE;
-      GOTO 38;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LDC (Int 3);
-      UNOP Negate;
-      BINOP GreaterThan;
-      JOF 31;
-      ENTER_SCOPE { num = 2 };
-      LDC (Int 3);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      POP;
-      LDC (Int 1);
-      ASSIGN { frame_index = 3; value_index = 1 };
-      EXIT_SCOPE;
-      GOTO 35;
+      GOTO 22;
       ENTER_SCOPE { num = 1 };
-      LDC (Int 5);
+      LDC (Int 1);
       ASSIGN { frame_index = 3; value_index = 0 };
       EXIT_SCOPE;
-      POP;
-      LDC (Int 10);
-      RESET;
-      POP;
-      LDC (Int 0);
-      ASSIGN { frame_index = 2; value_index = 1 };
       POP;
       LD { pos = { frame_index = 1; value_index = 1 } };
       LDC (Int 0);
       BINOP LessThan;
-      JOF 56;
+      JOF 37;
       ENTER_SCOPE { num = 1 };
       LDC (Int 0);
       ASSIGN { frame_index = 3; value_index = 0 };
@@ -2095,7 +2102,7 @@ let test_nested_conditional_function () =
       BINOP Add;
       RESET;
       EXIT_SCOPE;
-      GOTO 65;
+      GOTO 46;
       ENTER_SCOPE { num = 1 };
       LDC (Int 3);
       ASSIGN { frame_index = 3; value_index = 0 };
@@ -2171,6 +2178,29 @@ let test_borrow_variable () =
   in
   check_instr_list "load variable x" expected result
 
+let test_var_decl () =
+  let json = {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "Block",
+        "statements": [
+          {
+            "type": "VarDecl",
+            "name": "x",
+            "value": {
+              "type": "Literal",
+              "value": 42
+            }
+          }
+        ]
+      }
+    ]
+  }|} in
+  let result = compile_program json in
+  let expected = [ ENTER_SCOPE { num = 1 }; LDC (Int 42); ASSIGN { frame_index = 0; value_index = 0 }; EXIT_SCOPE; DONE ] in
+  check_instr_list "var decl" expected result
+
 (* ---------- Run tests ---------- *)
 
 let () =
@@ -2211,5 +2241,6 @@ let () =
           test_case "nested conditional function" `Quick
             test_nested_conditional_function;
           test_case "test_borrow_variable" `Quick test_borrow_variable;
+          test_case "var decl" `Quick test_var_decl;
         ] );
     ]

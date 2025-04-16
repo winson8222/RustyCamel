@@ -74,7 +74,7 @@ binOp: '+' | '-' | '*' | '/' | '==' | '!=' | '<' | '<=' | '>' | '>=';
 
 // === Types ===
 typeExpr
-    : REF MUT? IDENTIFIER              #RefType
+    : REF MUT? typeExpr                #RefType
     | IDENTIFIER                       #BasicType
     ;
 

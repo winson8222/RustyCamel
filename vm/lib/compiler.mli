@@ -15,7 +15,7 @@ type binop_sym =
 [@@deriving show]
 
 type compiled_instruction =
-  | LDC of Value.lit_value
+  | LDC of Types.lit_value
   | ENTER_SCOPE of { num : int }
   | EXIT_SCOPE
   | JOF of int

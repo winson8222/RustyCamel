@@ -237,41 +237,67 @@ let test_function_definition_and_execution () =
 let test_multiple_binops_across_statements () =
   let open Vm.Compiler in
   let state = create () in
-  let instrs = [
-    ENTER_SCOPE { num = 2 };  (* Create scope for x and y variables *)
-    
-    (* First statement: (5 + 3) * 2 *)
-    LDC (Int 5);
-    LDC (Int 3);
-    BINOP Add;           (* 5 + 3 = 8 *)
-    LDC (Int 2);
-    BINOP Multiply;      (* 8 * 2 = 16 *)
-    ASSIGN { frame_index = 0; value_index = 0 };  (* Store result in x *)
-    
-    (* Second statement: (10 - 4) / 2 *)
-    LDC (Int 10);
-    LDC (Int 4);
-    BINOP Subtract;      (* 10 - 4 = 6 *)
-    LDC (Int 2);
-    BINOP Divide;        (* 6 / 2 = 3 *)
-    ASSIGN { frame_index = 0; value_index = 1 };  (* Store result in y *)
-    
-    (* Third statement: x + y *)
-    LD { pos = { frame_index = 0; value_index = 0 } };  (* Load x *)
-    LD { pos = { frame_index = 0; value_index = 1 } };  (* Load y *)
-    BINOP Add;           (* 16 + 3 = 19 *)
-    
-    EXIT_SCOPE;          (* Clean up scope *)
-    DONE
-  ] in
-  
-
+  let json = {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "Block",
+        "statements": [
+          {
+            "type": "LetDecl",
+            "name": "x",
+            "isMutable": false,
+            "value": {
+              "type": "BinaryExpr",
+              "operator": "*",
+              "left": {
+                "type": "BinaryExpr",
+                "operator": "+",
+                "left": { "type": "Literal", "value": 5 },
+                "right": { "type": "Literal", "value": 3 }
+              },
+              "right": { "type": "Literal", "value": 2 }
+            },
+            "declaredType": {
+              "type": "BasicType",
+              "name": "i32"
+            }
+          },
+          {
+            "type": "LetDecl",
+            "name": "y",
+            "isMutable": false,
+            "value": {
+              "type": "BinaryExpr",
+              "operator": "/",
+              "left": {
+                "type": "BinaryExpr",
+                "operator": "-",
+                "left": { "type": "Literal", "value": 10 },
+                "right": { "type": "Literal", "value": 4 }
+              },
+              "right": { "type": "Literal", "value": 2 }
+            },
+            "declaredType": {
+              "type": "BasicType",
+              "name": "i32"
+            }
+          },
+          {
+            "type": "BinaryExpr",
+            "operator": "+",
+            "left": { "type": "IdentExpr", "name": "x" },
+            "right": { "type": "IdentExpr", "name": "y" }
+          }
+        ]
+      }
+    ]
+  }|} in
+  let instrs = compile_program json in
   let result = run state instrs in
   check_vm_value "multiple binops across statements" (Ok (VNumber 19.0)) result
 
-
-
- let test_function_call_with_args () =
+let test_function_call_with_args () =
   let open Vm.Compiler in
   let instrs = [
     ENTER_SCOPE { num = 1 };  (* Scope for function *)

@@ -1,5 +1,5 @@
 type ast_node =
-  | Literal of Value.lit_value
+  | Literal of Types.lit_value
   | Nam of string
   | Block of ast_node
   | Sequence of ast_node list
@@ -19,7 +19,7 @@ type ast_node =
 [@@deriving show]
 
 type typed_ast =
-  | Literal of Value.lit_value
+  | Literal of Types.lit_value
   | Nam of string
   | Block of typed_ast
   | Sequence of typed_ast list

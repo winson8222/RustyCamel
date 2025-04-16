@@ -77,6 +77,7 @@ let rec type_ast ast_node state =
   | Literal lit -> (
       match lit with
       | Int _ -> Types.TInt
+      | Float _ -> Types.TFloat
       | Boolean _ -> Types.TBoolean
       | String _ -> Types.TString
       | Undefined -> Types.TUndefined)
