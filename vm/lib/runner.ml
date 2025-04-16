@@ -215,7 +215,7 @@ let apply_binop ~op state =
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
 
-  (* Heap.pretty_print_heap state.heap ; *)
+  Heap.pretty_print_heap state.heap ;
   (* heap_environment_display state.heap  !(state.env_addr); *)
   let heap = state.heap in
   let env_addr = !(state.env_addr) in

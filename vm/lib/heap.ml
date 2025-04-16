@@ -130,12 +130,11 @@ let heap_allocate state ~size ~tag =
   if !(state.free) = -1 then failwith "Heap ran out of memory"
   else
     let addr = !(state.free) in
-    (* Printf.printf "address:%s\n" (Int.to_string addr); *)
+    Printf.printf "Heap allocation: address=%d, size=%d, tag=%s, free_index=%d\n" 
+      addr size (string_of_node_tag tag) !(state.free);
     heap_set_tag state addr tag;
     heap_set_size state addr size;
     state.free := Float.to_int (heap_get state addr);
-
-    
     addr
 
 let heap_allocate_canonical_values state =
