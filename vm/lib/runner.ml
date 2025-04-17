@@ -384,17 +384,23 @@ let execute_instruction state instr =
       let bool_addr = List.hd os in
       let is_true = Heap.heap_get_bool_value state.heap bool_addr in
 
+      Printf.printf "JOF bool_addr: %d\n" bool_addr;
+
       (* 2. Update PC based on boolean value *)
       if is_true then
         state.pc := !(state.pc) + 1 (* Continue to next instruction *)
-      else state.pc := addr;
+      else 
+        state.pc := addr;
 
       (* Jump to target address *)
 
       (* 3. Update operand stack *)
       state.os := List.tl os;
 
-      Ok (VAddress addr)
+      if is_true then
+        Ok (VAddress (!(state.pc)))
+      else
+        Ok (VAddress addr)
   | GOTO addr ->
       (* Simply set PC to target address *)
       state.pc := addr;
