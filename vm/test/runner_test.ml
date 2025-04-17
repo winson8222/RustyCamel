@@ -396,6 +396,7 @@ let test_simple_function_return_param () =
       (* Argument *)
       CALL 1;
       (* Call function with 1 argument *)
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
       EXIT_SCOPE;
       (* Exit main scope *)
       DONE;
@@ -406,6 +407,24 @@ let test_simple_function_return_param () =
   check_vm_value "simple function that returns its parameter" (Ok (VNumber 1.0))
     result
 
+let test_simple_free () =
+  let open Vm.Compiler in
+  let instrs = [
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 1);
+    ASSIGN { frame_index = 0; value_index = 0 };
+    FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+    LDC (Int 2);
+    ASSIGN { frame_index = 0; value_index = 1 };
+    FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+    LDC (Int 3);
+    ASSIGN { frame_index = 0; value_index = 2 };
+    FREE { pos = { frame_index = 0; value_index = 2 }; to_free = false };
+    DONE;
+  ] in
+
+  let result = run (create ()) instrs in
+  check_vm_value "simple free" (Ok (VNumber 3.0)) result
 let () =
   let open Alcotest in
   run "VM Runner Tests"
@@ -430,5 +449,6 @@ let () =
           test_case "factorial of 5" `Quick test_factorial; *)
           test_case "simple function that returns its parameter" `Quick
             test_simple_function_return_param;
+          test_case "simple free" `Quick test_simple_free;
         ] );
     ]

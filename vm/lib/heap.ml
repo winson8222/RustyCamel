@@ -322,6 +322,11 @@ let heap_free state addr =
   (* 1. Get the current free pointer *)
   let current_free = !(state.free) in
 
+  Printf.printf "freeing addr: %d\n" addr;
+
+  (* change the tag of the node to unassigned *)
+  heap_set_tag state addr Unassigned_tag;
+
   (* 2. Set the freed node's first word to point to the current free node *)
   heap_set state ~address:addr ~word:(Float.of_int current_free);
 
