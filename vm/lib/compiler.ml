@@ -83,9 +83,9 @@ let get_compile_time_environment_pos sym ce =
         in
         match maybe_sym_index with
         | Some sym_index ->
-            { frame_index = cur_frame_index; value_index = sym_index }
-        | None -> helper sym tl_frames (cur_frame_index + 1))
-  in
+            { frame_index = (last_index - cur_frame_index); value_index = sym_index }
+            | None -> helper sym tl_frames (cur_frame_index + 1))
+          in
   helper sym reversed_ce 0
 
 let compile_time_environment_extend frame_vars ce = [ frame_vars ] @ ce
