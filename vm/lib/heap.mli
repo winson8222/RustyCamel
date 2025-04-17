@@ -1,13 +1,13 @@
 type t
 
 type node_tag =
+  | Unassigned_tag
   | False_tag
   | True_tag
   | Number_tag
   | String_tag
   | Ref_tag
   | Null_tag
-  | Unassigned_tag
   | Undefined_tag
   | Blockframe_tag
   | Callframe_tag

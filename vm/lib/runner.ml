@@ -218,7 +218,7 @@ let apply_binop ~op state =
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
 
-  (* Heap.pretty_print_heap state.heap ; *)
+  Heap.pretty_print_heap state.heap ;
   (* heap_environment_display state.heap  !(state.env_addr); *)
   let heap = state.heap in
   let env_addr = !(state.env_addr) in
@@ -281,6 +281,10 @@ let execute_instruction state instr =
 
       Printf.printf "pos frame index: %d\n" pos.frame_index;
       Printf.printf "pos value index: %d\n" pos.value_index;
+
+      (* print the environment address *)
+     
+
       (* 1. Get current environment address *)
       let value_addr =
         Heap.heap_get_env_val_addr_at_pos heap ~env_addr
@@ -396,6 +400,8 @@ let execute_instruction state instr =
   | CALL arity ->
       (* print the operand stack *)
       (* Printf.printf "before os: ["; *)
+
+
       List.iter (fun addr -> Printf.printf "%d; " addr) !(state.os);
 
       (* Printf.printf "]\n"; *)
@@ -415,6 +421,9 @@ let execute_instruction state instr =
         let frame_addr =
           Heap.heap_allocate_frame state.heap ~num_values:arity
         in
+
+        (* print the frame address *)
+        Printf.printf "[call] frame address: %d\n" frame_addr;
         (* Printf.printf "[call] num frame vals: %d\n" (Heap.heap_get_num_children state.heap frame_addr); *)
         (* 4. Pop arguments from operand stack and set them in the frame *)
         let rec set_args i =
@@ -444,10 +453,13 @@ let execute_instruction state instr =
 
         (* 7. Update environment *)
         let closure_env = Heap.heap_get_closure_env_addr state.heap fun_addr in
+
+        (* print the closure env *)
+  
         state.env_addr :=
           Heap.heap_env_extend state.heap ~new_frame_addr:frame_addr
             ~env_addr:closure_env;
-        Printf.printf "[CALL] closure address: %d" fun_addr;
+
 
         (* 8. Update PC to function's code address *)
         let closure_code_addr = Heap.heap_get_closure_code_addr state.heap fun_addr in
@@ -489,6 +501,8 @@ let run state instrs =
         match execute_instruction state instr with
         | Ok res -> (
             state.pc := pc + 1;
+            (* print the env address *)
+            Printf.printf "env_addr: %d\n" !(state.env_addr);
             (* Printf.printf "res:%s\n" (show_vm_value res); *)
             match res with
             | VAddress addr ->
