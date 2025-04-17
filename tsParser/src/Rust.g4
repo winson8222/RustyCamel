@@ -11,7 +11,6 @@ statement
     | ifExpr
     | block
     | expr ';'   // ← this allows expressions as standalone statements
-    | returnExpr
     ;
 
 // === Let Declaration ===
@@ -31,13 +30,9 @@ whileLoop: 'while' expr block;
 
 // === Block ===
 block
-    : '{' statement* returnExpr? '}'
+    : '{' statement* '}'
     ;
 
-returnExpr
-    : expr                             #ImplicitReturn
-    | expr ';'                         #ExplicitReturn
-    ;
 
 // === If Expression ===
 ifExpr: 'if' expr block ('else' block)?;
@@ -54,6 +49,7 @@ exprBinary
 exprUnary
     : '-' exprUnary                    #UnaryNegation
     | '!' exprUnary                    #UnaryNot
+    | RETURN expr                 #ReturnExpr
     | REF MUT? exprUnary               #BorrowExpr
     | '*' exprUnary                    #DerefExpr   
     | exprAtom                         #UnaryToAtom
@@ -88,6 +84,8 @@ literal
     ;
 
 // === Lexer Rules ===
+RETURN: 'return';
+
 MUT: 'mut';
 REF: '&';
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;

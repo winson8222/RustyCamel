@@ -12,13 +12,12 @@ import { ParamContext } from "./RustParser.js";
 import { ReturnTypeContext } from "./RustParser.js";
 import { WhileLoopContext } from "./RustParser.js";
 import { BlockContext } from "./RustParser.js";
-import { ImplicitReturnContext } from "./RustParser.js";
-import { ExplicitReturnContext } from "./RustParser.js";
 import { IfExprContext } from "./RustParser.js";
 import { ExprContext } from "./RustParser.js";
 import { BinaryExprContext } from "./RustParser.js";
 import { UnaryNegationContext } from "./RustParser.js";
 import { UnaryNotContext } from "./RustParser.js";
+import { ReturnExprContext } from "./RustParser.js";
 import { BorrowExprContext } from "./RustParser.js";
 import { DerefExprContext } from "./RustParser.js";
 import { UnaryToAtomContext } from "./RustParser.js";
@@ -130,30 +129,6 @@ export class RustListener implements ParseTreeListener {
      */
     exitBlock?: (ctx: BlockContext) => void;
     /**
-     * Enter a parse tree produced by the `ImplicitReturn`
-     * labeled alternative in `RustParser.returnExpr`.
-     * @param ctx the parse tree
-     */
-    enterImplicitReturn?: (ctx: ImplicitReturnContext) => void;
-    /**
-     * Exit a parse tree produced by the `ImplicitReturn`
-     * labeled alternative in `RustParser.returnExpr`.
-     * @param ctx the parse tree
-     */
-    exitImplicitReturn?: (ctx: ImplicitReturnContext) => void;
-    /**
-     * Enter a parse tree produced by the `ExplicitReturn`
-     * labeled alternative in `RustParser.returnExpr`.
-     * @param ctx the parse tree
-     */
-    enterExplicitReturn?: (ctx: ExplicitReturnContext) => void;
-    /**
-     * Exit a parse tree produced by the `ExplicitReturn`
-     * labeled alternative in `RustParser.returnExpr`.
-     * @param ctx the parse tree
-     */
-    exitExplicitReturn?: (ctx: ExplicitReturnContext) => void;
-    /**
      * Enter a parse tree produced by `RustParser.ifExpr`.
      * @param ctx the parse tree
      */
@@ -209,6 +184,18 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitUnaryNot?: (ctx: UnaryNotContext) => void;
+    /**
+     * Enter a parse tree produced by the `ReturnExpr`
+     * labeled alternative in `RustParser.exprUnary`.
+     * @param ctx the parse tree
+     */
+    enterReturnExpr?: (ctx: ReturnExprContext) => void;
+    /**
+     * Exit a parse tree produced by the `ReturnExpr`
+     * labeled alternative in `RustParser.exprUnary`.
+     * @param ctx the parse tree
+     */
+    exitReturnExpr?: (ctx: ReturnExprContext) => void;
     /**
      * Enter a parse tree produced by the `BorrowExpr`
      * labeled alternative in `RustParser.exprUnary`.

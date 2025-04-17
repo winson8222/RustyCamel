@@ -6,8 +6,6 @@ import { readFile } from 'fs/promises';
 
 // Import parser context types
 import {
-    ImplicitReturnContext,
-    ExplicitReturnContext,
     UnaryNegationContext,
     UnaryNotContext,
     BorrowExprContext,
@@ -127,18 +125,11 @@ class RustAstVisitor
 
     visitReturnExpr(ctx: any): any {
         console.log("Visiting Return Expression");
-        if (ctx instanceof ImplicitReturnContext) {
-            return {
-                type: 'ReturnExpr',
-                expr: this.visit(ctx.expr())
-            };
-        } else if (ctx instanceof ExplicitReturnContext) {
-            return {
-                type: 'ReturnExpr',
-                expr: this.visit(ctx.expr())
-            };
-        }
-        return null;
+       
+        return {
+            type: 'ReturnExpr',
+            expr: this.visit(ctx.expr())
+        };
     }
 
     visitIfExpr(ctx: IfExprContext): any {

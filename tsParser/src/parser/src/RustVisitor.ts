@@ -12,13 +12,12 @@ import { ParamContext } from "./RustParser.js";
 import { ReturnTypeContext } from "./RustParser.js";
 import { WhileLoopContext } from "./RustParser.js";
 import { BlockContext } from "./RustParser.js";
-import { ImplicitReturnContext } from "./RustParser.js";
-import { ExplicitReturnContext } from "./RustParser.js";
 import { IfExprContext } from "./RustParser.js";
 import { ExprContext } from "./RustParser.js";
 import { BinaryExprContext } from "./RustParser.js";
 import { UnaryNegationContext } from "./RustParser.js";
 import { UnaryNotContext } from "./RustParser.js";
+import { ReturnExprContext } from "./RustParser.js";
 import { BorrowExprContext } from "./RustParser.js";
 import { DerefExprContext } from "./RustParser.js";
 import { UnaryToAtomContext } from "./RustParser.js";
@@ -97,20 +96,6 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitBlock?: (ctx: BlockContext) => Result;
     /**
-     * Visit a parse tree produced by the `ImplicitReturn`
-     * labeled alternative in `RustParser.returnExpr`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitImplicitReturn?: (ctx: ImplicitReturnContext) => Result;
-    /**
-     * Visit a parse tree produced by the `ExplicitReturn`
-     * labeled alternative in `RustParser.returnExpr`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitExplicitReturn?: (ctx: ExplicitReturnContext) => Result;
-    /**
      * Visit a parse tree produced by `RustParser.ifExpr`.
      * @param ctx the parse tree
      * @return the visitor result
@@ -143,6 +128,13 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitUnaryNot?: (ctx: UnaryNotContext) => Result;
+    /**
+     * Visit a parse tree produced by the `ReturnExpr`
+     * labeled alternative in `RustParser.exprUnary`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitReturnExpr?: (ctx: ReturnExprContext) => Result;
     /**
      * Visit a parse tree produced by the `BorrowExpr`
      * labeled alternative in `RustParser.exprUnary`.
