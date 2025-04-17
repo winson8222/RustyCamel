@@ -31,7 +31,7 @@ let create () =
       heap = Heap.create ();
       pc = ref 0;
       os = ref [];
-      env_addr = ref 0;
+      env_addr = ref 40; (* temp *)
       rts = ref [];
     }
 in
@@ -241,7 +241,7 @@ let execute_instruction state instr =
       | [] -> Ok VUndefined
       | ops -> Ok (List.hd ops |> vm_value_of_address state.heap))
   | ENTER_SCOPE { num } ->
-
+      
       let new_blockframe_addr = Heap.heap_allocate_blockframe heap ~env_addr in
       state.rts := new_blockframe_addr :: !(state.rts);
       (* Printf.printf "RTS after ENTER_SCOPE: ["; *)
@@ -251,6 +251,9 @@ let execute_instruction state instr =
       let new_frame_addr = Heap.heap_allocate_frame heap ~num_values:num in
       Heap.heap_set_frame_children_to_unassigned heap ~frame_addr:new_frame_addr
         ~num_children:num;
+
+
+      (* print the new frame address *)
 
       state.env_addr :=
         Heap.heap_env_extend heap ~env_addr:!(state.env_addr) ~new_frame_addr;

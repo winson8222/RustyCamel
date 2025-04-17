@@ -137,7 +137,13 @@ let heap_allocate state ~size ~tag =
     state.free := Float.to_int (heap_get state addr);
     addr
 
-
+let heap_allocate_canonical_values state =
+  let unassigned_addr = heap_allocate state ~size:1 ~tag:Unassigned_tag in
+  let undefined_addr = heap_allocate state ~size:1 ~tag:Undefined_tag in
+  let false_addr = heap_allocate state ~size:1 ~tag:False_tag in
+  let true_addr = heap_allocate state ~size:1 ~tag:True_tag in
+  state.canonical_values <-
+    Some { unassigned_addr; undefined_addr; true_addr; false_addr }
 
 let callframe_pc_offset = 2
 
@@ -205,7 +211,11 @@ let heap_env_extend state ~new_frame_addr ~env_addr =
   in
   helper_copy_env_frames state 0;
 
-  heap_set_child state ~address:new_env_addr ~child_index:old_size
+  Printf.printf "new frame addr: %d\n" new_frame_addr;
+
+  Printf.printf "old size: %d\n" old_size;
+
+  heap_set_child state ~address:new_env_addr ~child_index:(old_size - 1)
     ~value:(Float.of_int new_frame_addr);
   new_env_addr
 
@@ -378,58 +388,33 @@ let heap_allocate_frame state ~num_values =
   let res = heap_allocate state ~size:(num_values + 1) ~tag:Frame_tag in
   res
 
-let heap_allocate_canonical_values state env_addr =
+let create () =
+  let state =
+    {
+      config = initial_config;
+      buffer =
+        Buffer.create (initial_config.heap_size_words * initial_config.word_size);
+      free = ref 0;
+      canonical_values = None;
+    }
+  in
+  (* Initialize free pointers first *)
+  let rec set_free_pointers  cur_state prev_addr cur_addr =
+    if cur_addr > heap_size_words - state.config.node_size then ()
+    else (
+      heap_set state ~address:prev_addr ~word:(Float.of_int cur_addr);
+      set_free_pointers cur_state cur_addr (cur_addr + state.config.node_size))
+  in
+  set_free_pointers state 0 initial_config.node_size;
 
+  (* Then allocate canonical values *)
+  heap_allocate_canonical_values state;
 
-  let frame_addr = heap_allocate_frame state ~num_values:4 in
+  (* create an env with 1 frame*)
+  let _ = heap_allocate_environment state ~num_frames:0 in 
 
-  let unassigned_addr = heap_allocate state ~size:1 ~tag:Unassigned_tag in
-  let undefined_addr = heap_allocate state ~size:1 ~tag:Undefined_tag in
-  let false_addr = heap_allocate state ~size:1 ~tag:False_tag in
-  let true_addr = heap_allocate state ~size:1 ~tag:True_tag in
+  state
 
-  (* set children of frame to canonical values*)
-  heap_set_child state ~address:frame_addr ~child_index:0 ~value:(Float.of_int unassigned_addr);
-  heap_set_child state ~address:frame_addr ~child_index:1 ~value:(Float.of_int undefined_addr);
-  heap_set_child state ~address:frame_addr ~child_index:2 ~value:(Float.of_int false_addr);
-  heap_set_child state ~address:frame_addr ~child_index:3 ~value:(Float.of_int true_addr);
-
-
-  (* set children of env to frame*)
-  heap_set_child state ~address:env_addr ~child_index:0 ~value:(Float.of_int frame_addr);
-
-  state.canonical_values <-
-  Some { unassigned_addr; undefined_addr; true_addr; false_addr }
-
-
-  let create () =
-    let state =
-      {
-        config = initial_config;
-        buffer =
-          Buffer.create (initial_config.heap_size_words * initial_config.word_size);
-        free = ref 0;
-        canonical_values = None;
-      }
-    in
-    (* Initialize free pointers first *)
-    let rec set_free_pointers  cur_state prev_addr cur_addr =
-      if cur_addr > heap_size_words - state.config.node_size then ()
-      else (
-        heap_set state ~address:prev_addr ~word:(Float.of_int cur_addr);
-        set_free_pointers cur_state cur_addr (cur_addr + state.config.node_size))
-    in
-    set_free_pointers state 0 initial_config.node_size;
-  
-  
-    (* create an env with 1 frame*)
-  
-    let env_addr = heap_allocate_environment state ~num_frames:1 in
-  
-  
-    (* Then allocate canonical values *)
-    heap_allocate_canonical_values state env_addr;
-    state
 (* Set all children to unassigned *)
 let pretty_print_heap state =
   Printf.printf "\n======= HEAP NODE DUMP =======\n";
@@ -479,7 +464,8 @@ let pretty_print_heap state =
           Printf.printf " (children: ";
           for j = 0 to num_children - 1 do
             let child_addr = Float.to_int (heap_get_child state ~address:addr ~child_index:j) in
-            Printf.printf "%d " child_addr;
+            let child_tag = heap_get_tag state child_addr in
+            Printf.printf "%d(%s) " child_addr (string_of_node_tag child_tag);
           done;
           Printf.printf ")");
         Printf.printf "\n";
