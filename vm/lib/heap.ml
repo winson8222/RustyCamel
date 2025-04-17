@@ -130,8 +130,9 @@ let heap_allocate state ~size ~tag =
   if !(state.free) = -1 then failwith "Heap ran out of memory"
   else
     let addr = !(state.free) in
-    Printf.printf "Heap allocation: address=%d, size=%d, tag=%s, free_index=%d\n" 
-      addr size (string_of_node_tag tag) !(state.free);
+    Printf.printf
+      "Heap allocation: address=%d, size=%d, tag=%s, free_index=%d\n" addr size
+      (string_of_node_tag tag) !(state.free);
     heap_set_tag state addr tag;
     heap_set_size state addr size;
     state.free := Float.to_int (heap_get state addr);
@@ -165,8 +166,6 @@ let heap_allocate_callframe state ~pc ~env_addr =
     ~value:(Float.of_int env_addr);
 
   addr
-
-
 
 (* One child : Blockframe address *)
 let heap_allocate_blockframe state ~env_addr =
@@ -260,16 +259,18 @@ let heap_allocate_string state str =
   addr
 
 let heap_get_true state = (get_canonical_values state).true_addr
+
 let heap_get_false state =
-   (
-    Printf.printf "heap get false";
-    get_canonical_values state).false_addr
+  (Printf.printf "heap get false";
+   get_canonical_values state)
+    .false_addr
+
 let heap_get_undefined state = (get_canonical_values state).undefined_addr
 
 let heap_allocate_value state lit_value =
   match lit_value with
   | Types.Int i -> heap_allocate_number state (Float.of_int i)
-  | Float f ->  heap_allocate_number state f
+  | Float f -> heap_allocate_number state f
   | String s -> heap_allocate_string state s
   | Boolean b -> (
       match b with true -> heap_get_true state | false -> heap_get_false state)
@@ -402,7 +403,7 @@ let create () =
     }
   in
   (* Initialize free pointers first *)
-  let rec set_free_pointers  cur_state prev_addr cur_addr =
+  let rec set_free_pointers cur_state prev_addr cur_addr =
     if cur_addr > heap_size_words - state.config.node_size then ()
     else (
       heap_set state ~address:prev_addr ~word:(Float.of_int cur_addr);
@@ -414,7 +415,7 @@ let create () =
   heap_allocate_canonical_values state;
 
   (* create an env with 1 frame*)
-  let _ = heap_allocate_environment state ~num_frames:0 in 
+  let _ = heap_allocate_environment state ~num_frames:0 in
 
   state
 
@@ -422,18 +423,15 @@ let create () =
 let pretty_print_heap state =
   Printf.printf "\n======= HEAP NODE DUMP =======\n";
   let rec print_node addr =
-
     if addr >= heap_size_words then ()
     else
-      try 
+      try
         let tag = heap_get_tag state addr in
         let num_children = heap_get_num_children state addr in
         Printf.printf "[%04d]: %s" addr (string_of_node_tag tag);
 
-
-        
         (* Print node-specific conte  nt *)
-        match tag with
+        (match tag with
         | Number_tag ->
             let value = heap_get_number_value state addr in
             Printf.printf " (value: %f)" value
@@ -459,30 +457,29 @@ let pretty_print_heap state =
             let size = heap_get_size state addr in
             Printf.printf " (num_frames: %d)" (size - 1)
         | Unassigned_tag -> Printf.printf " (unassigned)"
-        | _ -> Printf.printf " (unknown tag)";
-        ;
-        
+        | _ -> Printf.printf " (unknown tag)");
+
         (* Print children if any *)
         if num_children > 0 then (
           Printf.printf " (children: ";
           for j = 0 to num_children - 1 do
-            let child_addr = Float.to_int (heap_get_child state ~address:addr ~child_index:j) in
+            let child_addr =
+              Float.to_int (heap_get_child state ~address:addr ~child_index:j)
+            in
             let child_tag = heap_get_tag state child_addr in
-            Printf.printf "%d(%s) " child_addr (string_of_node_tag child_tag);
+            Printf.printf "%d(%s) " child_addr (string_of_node_tag child_tag)
           done;
           Printf.printf ")");
         Printf.printf "\n";
-        
+
         (* Move to next node *)
         print_node (addr + state.config.node_size)
-      with
-      | Failure msg ->
-          Printf.printf "[%04d]: %s\n" addr "Unknown tag";
-          Printf.printf "Error: %s at address %d\n" msg addr;
-          (* If we can't read the tag, move one word at a time until we find a valid tag *)
-          let next_addr = addr + 1 in
-          if next_addr >= heap_size_words then ()
-          else print_node next_addr
+      with Failure msg ->
+        Printf.printf "[%04d]: %s\n" addr "Unknown tag";
+        Printf.printf "Error: %s at address %d\n" msg addr;
+        (* If we can't read the tag, move one word at a time until we find a valid tag *)
+        let next_addr = addr + 1 in
+        if next_addr >= heap_size_words then () else print_node next_addr
   in
   print_node 0;
   Printf.printf "================================\n"

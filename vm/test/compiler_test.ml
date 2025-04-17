@@ -2202,7 +2202,8 @@ let test_var_decl () =
   check_instr_list "var decl" expected result *)
 
 let test_factorial () =
-  let json = {|{
+  let json =
+    {|{
     "type": "Program",
     "statements": [
       {
@@ -2300,7 +2301,8 @@ let test_factorial () =
         ]
       }
     ]
-  }|} in
+  }|}
+  in
   let result = compile_program json in
   let expected =
     [

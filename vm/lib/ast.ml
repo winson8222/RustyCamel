@@ -64,20 +64,19 @@ let extract_basic_type (t : Yojson.Basic.t) =
 
 let rec extract_type declared_type_json =
   let open Yojson.Basic.Util in
-  if declared_type_json = `Null then
-   Types.TUndefined
+  if declared_type_json = `Null then Types.TUndefined
   else
     (* Printf.printf "declared_type_json: %s\n" (Yojson.Basic.to_string declared_type_json); *)
     (* Printf.printf "declared_type_json type: %s\n" (declared_type_json |> member "type" |> to_string); *)
-  match declared_type_json |> member "type" |> to_string with
-  | "BasicType" -> extract_basic_type declared_type_json
-  | "RefType" ->
-      let referenced_type =
-        declared_type_json |> member "value" |> extract_type
-      in
-      let is_mutable = declared_type_json |> member "isMutable" |> to_bool in
-      Types.TRef { base = referenced_type; is_mutable }
-  | _ -> failwith "unexpected type"
+    match declared_type_json |> member "type" |> to_string with
+    | "BasicType" -> extract_basic_type declared_type_json
+    | "RefType" ->
+        let referenced_type =
+          declared_type_json |> member "value" |> extract_type
+        in
+        let is_mutable = declared_type_json |> member "isMutable" |> to_bool in
+        Types.TRef { base = referenced_type; is_mutable }
+    | _ -> failwith "unexpected type"
 
 (* Produces typed ast *)
 let rec of_json json =
@@ -88,10 +87,22 @@ let rec of_json json =
   match tag with
   | "Program" ->
       let stmts = json |> member "statements" |> to_list in
-      Block (Sequence (List.map (fun x -> Printf.printf "next statement in program"; of_json x) stmts))
+      Block
+        (Sequence
+           (List.map
+              (fun x ->
+                Printf.printf "next statement in program";
+                of_json x)
+              stmts))
   | "Block" ->
       let stmts = json |> member "statements" |> to_list in
-      Block (Sequence (List.map (fun x -> Printf.printf "next statement in block\n"; of_json x) stmts))
+      Block
+        (Sequence
+           (List.map
+              (fun x ->
+                Printf.printf "next statement in block\n";
+                of_json x)
+              stmts))
   | "Literal" -> (
       let value = member "value" json in
       match value with
@@ -170,11 +181,11 @@ let rec of_json json =
           body = json |> member "body" |> of_json;
         }
   | "ReturnExpr" -> Ret (json |> member "expr" |> of_json)
-  | "FunctionCall" ->(
-    Printf.printf "function casll";
+  | "FunctionCall" ->
+      Printf.printf "function casll";
       let fun_nam = Nam (json |> member "name" |> to_string) in
       let args = json |> member "args" |> to_list |> List.map of_json in
-      App { fun_nam; args })
+      App { fun_nam; args }
   | "AssignmentStmt" ->
       Assign
         {

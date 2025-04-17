@@ -85,12 +85,12 @@ let get_compile_time_environment_pos sym ce =
         match maybe_sym_index with
         | Some sym_index ->
             Printf.printf "found in frame %d\n" cur_frame_index;
-            { frame_index = (n - 1 - cur_frame_index); value_index = sym_index }
+            { frame_index = n - 1 - cur_frame_index; value_index = sym_index }
         | None -> helper sym tl_frames (cur_frame_index + 1))
   in
   helper sym reversed_ce 0
 
-let compile_time_environment_extend frame_vars ce = ce @ [ frame_vars ] 
+let compile_time_environment_extend frame_vars ce = ce @ [ frame_vars ]
 
 (* Compilation functions *)
 let rec compile (node : Ast.ast_node) state =
@@ -105,7 +105,6 @@ let rec compile (node : Ast.ast_node) state =
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
       let extended_ce = compile_time_environment_extend locals state.ce in
-
 
       (* First add ENTER_SCOPE *)
       let enter_scope_instr = ENTER_SCOPE { num = num_locals } in
