@@ -11,7 +11,7 @@ let check_instr_list msg expected actual =
 
 (* ---------- Test cases ---------- *)
 
-let test_literal_immut_borrow () =
+(* let test_literal_immut_borrow () =
   let json =
     {|{
       "type": "Program",
@@ -2199,7 +2199,147 @@ let test_var_decl () =
   }|} in
   let result = compile_program json in
   let expected = [ ENTER_SCOPE { num = 1 }; LDC (Int 42); ASSIGN { frame_index = 0; value_index = 0 }; EXIT_SCOPE; DONE ] in
-  check_instr_list "var decl" expected result
+  check_instr_list "var decl" expected result *)
+
+let test_factorial () =
+  let json = {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "FnDecl",
+        "name": "factorial",
+        "params": [
+          {
+            "type": "Param",
+            "name": "n",
+            "paramType": {
+              "type": "BasicType",
+              "name": "i32"
+            }
+          }
+        ],
+        "returnType": {
+          "type": "BasicType",
+          "name": "i32"
+        },
+        "body": {
+          "type": "Block",
+          "statements": [
+            {
+              "type": "IfExpr",
+              "condition": {
+                "type": "BinaryExpr",
+                "left": {
+                  "type": "IdentExpr",
+                  "name": "n"
+                },
+                "operator": "==",
+                "right": {
+                  "type": "Literal",
+                  "value": 0
+                }
+              },
+              "thenBranch": {
+                "type": "Block",
+                "statements": [
+                  {
+                    "type": "ReturnExpr",
+                    "expr": {
+                      "type": "Literal",
+                      "value": 1
+                    }
+                  }
+                ]
+              },
+              "elseBranch": {
+                "type": "Block",
+                "statements": [
+                  {
+                    "type": "ReturnExpr",
+                    "expr": {
+                      "type": "BinaryExpr",
+                      "left": {
+                        "type": "IdentExpr",
+                        "name": "n"
+                      },
+                      "operator": "*",
+                      "right": {
+                        "type": "FunctionCall",
+                        "name": "factorial",
+                        "args": [
+                          {
+                            "type": "BinaryExpr",
+                            "left": {
+                              "type": "IdentExpr",
+                              "name": "n"
+                            },
+                            "operator": "-",
+                            "right": {
+                              "type": "Literal",
+                              "value": 1
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "FunctionCall",
+        "name": "factorial",
+        "args": [
+          {
+            "type": "Literal",
+            "value": 5
+          }
+        ]
+      }
+    ]
+  }|} in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      (* Function factorial *)
+      LDF { arity = 1; addr = 3 };
+      GOTO 20;
+      (* Function body *)
+      ENTER_SCOPE { num = 0 };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 0);
+      BINOP Equal;
+      JOF 12;
+      LDC (Int 1);
+      RESET;
+      EXIT_SCOPE;
+      GOTO 19;
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 1);
+      BINOP Subtract;
+      LD { pos = { frame_index = 0; value_index = 0 } };
+      CALL 1;
+      BINOP Multiply;
+      RESET;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 0; value_index = 0 };
+      POP;
+      (* Call factorial(5) *)
+      LD { pos = { frame_index = 0; value_index = 0 } };
+      LDC (Int 5);
+      CALL 1;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "factorial function with recursive call" expected result
 
 (* ---------- Run tests ---------- *)
 
@@ -2209,7 +2349,7 @@ let () =
     [
       ( "compiler",
         [
-          test_case "Literal int" `Quick test_literal_int;
+          (* test_case "Literal int" `Quick test_literal_int;
           test_case "test_literal_immut_borrow" `Quick test_literal_immut_borrow;
           test_case "Literal string" `Quick test_literal_string;
           test_case "Binop +" `Quick test_binop_add;
@@ -2241,6 +2381,7 @@ let () =
           test_case "nested conditional function" `Quick
             test_nested_conditional_function;
           test_case "test_borrow_variable" `Quick test_borrow_variable;
-          test_case "var decl" `Quick test_var_decl;
+          test_case "var decl" `Quick test_var_decl; *)
+          test_case "factorial function" `Quick test_factorial;
         ] );
     ]

@@ -55,7 +55,7 @@ type t = {
   mutable canonical_values : canonical_values option;
 }
 
-let heap_size_words = 200
+let heap_size_words = 300
 
 let initial_config =
   {

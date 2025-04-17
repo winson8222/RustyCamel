@@ -248,6 +248,8 @@ let execute_instruction state instr =
       List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts);
 
       (* Printf.printf "]\n"; *)
+
+      Printf.printf "num: %d\n" num;
       let new_frame_addr = Heap.heap_allocate_frame heap ~num_values:num in
       Heap.heap_set_frame_children_to_unassigned heap ~frame_addr:new_frame_addr
         ~num_children:num;
@@ -295,7 +297,6 @@ let execute_instruction state instr =
       in
 
       (* print the value address *)
-      Printf.printf "LD value_addr: %d\n" value_addr;
 
       (* print the value *)
 
