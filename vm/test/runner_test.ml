@@ -366,7 +366,7 @@ let test_function_call_with_args () =
     check_vm_value "factorial of 5" (Ok (VNumber 120.0)) result *)
 
 
-(* let test_simple_function_return_param () =
+let test_simple_function_return_param () =
   let open Vm.Compiler in
   let instrs = [
     ENTER_SCOPE { num = 1 }; 
@@ -388,7 +388,7 @@ let test_function_call_with_args () =
   ] in
 
   let result = run (create ()) instrs in
-  check_vm_value "simple function that returns its parameter" (Ok (VNumber 1.0)) result *)
+  check_vm_value "simple function that returns its parameter" (Ok (VNumber 1.0)) result
 
 
 
@@ -414,6 +414,6 @@ let () =
           test_case "multiple binops across statements" `Quick test_multiple_binops_across_statements;
           test_case "function call with arguments" `Quick test_function_call_with_args;
           test_case "factorial of 5" `Quick test_factorial; *)
-          (* test_case "simple function that returns its parameter" `Quick test_simple_function_return_param; *)
+          test_case "simple function that returns its parameter" `Quick test_simple_function_return_param;
         ] );
     ]

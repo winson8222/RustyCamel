@@ -18,7 +18,9 @@ import {
     LiteralExprContext,
     IdentExprContext,
     BlockContext,
-    IfExprContext
+    IfExprContext,
+    AssignmentContext,
+    AssignmentStmtContext
 } from './parser/src/RustParser.js';
 
 
@@ -39,6 +41,8 @@ class RustAstVisitor
             return this.visit(ctx.letDecl());
         } else if (ctx.fnDecl()) {
             return this.visit(ctx.fnDecl());
+        } else if (ctx.assignment()) {
+            return this.visit(ctx.assignment());
         } else if (ctx.whileLoop()) {
             return this.visit(ctx.whileLoop());
         } else if (ctx.ifExpr()) {
@@ -53,6 +57,23 @@ class RustAstVisitor
         return null;
     }
 
+    visitAssignment(ctx: any): any {
+        console.log("Visiting Assignment Statement");
+        return {
+          type: 'AssignmentStmt',
+          name: ctx.IDENTIFIER().getText(),
+          value: this.visit(ctx.expr())
+        };
+      }
+
+      visitAssignmentStmt(ctx: AssignmentStmtContext): any {
+        console.log("Visiting AssignmentStmt");
+        return {
+          type: "AssignmentStmt",
+          name: ctx.IDENTIFIER().getText(),
+          value: this.visit(ctx.expr())
+        };
+      }
 
     visitLetDecl(ctx: any): any {
         if (!ctx.expr() || !ctx.typeExpr()) {

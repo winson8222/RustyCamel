@@ -175,11 +175,11 @@ let rec of_json json =
       let fun_nam = Nam (json |> member "name" |> to_string) in
       let args = json |> member "args" |> to_list |> List.map of_json in
       App { fun_nam; args })
-  | "assmt" ->
+  | "AssignmentStmt" ->
       Assign
         {
-          sym = json |> member "sym" |> to_string;
-          expr = json |> member "expr" |> of_json;
+          sym = json |> member "name" |> to_string;
+          expr = json |> member "value" |> of_json;
         }
   | "IfExpr" ->
       Cond

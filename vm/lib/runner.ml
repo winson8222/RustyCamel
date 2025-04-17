@@ -218,7 +218,7 @@ let apply_binop ~op state =
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
 
-  Heap.pretty_print_heap state.heap ;
+  (* Heap.pretty_print_heap state.heap ; *)
   (* heap_environment_display state.heap  !(state.env_addr); *)
   let heap = state.heap in
   let env_addr = !(state.env_addr) in
@@ -301,8 +301,14 @@ let execute_instruction state instr =
       (* print the value *)
 
       (* print the type of the value address *)
-      Printf.printf "LD got tag: %s\n"
-        (Heap.string_of_node_tag (Heap.heap_get_tag heap value_addr));
+      let tag = Heap.heap_get_tag heap value_addr in
+      Printf.printf "LD got tag: %s" (Heap.string_of_node_tag tag);
+      (match tag with
+      | Heap.Number_tag -> 
+          let value = Heap.heap_get_number_value heap value_addr in
+          Printf.printf " (value: %f)" value
+      | _ -> ());
+      Printf.printf "\n";
 
       (* print the value address *)
       state.os := value_addr :: !(state.os);
