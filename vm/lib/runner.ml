@@ -452,6 +452,9 @@ let execute_instruction state instr =
           Heap.heap_allocate_callframe state.heap ~pc:!(state.pc)
             ~env_addr:!(state.env_addr)
         in
+
+        (* print the size of the callframe *)
+    
         state.rts := callframe_addr :: !(state.rts);
 
         (* 7. Update environment *)

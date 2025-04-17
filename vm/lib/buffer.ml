@@ -41,3 +41,4 @@ let set_uint16_at_offset buffer offset value =
   Array1.unsafe_set
     (Obj.magic ba : (int, int16_unsigned_elt, c_layout) Array1.t)
     0 value
+

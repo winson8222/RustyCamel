@@ -157,10 +157,13 @@ let heap_get_two_bytes_in_word_at_offset state ~addr ~offset =
 
 let heap_allocate_callframe state ~pc ~env_addr =
   let addr = heap_allocate state ~size:2 ~tag:Callframe_tag in
+  (* print the size of the callframe *)
   heap_set_two_bytes_in_word_at_offset state ~addr ~offset:callframe_pc_offset
     ~value:pc;
+
   heap_set_child state ~address:addr ~child_index:0
     ~value:(Float.of_int env_addr);
+
   addr
 
 
