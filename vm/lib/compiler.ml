@@ -74,7 +74,7 @@ let rec scan_for_locals (node : Ast.ast_node) =
 
 let get_compile_time_environment_pos sym ce =
   let reversed_ce = List.rev ce in
-  (* let n = List.length reversed_ce in *)
+  let n = List.length reversed_ce in
   let rec helper sym ce cur_frame_index =
     match ce with
     | [] -> failwith "Symbol not found in compile time environment"
@@ -84,12 +84,13 @@ let get_compile_time_environment_pos sym ce =
         in
         match maybe_sym_index with
         | Some sym_index ->
-            { frame_index = cur_frame_index; value_index = sym_index }
+            Printf.printf "found in frame %d\n" cur_frame_index;
+            { frame_index = (n - 1 - cur_frame_index); value_index = sym_index }
         | None -> helper sym tl_frames (cur_frame_index + 1))
   in
   helper sym reversed_ce 0
 
-let compile_time_environment_extend frame_vars ce = [ frame_vars ] @ ce
+let compile_time_environment_extend frame_vars ce = ce @ [ frame_vars ] 
 
 (* Compilation functions *)
 let rec compile (node : Ast.ast_node) state =

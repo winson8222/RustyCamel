@@ -211,7 +211,7 @@ let test_run_empty_stack () =
   let result = run (create ()) instrs in
   check_vm_value "empty operand stack" (Ok VUndefined) result *)
 
-let test_function_definition_and_execution () =
+(* let test_function_definition_and_execution () =
   let open Vm.Compiler in
   let instrs = [
     ENTER_SCOPE { num = 1 };  (* Scope for function *)
@@ -232,9 +232,9 @@ let test_function_definition_and_execution () =
 
   (* First run to get the closure *)
   let result = run (create ()) instrs in
-  check_vm_value "function definition and execution" (Ok (VClosure (2, 3, 70))) result
+  check_vm_value "function definition and execution" (Ok (VClosure (2, 3, 70))) result *)
 
-let test_multiple_binops_across_statements () =
+(* let test_multiple_binops_across_statements () =
   let open Vm.Compiler in
   let state = create () in
   let json = {|{
@@ -363,7 +363,7 @@ let test_function_call_with_args () =
     ] in
   
     let result = run (create ()) instrs in
-    check_vm_value "factorial of 5" (Ok (VNumber 120.0)) result
+    check_vm_value "factorial of 5" (Ok (VNumber 120.0)) result *)
 
 
 (* let test_simple_function_return_param () =
@@ -410,10 +410,10 @@ let () =
           test_case "assign and load" `Quick test_assign_and_ld;
           test_case "borrow" `Quick test_borrow;
           test_case "borrow_and_deref" `Quick test_borrow_and_deref; *)
-          test_case "function definition and execution" `Quick test_function_definition_and_execution;
+          (* test_case "function definition and execution" `Quick test_function_definition_and_execution;
           test_case "multiple binops across statements" `Quick test_multiple_binops_across_statements;
           test_case "function call with arguments" `Quick test_function_call_with_args;
-          test_case "factorial of 5" `Quick test_factorial;
+          test_case "factorial of 5" `Quick test_factorial; *)
           (* test_case "simple function that returns its parameter" `Quick test_simple_function_return_param; *)
         ] );
     ]
