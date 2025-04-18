@@ -157,7 +157,6 @@ let rec type_ast ast_node state : tc_type =
            )
            else failwith "Binary operands have incompatible types"
        | _ -> failwith "Return not allowed in binary operation")
-
   | App { fun_nam; args } ->
       let fun_sym =
         match fun_nam with
@@ -178,7 +177,29 @@ let rec type_ast ast_node state : tc_type =
            | Ret _ -> failwith "Return not allowed in argument")
         prm_types arg_types;
       Value fun_type.ret
-
+      | Unop { sym; frst } -> (
+        match type_ast frst state with
+        | Value t -> (
+            match sym with
+            | Negate -> (
+                match t with
+                | Types.TInt | Types.TFloat -> Value t
+                | _ ->
+                    failwith
+                      ("Unary negation (-) not valid for type: "
+                      ^ Types.show_value_type t)
+              )
+            | LogicalNot -> (
+                match t with
+                | Types.TBoolean -> Value Types.TBoolean
+                | _ ->
+                    failwith
+                      ("Logical not (!) not valid for type: "
+                      ^ Types.show_value_type t)
+              )
+          )
+        | Ret _ -> failwith "Return not allowed in unary operation"
+      )
   | Deref expr -> (
       match type_ast expr state with
       | Value (Types.TRef { base; _ }) -> Value base
@@ -207,7 +228,6 @@ let rec type_ast ast_node state : tc_type =
           else failwith "Branches of if-else return incompatible types"
       | Ret _, Value _ | Value _, Ret _ ->
           failwith "Only one branch returns in conditional")
-
   | _ -> failwith "Type checking not supported"
 
 let check_type ast_node state =

@@ -29,6 +29,8 @@ type state = {
   instrs : compiled_instruction list; (* Symbol table with positions *)
   ce : string list list; (* list of frames—list of syms *)
   wc : int;
+  used_symbols : (string, pos_in_env) Hashtbl.t;
+  is_top_level : bool;
 }
 
 val get_compile_time_environment_pos : string -> string list list -> pos_in_env

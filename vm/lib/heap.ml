@@ -130,9 +130,7 @@ let heap_allocate state ~size ~tag =
   if !(state.free) = -1 then failwith "Heap ran out of memory"
   else
     let addr = !(state.free) in
-    Printf.printf
-      "Heap allocation: address=%d, size=%d, tag=%s, free_index=%d\n" addr size
-      (string_of_node_tag tag) !(state.free);
+    Printf.printf "Allocated address: %d\n" addr;
     heap_set_tag state addr tag;
     heap_set_size state addr size;
     state.free := Float.to_int (heap_get state addr);
@@ -182,7 +180,7 @@ let heap_set_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index
   let frame_addr =
     heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
   in
-  Printf.printf "frame_addr: %d\n" frame_addr;
+  Printf.printf "Setting value at frame %d, position %d to address %d\n" frame_addr val_index val_addr;
   (* Set the value at the specified index in the frame *)
   ignore
     (heap_set_child state ~address:frame_addr ~child_index:val_index
@@ -192,7 +190,6 @@ let heap_get_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index =
   let frame_addr =
     heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
   in
-  Printf.printf "frame_addr: %d\n" frame_addr;
   Float.to_int (heap_get_child state ~address:frame_addr ~child_index:val_index)
 
 let heap_env_extend state ~new_frame_addr ~env_addr =
@@ -212,10 +209,6 @@ let heap_env_extend state ~new_frame_addr ~env_addr =
       helper_copy_env_frames cur_state (child_index + 1)
   in
   helper_copy_env_frames state 0;
-
-  Printf.printf "new frame addr: %d\n" new_frame_addr;
-
-  Printf.printf "old size: %d\n" old_size;
 
   heap_set_child state ~address:new_env_addr ~child_index:(old_size - 1)
     ~value:(Float.of_int new_frame_addr);
@@ -261,9 +254,8 @@ let heap_allocate_string state str =
 let heap_get_true state = (get_canonical_values state).true_addr
 
 let heap_get_false state =
-  (Printf.printf "heap get false";
-   get_canonical_values state)
-    .false_addr
+  (* Printf.printf "heap get false"; *)
+  (get_canonical_values state).false_addr
 
 let heap_get_undefined state = (get_canonical_values state).undefined_addr
 
@@ -321,6 +313,11 @@ let heap_allocate_ref state number =
 let heap_free state addr =
   (* 1. Get the current free pointer *)
   let current_free = !(state.free) in
+
+  Printf.printf "Freed address: %d\n" addr;
+
+  (* change the tag of the node to unassigned *)
+  heap_set_tag state addr Unassigned_tag;
 
   (* 2. Set the freed node's first word to point to the current free node *)
   heap_set state ~address:addr ~word:(Float.of_int current_free);
@@ -421,7 +418,7 @@ let create () =
 
 (* Set all children to unassigned *)
 let pretty_print_heap state =
-  Printf.printf "\n======= HEAP NODE DUMP =======\n";
+  (* Printf.printf "\n======= HEAP NODE DUMP =======\n"; *)
   let rec print_node addr =
     if addr >= heap_size_words then ()
     else
@@ -430,7 +427,7 @@ let pretty_print_heap state =
         let num_children = heap_get_num_children state addr in
         Printf.printf "[%04d]: %s" addr (string_of_node_tag tag);
 
-        (* Print node-specific conte  nt *)
+        (* Print node-specific content *)
         (match tag with
         | Number_tag ->
             let value = heap_get_number_value state addr in
@@ -482,4 +479,4 @@ let pretty_print_heap state =
         if next_addr >= heap_size_words then () else print_node next_addr
   in
   print_node 0;
-  Printf.printf "================================\n"
+  (* Printf.printf "================================\n" *)
