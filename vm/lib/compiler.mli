@@ -1,18 +1,6 @@
-type pos_in_env = { frame_index : int; value_index : int }
-type unop_sym = Negate | LogicalNot [@@deriving show]
+open Ast
 
-type binop_sym =
-  | Add
-  | Subtract
-  | Multiply
-  | Divide
-  | LessThan
-  | LessThanEqual
-  | GreaterThan
-  | GreaterThanEqual
-  | Equal
-  | NotEqual
-[@@deriving show]
+type pos_in_env = { frame_index : int; value_index : int }
 
 type compiled_instruction =
   | LDC of Types.lit_value

@@ -162,10 +162,15 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
         prms;
       check_ownership_aux body new_state
   | Ret expr -> check_ownership_aux expr state
+  | Cond { pred; alt; cons} -> 
+    check_ownership_aux pred state |> check_ownership_aux alt |> check_ownership_aux cons
   | Literal _ -> state
-  | _ -> failwith "Unsupported ast node in ownership checking"
+  | Binop {  frst; scnd; _ }-> 
+    check_ownership_aux frst state |> check_ownership_aux scnd
+  | other -> failwith ("Unsupported ast node in ownership checking: " ^ (show_typed_ast other))
 
 let check_ownership typed_ast state =
+  Printf.printf "=========Starting ownership checking=========";
   try
     let _ = check_ownership_aux typed_ast state in
     Ok ()

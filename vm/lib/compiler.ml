@@ -1,36 +1,6 @@
+open Ast
+
 type pos_in_env = { frame_index : int; value_index : int } [@@deriving show]
-type unop_sym = Negate | LogicalNot [@@deriving show]
-
-type binop_sym =
-  | Add
-  | Subtract
-  | Multiply
-  | Divide
-  | LessThan
-  | LessThanEqual
-  | GreaterThan
-  | GreaterThanEqual
-  | Equal
-  | NotEqual
-[@@deriving show]
-
-let binop_of_string = function
-  | "+" -> Add
-  | "-" -> Subtract
-  | "*" -> Multiply
-  | "/" -> Divide
-  | "<" -> LessThan
-  | "<=" -> LessThanEqual
-  | ">" -> GreaterThan
-  | ">=" -> GreaterThanEqual
-  | "==" -> Equal
-  | "!=" -> NotEqual
-  | op -> failwith ("Unknown binary operator: " ^ op)
-
-let unop_of_string = function
-  | "-" -> Negate
-  | "!" -> LogicalNot
-  | op -> failwith ("Unknown unary operator: " ^ op)
 
 type compiled_instruction =
   | LDC of Types.lit_value
@@ -144,7 +114,7 @@ let rec compile (node : Ast.ast_node) state =
   | Binop { sym; frst; scnd } ->
       let frst_state = compile frst state in
       let sec_state = compile scnd frst_state in
-      let new_instr = BINOP (binop_of_string sym) in
+      let new_instr = BINOP sym in
       {
         instrs = sec_state.instrs @ [ new_instr ];
         wc = sec_state.wc + 1;
@@ -154,7 +124,7 @@ let rec compile (node : Ast.ast_node) state =
       }
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
-      let new_instr = UNOP (unop_of_string sym) in
+      let new_instr = UNOP sym in
       {
         instrs = state_aft_frst.instrs @ [ new_instr ];
         wc = state_aft_frst.wc + 1;
@@ -452,6 +422,20 @@ let string_of_instruction = show_compiled_instruction
 let compile_program json_str =
   let parsed_json = Yojson.Basic.from_string json_str in
   let typed_ast = Ast.of_json parsed_json in
+  
+  (* Type checking *)
+  let tc = Type_checker.create () in
+  let _ = match Type_checker.check_type typed_ast tc  with 
+  | Ok () -> ()
+  | Error msg -> failwith ("Error in type checking: " ^ msg ^ "\n")
+  in
+  (* Ownership checking *)
+  let oc = Ownership_checker.create () in 
+  let _ = match Ownership_checker.check_ownership typed_ast oc  with 
+  | Ok () -> ()
+  | Error msg -> failwith ("Error in ownership checking: " ^ msg ^ "\n") 
+  in
+  
   let ast = Ast.strip_types typed_ast in
   let state = compile ast initial_state in
   state.instrs @ [ DONE ]

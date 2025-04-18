@@ -103,7 +103,7 @@ let apply_unop ~op state =
 
   let res_addr =
     match op with
-    | LogicalNot -> (
+    | Ast.LogicalNot -> (
         match operand with
         | VBoolean b -> VBoolean (not b) |> vm_value_to_address heap
         | other ->
@@ -130,7 +130,7 @@ let apply_binop ~op state =
 
   let compute_number_op op =
     match op with
-    | Add -> (
+    | Ast.Add -> (
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VNumber (Float.add n1 n2)
         | _ ->
@@ -154,7 +154,7 @@ let apply_binop ~op state =
   in
 
   let compute_comparison = function
-    | LessThan -> (
+    | Ast.LessThan -> (
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VBoolean (n1 < n2)
         | _ -> failwith "Comparison requires matching numeric operands")
@@ -189,7 +189,7 @@ let apply_binop ~op state =
 
   let res_value =
     match op with
-    | Add | Subtract | Multiply | Divide -> compute_number_op op
+    | Ast.Add | Subtract | Multiply | Divide -> compute_number_op op
     | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual | Equal
     | NotEqual ->
         compute_comparison op

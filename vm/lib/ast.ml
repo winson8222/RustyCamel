@@ -1,4 +1,33 @@
-type ast_node =
+type unop_sym = Negate | LogicalNot [@@deriving show]
+
+
+type binop_sym =
+  | Add
+  | Subtract
+  | Multiply
+  | Divide
+  | LessThan
+  | LessThanEqual
+  | GreaterThan
+  | GreaterThanEqual
+  | Equal
+  | NotEqual
+[@@deriving show]
+
+let binop_of_string = function
+  | "+" -> Add
+  | "-" -> Subtract
+  | "*" -> Multiply
+  | "/" -> Divide
+  | "<" -> LessThan
+  | "<=" -> LessThanEqual
+  | ">" -> GreaterThan
+  | ">=" -> GreaterThanEqual
+  | "==" -> Equal
+  | "!=" -> NotEqual
+  | op -> failwith ("Unknown binary operator: " ^ op)
+
+  type ast_node =
   | Literal of Types.lit_value
   | Nam of string
   | Block of ast_node
@@ -8,8 +37,8 @@ type ast_node =
   | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
   | Assign of { sym : string; expr : ast_node }
-  | Binop of { sym : string; frst : ast_node; scnd : ast_node }
-  | Unop of { sym : string; frst : ast_node }
+  | Binop of { sym : binop_sym; frst : ast_node; scnd : ast_node }
+  | Unop of { sym : unop_sym; frst : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
@@ -37,8 +66,8 @@ type typed_ast =
       declared_type : Types.value_type;
     }
   | Assign of { sym : string; expr : typed_ast }
-  | Binop of { sym : string; frst : typed_ast; scnd : typed_ast }
-  | Unop of { sym : string; frst : typed_ast }
+  | Binop of { sym : binop_sym ; frst : typed_ast; scnd : typed_ast }
+  | Unop of { sym : unop_sym; frst : typed_ast }
   | Lam of { prms : string list; body : typed_ast }
   | Fun of {
       sym : string;
@@ -51,6 +80,9 @@ type typed_ast =
   | Ret of typed_ast
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
+
+
+
 
 let extract_basic_type (t : Yojson.Basic.t) =
   let open Yojson.Basic.Util in
@@ -135,17 +167,17 @@ let rec of_json json =
   | "BinaryExpr" ->
       Binop
         {
-          sym = json |> member "operator" |> to_string;
+          sym = json |> member "operator" |> to_string |> binop_of_string ;
           frst = of_json (member "left" json);
           scnd = of_json (member "right" json);
         }
-  | "UnaryNegation" -> Unop { sym = "-"; frst = of_json (member "expr" json) }
-  | "UnaryNot" -> Unop { sym = "!"; frst = of_json (member "expr" json) }
+  | "UnaryNegation" -> Unop { sym = Negate; frst = of_json (member "expr" json) }
+  | "UnaryNot" -> Unop { sym = LogicalNot; frst = of_json (member "expr" json) }
   | "IdentExpr" -> Nam (member "name" json |> to_string)
   | "BorrowExpr" ->
       Borrow
         {
-          is_mutable = member "isMutable" json |> to_bool;
+          is_mutable = json |> member "isMutable" |> to_bool;
           expr = member "expr" json |> of_json;
         }
   | "DerefExpr" -> Deref (member "expr" json |> of_json)

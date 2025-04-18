@@ -1,9 +1,13 @@
+type tc_type =
+  | Value of Types.value_type
+  | Ret of Types.value_type
+[@@deriving show]
+
 type symbol_table = (string, Types.value_type) Hashtbl.t
 
 type t = {
   te : symbol_table;
   parent : t option;
-  expected_return : Types.value_type option;
 }
 
 let guessed_max_var_count_per_scope = 10
@@ -12,15 +16,12 @@ let create () =
   {
     te = Hashtbl.create guessed_max_var_count_per_scope;
     parent = None;
-    expected_return = None;
   }
 
-(* Adds new empty frame*)
 let extend_env (state : t) =
   {
     te = Hashtbl.create guessed_max_var_count_per_scope;
     parent = Some state;
-    expected_return = None;
   }
 
 let rec lookup_sym sym state =
@@ -42,7 +43,6 @@ let get_local_decls = function
                (sym, declared_type)
            | _ -> failwith "Invalid declaration node")
   | single -> (
-      (* Treat non-sequence as single declaration *)
       match single with
       | Ast.Let { sym; declared_type; _ }
       | Ast.Const { sym; declared_type; _ }
@@ -62,7 +62,7 @@ let lookup_fun_type sym state : Types.function_type =
       failwith ("Expected function type, got: " ^ Types.show_value_type other)
   | None -> failwith ("Function symbol not found: " ^ sym)
 
-let make_type_err_msg declared_type actual_type : string =
+let make_type_err_msg declared_type actual_type =
   "Expected "
   ^ Types.show_value_type declared_type
   ^ ", got "
@@ -71,41 +71,53 @@ let make_type_err_msg declared_type actual_type : string =
 let make_deref_non_ref_val_msg actual_type =
   "Cannot dereference expression of type " ^ Types.show_value_type actual_type
 
-let rec type_ast ast_node state =
+let rec type_ast ast_node state : tc_type =
   let open Ast in
   match ast_node with
-  | Literal lit -> (
-      match lit with
-      | Int _ -> Types.TInt
-      | Float _ -> Types.TFloat
-      | Boolean _ -> Types.TBoolean
-      | String _ -> Types.TString
-      | Undefined -> Types.TUndefined)
+  | Literal lit ->
+      let typ = match lit with
+        | Int _ -> Types.TInt
+        | Float _ -> Types.TFloat
+        | Boolean _ -> Types.TBoolean
+        | String _ -> Types.TString
+        | Undefined -> Types.TUndefined
+      in
+      Value typ
+
   | Nam sym -> (
       match lookup_sym sym state with
-      | None -> failwith "Unbound symbol"
-      | Some t -> t)
+      | Some t -> Value t
+      | None -> failwith ("Unbound symbol: " ^ sym)
+    )
+
   | Let { declared_type; expr; _ } ->
-      let actual = type_ast expr state in
-      if not (are_types_compatible actual declared_type) then
-        failwith (make_type_err_msg declared_type actual)
-      else Types.TUndefined
+      let expr_type = type_ast expr state in
+      (match expr_type with
+       | Value actual ->
+           if not (are_types_compatible actual declared_type) then
+             failwith (make_type_err_msg declared_type actual)
+           else Value Types.TUndefined
+       | Ret _ -> failwith "Return not allowed in expression")
+
   | Block body ->
       let decls = get_local_decls body in
       let new_state = extend_env state in
       put_decls_in_table decls new_state.te;
       type_ast body new_state
+
   | Sequence stmts ->
       let rec eval = function
-        | [] -> Types.TUndefined
-        | [ (Ret _ as stmt) ] -> type_ast stmt state
+        | [] -> Value Types.TUndefined
         | [ last ] -> type_ast last state
         | Ret _ :: _ -> failwith "Unreachable code after return"
-        | stmt :: rest ->
-            let _ = type_ast stmt state in
-            eval rest
+        | stmt :: rest -> (
+            match type_ast stmt state with
+            | Ret t -> Ret t
+            | Value _ -> eval rest
+          )
       in
       eval stmts
+
   | Fun { body; declared_type; prms; _ } -> (
       match declared_type with
       | TFunction { ret; prms = param_types } ->
@@ -114,29 +126,38 @@ let rec type_ast ast_node state =
           let param_decls = List.combine prms param_types in
           let extended_state = extend_env state in
           put_decls_in_table param_decls extended_state.te;
-          let fun_state = { extended_state with expected_return = Some ret } in
-          let actual_ret = type_ast body fun_state in
-          if not (are_types_compatible actual_ret ret) then
-            failwith
-              ("Function should return " ^ Types.show_value_type ret
-             ^ " but returns "
-              ^ Types.show_value_type actual_ret)
-          else declared_type
-      | _ -> failwith "Expected function type in Fun declaration")
+          let body_tc = type_ast body extended_state in
+          (match body_tc with
+           | Ret actual_ret ->
+               if are_types_compatible actual_ret ret then declared_type
+               else
+                 failwith
+                   ("Function should return " ^ Types.show_value_type ret
+                   ^ " but returns " ^ Types.show_value_type actual_ret)
+           | Value _ -> failwith "Missing return in function body")
+          |> fun typ -> Value typ
+      | _ -> failwith "Expected function type in Fun declaration"
+    )
+
   | Ret expr -> (
-      let ret_type = type_ast expr state in
-      match state.expected_return with
-      | None -> failwith "Return statement outside of function"
-      | Some expected ->
-          if not (are_types_compatible ret_type expected) then
-            failwith "Return type mismatch"
-          else ret_type)
-  | Binop { frst; scnd; _ } ->
+      match type_ast expr state with
+      | Value v -> Ret v
+      | Ret _ -> failwith "Nested return not allowed"
+    )
+
+  | Binop { frst; scnd; sym } ->
       let t1 = type_ast frst state in
       let t2 = type_ast scnd state in
-      if not (are_types_compatible t1 t2) then
-        failwith "Binary operands have incompatible types"
-      else t1
+      (match (t1, t2) with
+       | Value v1, Value v2 ->
+           if are_types_compatible v1 v2 then (
+            match sym with 
+           | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual | Equal | NotEqual  -> Value Types.TBoolean 
+           | _ -> Value v1
+           )
+           else failwith "Binary operands have incompatible types"
+       | _ -> failwith "Return not allowed in binary operation")
+
   | App { fun_nam; args } ->
       let fun_sym =
         match fun_nam with
@@ -150,21 +171,47 @@ let rec type_ast ast_node state =
         failwith "Mismatched number of arguments";
       List.iter2
         (fun expected actual ->
-          if not (are_types_compatible expected actual) then
-            failwith "Argument type mismatch")
+           match actual with
+           | Value a ->
+               if not (are_types_compatible expected a) then
+                 failwith "Argument type mismatch"
+           | Ret _ -> failwith "Return not allowed in argument")
         prm_types arg_types;
-      fun_type.ret
+      Value fun_type.ret
+
   | Deref expr -> (
-      let expr_type = type_ast expr state in
-      match expr_type with
-      | Types.TRef { base; _ } -> base
-      | other -> failwith (make_deref_non_ref_val_msg other))
+      match type_ast expr state with
+      | Value (Types.TRef { base; _ }) -> Value base
+      | Value other -> failwith (make_deref_non_ref_val_msg other)
+      | Ret _ -> failwith "Return not allowed in deref"
+    )
+
   | Borrow { is_mutable; expr } ->
-      let expr_type = type_ast expr state in
-      Types.TRef { is_mutable; base = expr_type }
-  | _ -> failwith "Type checking not supportd"
+      (match type_ast expr state with
+       | Value base -> Value (Types.TRef { is_mutable; base })
+       | Ret _ -> failwith "Return not allowed in borrow")
+
+  | Cond { pred; cons; alt } ->
+      (match type_ast pred state with
+       | Value Types.TBoolean -> ()
+       | Value other -> failwith ("Condition must be boolean. Actual type: " ^ (Types.show_value_type other))
+       | Ret _ -> failwith "Return not allowed in condition predicate");
+      let cons_t = type_ast cons state in
+      let alt_t = type_ast alt state in
+      (match (cons_t, alt_t) with
+      | Ret t1, Ret t2 ->
+          if are_types_compatible t1 t2 then Ret t1
+          else failwith "Branches of if-else return incompatible types"
+      | Value v1, Value v2 ->
+          if are_types_compatible v1 v2 then Value v1
+          else failwith "Branches of if-else return incompatible types"
+      | Ret _, Value _ | Value _, Ret _ ->
+          failwith "Only one branch returns in conditional")
+
+  | _ -> failwith "Type checking not supported"
 
 let check_type ast_node state =
+  Printf.printf "======Starting type checking=======\n";
   try
     let _ = type_ast ast_node state in
     Ok ()
