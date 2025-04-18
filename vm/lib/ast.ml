@@ -63,10 +63,11 @@ let extract_basic_type (t : Yojson.Basic.t) =
       failwith (Printf.sprintf "unsupported type to extraact in json: %s" other)
 
 let rec extract_type declared_type_json =
+  
   let open Yojson.Basic.Util in
   if declared_type_json = `Null then Types.TUndefined
   else
-    (* Printf.printf "declared_type_json: %s\n" (Yojson.Basic.to_string declared_type_json); *)
+    
     (* Printf.printf "declared_type_json type: %s\n" (declared_type_json |> member "type" |> to_string); *)
     match declared_type_json |> member "type" |> to_string with
     | "BasicType" -> extract_basic_type declared_type_json
@@ -144,7 +145,7 @@ let rec of_json json =
   | "BorrowExpr" ->
       Borrow
         {
-          is_mutable = member "mutable" json |> to_bool;
+          is_mutable = member "isMutable" json |> to_bool;
           expr = member "expr" json |> of_json;
         }
   | "DerefExpr" -> Deref (member "expr" json |> of_json)
