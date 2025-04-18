@@ -216,7 +216,7 @@ let test_binop_mismatched_operands_fails () =
          [
            Binop
              {
-               sym = "+";
+               sym = Add;
                frst = Literal (Int 1);
                scnd = Literal (Boolean false);
              };
@@ -232,7 +232,7 @@ let test_binop_matching_operands_succeeds () =
   let node =
     Block
       (Sequence
-         [ Binop { sym = "+"; frst = Literal (Int 1); scnd = Literal (Int 5) } ])
+         [ Binop { sym = Add; frst = Literal (Int 1); scnd = Literal (Int 5) } ])
   in
   let actual = check_type node tc in
   let expected = Ok () in
