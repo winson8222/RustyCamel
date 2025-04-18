@@ -1,12 +1,7 @@
-let s : String = "programming";
-
-fn borrow(a: &String) {
-    a;
+fn factorial(n: u32) -> u32 {
+    if n == 0 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
 }
-
-fn take(a: String) {
-    a;
-}
-
-borrow(&s);
-s;
