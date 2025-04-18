@@ -11,4 +11,4 @@ fn declare_consts(n: i32) -> i32 {
 }
 
 
-declare_consts(-1);
+declare_consts((3-6));

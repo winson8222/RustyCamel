@@ -55,7 +55,7 @@ type t = {
   mutable canonical_values : canonical_values option;
 }
 
-let heap_size_words = 1000
+let heap_size_words = 5000
 
 let initial_config =
   {
@@ -385,6 +385,7 @@ let heap_get_closure_code_addr state addr =
 let heap_get_closure_env_addr state addr =
   heap_get_child_as_int state ~address:addr ~child_index:0
 
+  
 let heap_allocate_frame state ~num_values =
   let res = heap_allocate state ~size:(num_values + 1) ~tag:Frame_tag in
   res
@@ -401,9 +402,10 @@ let create () =
   in
   (* Initialize free pointers first *)
   let rec set_free_pointers cur_state prev_addr cur_addr =
-    if cur_addr > heap_size_words - state.config.node_size then ()
+    if cur_addr > heap_size_words - state.config.node_size then
+      heap_set cur_state ~address:prev_addr ~word:(Float.of_int (-1))  (* sentinel *)
     else (
-      heap_set state ~address:prev_addr ~word:(Float.of_int cur_addr);
+      heap_set cur_state ~address:prev_addr ~word:(Float.of_int cur_addr);
       set_free_pointers cur_state cur_addr (cur_addr + state.config.node_size))
   in
   set_free_pointers state 0 initial_config.node_size;
