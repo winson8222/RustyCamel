@@ -68,7 +68,7 @@ let rec vm_value_of_address heap addr =
       let num_children = Heap.heap_get_num_children heap addr in
       VEnvironment num_children
   | Blockframe_tag ->
-      Printf.printf "Blockframe tag\n";
+      (* Printf.printf "Blockframe tag\n"; *)
       VUndefined
   | tag ->
       failwith
@@ -120,10 +120,10 @@ let apply_unop ~op state =
 let apply_binop ~op state =
   let os = !(state.os) in
   let heap = state.heap in
-  Printf.printf "os element head: %s\n"
+  (* Printf.printf "os element head: %s\n"
     (show_vm_value (List.hd os |> vm_value_of_address heap));
   Printf.printf "os element tail: %s\n"
-    (show_vm_value (List.hd (List.tl os) |> vm_value_of_address heap));
+    (show_vm_value (List.hd (List.tl os) |> vm_value_of_address heap)); *)
 
   let scnd = List.hd os |> vm_value_of_address heap in
   let frst = List.nth os 1 |> vm_value_of_address heap in
@@ -199,22 +199,6 @@ let apply_binop ~op state =
   (* Printf.printf "res_addr: %d\n" res_addr; *)
   (* Printf.printf "os after pop: ["; *)
   state.os := res_addr :: List.tl (List.tl os)
-(* let heap_frame_display heap frame_addr =
-  let num_children = Heap.heap_get_num_children heap frame_addr in
-  Printf.printf "[frame display] num  frame vals: %d\n" num_children;
-  for i = 0 to num_children - 1 do
-    Printf.printf "frame index: %d value: %s\n" i (show_vm_value (vm_value_of_address heap (Float.to_int (Heap.heap_get_child heap ~address:frame_addr ~child_index:i))));
-  done
-
-  let heap_environment_display heap env_addr =
-
-    Printf.printf "--------Displaying env---------\n";
-    let num_children = Heap.heap_get_num_children heap env_addr in
-    Printf.printf "num_children: %d\n" num_children;
-    for i = 0 to num_children - 1 do
-      Printf.printf "frame index: %d " i;
-      heap_frame_display heap (Float.to_int (Heap.heap_get_child heap ~address:env_addr ~child_index:i))
-    done *)
 
 (** Execute a single VM instruction *)
 let execute_instruction state instr =
@@ -225,8 +209,7 @@ let execute_instruction state instr =
   let os = !(state.os) in
 
   (* print the instruction *)
-  Printf.printf "Executing instruction: %s\n"
-    (Compiler.string_of_instruction instr);
+  Printf.printf "Executing instruction: %s\n" (Compiler.string_of_instruction instr);
 
   (* Printf.printf "OS: ["; *)
   (* List.iter (fun addr -> Printf.printf "%d; " addr) os; *)
@@ -245,10 +228,10 @@ let execute_instruction state instr =
       let new_blockframe_addr = Heap.heap_allocate_blockframe heap ~env_addr in
       state.rts := new_blockframe_addr :: !(state.rts);
       (* Printf.printf "RTS after ENTER_SCOPE: ["; *)
-      List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts);
+      (* List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts); *)
 
       (* Printf.printf "]\n"; *)
-      Printf.printf "num: %d\n" num;
+      (* Printf.printf "num: %d\n" num; *)
       let new_frame_addr = Heap.heap_allocate_frame heap ~num_values:num in
       Heap.heap_set_frame_children_to_unassigned heap ~frame_addr:new_frame_addr
         ~num_children:num;
@@ -263,23 +246,23 @@ let execute_instruction state instr =
       state.env_addr := Heap.heap_get_blockframe_env heap blockframe_addr;
       Ok VUndefined
   | LDC lit_value ->
-      Printf.printf "LDC: %s\n" (Types.show_lit_value lit_value);
+      (* Printf.printf "LDC: %s\n" (Types.show_lit_value lit_value); *)
       let value_addr = Heap.heap_allocate_value heap lit_value in
       state.os := value_addr :: os;
       Ok VUndefined
   | ASSIGN pos ->
-      Printf.printf "OS len: %d\n" (List.length !(state.os));
+      (* Printf.printf "OS len: %d\n" (List.length !(state.os)); *)
       let val_addr = List.hd !(state.os) in
-      Printf.printf "val: %s val_addr: %d\n"
+      (* Printf.printf "val: %s val_addr: %d\n"
         (show_vm_value (vm_value_of_address heap val_addr))
-        val_addr;
+        val_addr; *)
       Heap.heap_set_env_val_addr_at_pos heap ~env_addr
         ~frame_index:pos.frame_index ~val_index:pos.value_index ~val_addr;
       Ok VUndefined
   | LD { pos; _ } ->
       (* print the positions *)
-      Printf.printf "pos frame index: %d\n" pos.frame_index;
-      Printf.printf "pos value index: %d\n" pos.value_index;
+      (* Printf.printf "pos frame index: %d\n" pos.frame_index;
+      Printf.printf "pos value index: %d\n" pos.value_index; *)
 
       (* print the environment address *)
 
@@ -294,14 +277,14 @@ let execute_instruction state instr =
       (* print the value *)
 
       (* print the type of the value address *)
-      let tag = Heap.heap_get_tag heap value_addr in
-      Printf.printf "LD got tag: %s" (Heap.string_of_node_tag tag);
+      (* let tag = Heap.heap_get_tag heap value_addr in *)
+      (* Printf.printf "LD got tag: %s" (Heap.string_of_node_tag tag);
       (match tag with
       | Heap.Number_tag ->
           let value = Heap.heap_get_number_value heap value_addr in
           Printf.printf " (value: %f)" value
       | _ -> ());
-      Printf.printf "\n";
+      Printf.printf "\n"; *)
 
       (* print the value address *)
       state.os := value_addr :: !(state.os);
@@ -311,16 +294,16 @@ let execute_instruction state instr =
       let env_addr = !(state.env_addr) in
 
       (* print cdoe adddress*)
-      Printf.printf "LDF code_addr: %d\n" addr;
+      (* Printf.printf "LDF code_addr: %d\n" addr; *)
 
       (* print the environment address *)
       (* 2. Allocate closure with arity, code address, and environment *)
       let closure_addr =
         Heap.heap_allocate_closure state.heap ~arity ~code_addr:addr ~env_addr
       in
-      Printf.printf "LDF closure addr: %d\n" closure_addr;
+      (* Printf.printf "LDF closure addr: %d\n" closure_addr;
       Printf.printf "LDF closure pc: %d\n"
-        (Heap.heap_get_closure_code_addr state.heap closure_addr);
+        (Heap.heap_get_closure_code_addr state.heap closure_addr); *)
 
       (* print the environment address *)
 
@@ -345,7 +328,7 @@ let execute_instruction state instr =
             let reset_env_addr = Heap.heap_get_callframe_env heap frame_addr in
             state.env_addr := reset_env_addr;
 
-            Printf.printf "RESET addr: %d\n" reset_pc;
+            (* Printf.printf "RESET addr: %d\n" reset_pc; *)
             Ok (VAddress (reset_pc + 1)))
           else Ok (VAddress !(state.pc)))
   | POP -> (
@@ -379,7 +362,7 @@ let execute_instruction state instr =
       let bool_addr = List.hd os in
       let is_true = Heap.heap_get_bool_value state.heap bool_addr in
 
-      Printf.printf "JOF bool_addr: %d\n" bool_addr;
+      (* Printf.printf "JOF bool_addr: %d\n" bool_addr; *)
 
       (* 2. Update PC based on boolean value *)
       if is_true then
@@ -395,13 +378,13 @@ let execute_instruction state instr =
   | GOTO addr ->
       (* Simply set PC to target address *)
       state.pc := addr;
-      Printf.printf "OS len: %d\n" (List.length !(state.os));
+      (* Printf.printf "OS len: %d\n" (List.length !(state.os)); *)
 
       Ok (VAddress addr)
   | CALL arity ->
       (* print the operand stack *)
       (* Printf.printf "before os: ["; *)
-      List.iter (fun addr -> Printf.printf "%d; " addr) !(state.os);
+      (* List.iter (fun addr -> Printf.printf "%d; " addr) !(state.os); *)
 
       (* Printf.printf "]\n"; *)
 
@@ -422,14 +405,14 @@ let execute_instruction state instr =
         in
 
         (* print the frame address *)
-        Printf.printf "[call] frame address: %d\n" frame_addr;
+        (* Printf.printf "[call] frame address: %d\n" frame_addr; *)
         (* Printf.printf "[call] num frame vals: %d\n" (Heap.heap_get_num_children state.heap frame_addr); *)
         (* 4. Pop arguments from operand stack and set them in the frame *)
         let rec set_args i =
           if i < 0 then ()
           else
             let arg_addr = List.hd !(state.os) in
-            Printf.printf "setting child %d to %d\n" i arg_addr;
+            (* Printf.printf "setting child %d to %d\n" i arg_addr; *)
             state.os := List.tl !(state.os);
             (* Printf.printf "arg_addr: %d\n" arg_addr; *)
             Heap.heap_set_child state.heap ~address:frame_addr ~child_index:i
@@ -465,7 +448,7 @@ let execute_instruction state instr =
           Heap.heap_get_closure_code_addr state.heap fun_addr
         in
         (* AT call the address is *)
-        Printf.printf "[CALL] closure PC is %d\n" closure_code_addr;
+        (* Printf.printf "[CALL] closure PC is %d\n" closure_code_addr; *)
 
         (* Printf.printf "OS len: %d\n" (List.length !(state.os)); *)
         (* Printf.printf "OS after call: ["; *)
@@ -500,7 +483,7 @@ let run state instrs =
         | Ok res -> (
             state.pc := pc + 1;
             (* print the env address *)
-            Printf.printf "env_addr: %d\n" !(state.env_addr);
+            (* Printf.printf "env_addr: %d\n" !(state.env_addr); *)
             (* Printf.printf "res:%s\n" (show_vm_value res); *)
             match res with
             | VAddress addr ->

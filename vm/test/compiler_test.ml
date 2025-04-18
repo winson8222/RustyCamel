@@ -2337,6 +2337,7 @@ let test_factorial () =
       LD { pos = { frame_index = 0; value_index = 0 } };
       LDC (Int 5);
       CALL 1;
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
       EXIT_SCOPE;
       DONE;
     ]

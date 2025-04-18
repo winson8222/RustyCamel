@@ -425,6 +425,35 @@ let test_simple_free () =
 
   let result = run (create ()) instrs in
   check_vm_value "simple free" (Ok (VNumber 3.0)) result
+
+let test_function_return_one () =
+  let open Vm.Compiler in
+  let instrs = [
+    ENTER_SCOPE { num = 2 };  (* Scope for function and result *)
+    LDF { arity = 0; addr = 3 };  (* Function with 0 parameters *)
+    GOTO 13;  (* Skip function body *)
+    ENTER_SCOPE { num = 1 };  (* Function scope *)
+    LDC (Int 1);  (* Load 1 *)
+    ASSIGN { frame_index = 2; value_index = 0 };  (* Assign to local variable *)
+    POP;  (* Clean up stack *)
+    LD { pos = { frame_index = 2; value_index = 0 }};  (* Load the value *)
+    FREE { pos = { frame_index = 2; value_index = 0 }; to_free = true };
+    RESET;  (* Return from function *)
+    EXIT_SCOPE;  (* Exit function scope *)
+    LDC Undefined;  (* After function definition *)
+    RESET;  (* Return to main scope *)
+    ASSIGN { frame_index = 0; value_index = 0 };  (* Store function *)
+    POP;  (* Clean up stack *)
+    LD { pos = { frame_index = 0; value_index = 0 }};  (* Load function *)
+    CALL 0;  (* Call function with 0 arguments *)
+    ASSIGN { frame_index = 0; value_index = 1 };  (* Store result *)
+    EXIT_SCOPE;  (* Exit main scope *)
+    DONE;  (* End program *)
+  ] in
+
+  let result = run (create ()) instrs in
+  check_vm_value "function that returns 1" (Ok (VNumber 1.0)) result
+
 let () =
   let open Alcotest in
   run "VM Runner Tests"
@@ -450,5 +479,6 @@ let () =
           test_case "simple function that returns its parameter" `Quick
             test_simple_function_return_param;
           test_case "simple free" `Quick test_simple_free;
+          test_case "function that returns 1" `Quick test_function_return_one;
         ] );
     ]

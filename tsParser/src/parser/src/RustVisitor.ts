@@ -6,6 +6,7 @@ import { AbstractParseTreeVisitor } from "antlr4ng";
 import { ProgramContext } from "./RustParser.js";
 import { StatementContext } from "./RustParser.js";
 import { LetDeclContext } from "./RustParser.js";
+import { AssignmentStmtContext } from "./RustParser.js";
 import { FnDeclContext } from "./RustParser.js";
 import { ParamListContext } from "./RustParser.js";
 import { ParamContext } from "./RustParser.js";
@@ -59,6 +60,13 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitLetDecl?: (ctx: LetDeclContext) => Result;
+    /**
+     * Visit a parse tree produced by the `AssignmentStmt`
+     * labeled alternative in `RustParser.assignment`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitAssignmentStmt?: (ctx: AssignmentStmtContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.fnDecl`.
      * @param ctx the parse tree

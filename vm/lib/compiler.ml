@@ -56,12 +56,14 @@ type compiled_instruction =
 (* Compile time state *)
 type state = {
   instrs : compiled_instruction list; (* Symbol table with positions *)
-  ce : string list list;
+  ce : string list list; 
   wc : int;
+  used_symbols: (string, pos_in_env) Hashtbl.t;
+  is_top_level: bool; (* New field to track if we're at top level *)
 }
 
 (* TODO: Add global compile environment with builtin frames *)
-let initial_state = { instrs = []; ce = []; wc = 0 }
+let initial_state = { instrs = []; ce = []; used_symbols = Hashtbl.create 10; wc = 0; is_top_level = true }
 
 (** Helper functions *)
 let rec scan_for_locals (node : Ast.ast_node) =
@@ -113,18 +115,31 @@ let rec compile (node : Ast.ast_node) state =
           instrs = state.instrs @ [ enter_scope_instr ];
           wc = wc + 1;
           ce = extended_ce;
+          used_symbols = state.used_symbols;
+          is_top_level = false; (* Set to false when entering a block *)
         }
       in
 
       (* Then compile body *)
       let state_after_body = compile body state_after_enter in
 
-      (* Finally add EXIT_SCOPE *)
-      let exit_scope_instr = EXIT_SCOPE in
+      let free_instrs =
+        if state.is_top_level then [] (* Skip FREE instructions at top level *)
+        else
+          List.rev_map
+            (fun sym ->
+              let pos = get_compile_time_environment_pos sym extended_ce in
+              FREE { pos; to_free = true })
+            locals
+      in
+  
+      (* Add FREE instructions followed by EXIT_SCOPE *)
+      let final_instrs = state_after_body.instrs @ free_instrs @ [ EXIT_SCOPE ] in
       {
         state with
-        wc = state_after_body.wc + 1;
-        instrs = state_after_body.instrs @ [ exit_scope_instr ];
+        instrs = final_instrs;
+        wc = state_after_body.wc + List.length free_instrs + 1;
+        is_top_level = state.is_top_level; (* Preserve the top level state *)
       }
   | Binop { sym; frst; scnd } ->
       let frst_state = compile frst state in
@@ -134,6 +149,8 @@ let rec compile (node : Ast.ast_node) state =
         instrs = sec_state.instrs @ [ new_instr ];
         wc = sec_state.wc + 1;
         ce = sec_state.ce;
+        used_symbols = sec_state.used_symbols;
+        is_top_level = state.is_top_level;
       }
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
@@ -142,6 +159,8 @@ let rec compile (node : Ast.ast_node) state =
         instrs = state_aft_frst.instrs @ [ new_instr ];
         wc = state_aft_frst.wc + 1;
         ce = state_aft_frst.ce;
+        used_symbols = state_aft_frst.used_symbols;
+        is_top_level = state.is_top_level;
       }
   | Borrow { expr } ->
       let state_aft_expr = compile expr state in
@@ -150,39 +169,60 @@ let rec compile (node : Ast.ast_node) state =
         instrs = state_aft_expr.instrs @ [ borrow_instr ];
         wc = state_aft_expr.wc + 1;
         ce = state_aft_expr.ce;
+        used_symbols = state_aft_expr.used_symbols;
+        is_top_level = state.is_top_level;
       }
   | Deref expr ->
       let s = compile expr state in
-      { instrs = s.instrs @ [ DEREF ]; wc = s.wc + 1; ce = s.ce }
+      { 
+        instrs = s.instrs @ [ DEREF ]; 
+        wc = s.wc + 1; 
+        ce = s.ce; 
+        used_symbols = s.used_symbols;
+        is_top_level = state.is_top_level;
+      }
   | Sequence stmts -> compile_sequence stmts state
   | Let { sym; expr } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
+      (* TODO: Add symbol to the used_symbols table *)
+      let outmost_table = state.used_symbols in
+      Hashtbl.add outmost_table sym pos;
+
       let new_instr = ASSIGN pos in
       {
         state_after_expr with
         instrs = state_after_expr.instrs @ [ new_instr ];
         wc = state_after_expr.wc + 1;
+        is_top_level = state.is_top_level;
       }
   | Const { sym; expr; _ } ->
       let state_after_expr = compile expr state in
       let pos = get_compile_time_environment_pos sym state_after_expr.ce in
+      (* TODO: Add symbol to the used_symbols table *)
+      let outmost_table = state.used_symbols in
+      Hashtbl.add outmost_table sym pos;
+
       let new_instr = ASSIGN pos in
       {
         state_after_expr with
         instrs = state_after_expr.instrs @ [ new_instr ];
         wc = state_after_expr.wc + 1;
+        is_top_level = state.is_top_level;
       }
   | Lam { prms; body } ->
       let loadFunInstr = LDF { arity = List.length prms; addr = wc + 2 } in
       let gotoInstrIndex = wc + 1 in
       (* Index where GOTO will be *)
+      let oldTable = state.used_symbols in
+      let newTable = Hashtbl.create 10 in
       let state_after_ldf_goto =
         {
           state with
           instrs = instrs @ [ loadFunInstr; GOTO 0 ];
           (* add LDF, then GOTO 0 placeholder *)
           wc = wc + 2;
+          used_symbols = newTable;
         }
       in
 
@@ -199,6 +239,7 @@ let rec compile (node : Ast.ast_node) state =
           state_after_ldf_goto with
           instrs = after_body_state.instrs @ [ LDC Undefined; RESET ];
           wc = after_body_state.wc + 2;
+          used_symbols = oldTable;
         }
       in
 
@@ -216,26 +257,54 @@ let rec compile (node : Ast.ast_node) state =
       compile (Let { sym; expr = Lam { prms; body } }) state
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
-      { state with instrs = instrs @ [ LD { pos } ]; wc = wc + 1 }
+      { 
+        state with 
+        instrs = instrs @ [ LD { pos } ]; 
+        wc = wc + 1;
+        is_top_level = state.is_top_level;
+      }
   | Ret expr -> (
-      let state_after_expr = compile expr state in
-      match expr with
-      | App { args; _ } ->
-          let new_instrs =
-            List.mapi
-              (fun i instr ->
-                if i = List.length state_after_expr.instrs - 1 then
-                  TAILCALL (List.length args)
-                else instr)
-              state_after_expr.instrs
-          in
-          { state_after_expr with instrs = new_instrs }
-      | _ ->
-          {
-            state_after_expr with
-            instrs = state_after_expr.instrs @ [ RESET ];
-            wc = state_after_expr.wc + 1;
-          })
+        let state_after_expr = compile expr state in
+    
+        (* Determine if expr is a variable *)
+        let excluded_sym =
+          match expr with
+          | Nam sym -> Some sym
+          | _ -> None
+        in
+    
+        (* Generate FREE instructions for everything in used_symbols except excluded_sym *)
+        let free_instrs =
+          Hashtbl.fold
+            (fun sym pos acc ->
+              if Some sym = excluded_sym then acc
+              else FREE { pos; to_free = true } :: acc)
+            state_after_expr.used_symbols
+            []
+        in
+    
+        match expr with
+        | App { args; _ } ->
+            let final_instrs =
+              (* replace last instruction with TAILCALL *)
+              List.mapi
+                (fun i instr ->
+                  if i = List.length state_after_expr.instrs - 1 then
+                    TAILCALL (List.length args)
+                  else instr)
+                state_after_expr.instrs
+            in
+            {
+              state_after_expr with
+              instrs = final_instrs @ List.rev free_instrs;
+            }
+        | _ ->
+            {
+              state_after_expr with
+              instrs =
+                state_after_expr.instrs @ List.rev free_instrs @ [ RESET ];
+              wc = state_after_expr.wc + List.length free_instrs + 1;
+            })
   | App { fun_nam; args } ->
       (* Compile the function expression *)
       let state_after_fun = compile fun_nam state in
@@ -251,6 +320,7 @@ let rec compile (node : Ast.ast_node) state =
         state_after_args with
         instrs = state_after_args.instrs @ [ new_instr ];
         wc = state_after_args.wc + 1;
+        is_top_level = state.is_top_level;
       }
   | While { pred; body } ->
       (* Compile the predicate *)
@@ -260,6 +330,7 @@ let rec compile (node : Ast.ast_node) state =
           state_after_pred with
           instrs = state_after_pred.instrs @ [ JOF 0 ];
           wc = state_after_pred.wc + 1;
+          is_top_level = state.is_top_level;
         }
       in
 
@@ -272,6 +343,7 @@ let rec compile (node : Ast.ast_node) state =
           state_after_body with
           instrs = state_after_body.instrs @ [ POP; GOTO state.wc ];
           wc = state_after_body.wc + 2;
+          is_top_level = state.is_top_level;
         }
       in
 
@@ -286,6 +358,7 @@ let rec compile (node : Ast.ast_node) state =
             state_after_pop_goto.instrs
           @ [ LDC Undefined ];
         wc = state_after_pop_goto.wc + 1;
+        is_top_level = state.is_top_level;
       }
   | Assign { sym; expr } ->
       let state_after_expr = compile expr state in
@@ -297,6 +370,7 @@ let rec compile (node : Ast.ast_node) state =
               ASSIGN (get_compile_time_environment_pos sym state_after_expr.ce);
             ];
         wc = state_after_expr.wc + 1;
+        is_top_level = state.is_top_level;
       }
   | Cond { pred; cons; alt } ->
       (* Compile the predicate *)
@@ -308,6 +382,7 @@ let rec compile (node : Ast.ast_node) state =
           state_after_pred with
           instrs = state_after_pred.instrs @ [ JOF 0 ];
           wc = state_after_pred.wc + 1;
+          is_top_level = state.is_top_level;
         }
       in
 
@@ -320,6 +395,7 @@ let rec compile (node : Ast.ast_node) state =
           state_after_cons with
           instrs = state_after_cons.instrs @ [ GOTO 0 ];
           wc = state_after_cons.wc + 1;
+          is_top_level = state.is_top_level;
         }
       in
 
@@ -334,6 +410,7 @@ let rec compile (node : Ast.ast_node) state =
                   if i = state_after_pred.wc then JOF state_after_goto.wc
                   else instr)
                 state_after_goto.instrs;
+            is_top_level = state.is_top_level;
           }
       in
 
@@ -345,6 +422,7 @@ let rec compile (node : Ast.ast_node) state =
             (fun i instr ->
               if i = state_after_cons.wc then GOTO state_after_alt.wc else instr)
             state_after_alt.instrs;
+        is_top_level = state.is_top_level;
       }
 
 and compile_sequence stmts state =
@@ -354,6 +432,7 @@ and compile_sequence stmts state =
         state with
         instrs = state.instrs @ [ LDC Undefined ];
         wc = state.wc + 1;
+        is_top_level = state.is_top_level;
       }
   | [ single ] -> compile single state
   | hd :: tl ->
@@ -363,6 +442,7 @@ and compile_sequence stmts state =
           aft_hd_state with
           instrs = aft_hd_state.instrs @ [ POP ];
           wc = aft_hd_state.wc + 1;
+          is_top_level = state.is_top_level;
         }
       in
       compile_sequence tl aft_hd_with_pop_state
