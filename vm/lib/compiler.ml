@@ -77,6 +77,8 @@ let rec compile (node : Ast.ast_node) state =
       let locals = scan_for_locals body in
       let num_locals = List.length locals in
       let extended_ce = compile_time_environment_extend locals state.ce in
+      (* make a copy of the used_symbols table *)
+      let old_used_symbols = Hashtbl.copy state.used_symbols in
 
       (* First add ENTER_SCOPE *)
       let enter_scope_instr = ENTER_SCOPE { num = num_locals } in
@@ -110,6 +112,7 @@ let rec compile (node : Ast.ast_node) state =
         instrs = final_instrs;
         wc = state_after_body.wc + List.length free_instrs + 1;
         is_top_level = state.is_top_level; (* Preserve the top level state *)
+        used_symbols = old_used_symbols;
       }
   | Binop { sym; frst; scnd } ->
       let frst_state = compile frst state in
