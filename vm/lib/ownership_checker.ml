@@ -95,24 +95,21 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
               "Warning: unused borrow that must be used. Use let _ = expr")
     | false -> failwith (make_borrow_err_msg sym sym_status)
   in
-  let handle_var_acc_or_move sym ~sym_status state =
+  let handle_var_move sym ~sym_status state =
     match sym_status with
-    | Owned -> (
-        match state.is_in with
-        | Some _ ->
-            let sym_typ = lookup_symbol_type ~sym state in
-            if not (Types.is_type_implement_copy sym_typ) then (
-              set_existing_sym_ownership_in_lowest_frame sym Moved state;
-              state)
-            else state
-        | None -> state (* Simple access, no need to change ownership *))
-    | _ ->
-        let err_msg_f =
-          match state.is_in with
-          | Some Let | Some App -> make_move_err_msg
-          | _ -> make_acc_err_msg
-        in
-        failwith (err_msg_f sym sym_status)
+    | Owned -> 
+        let sym_typ = lookup_symbol_type ~sym state in
+        if not (Types.is_type_implement_copy sym_typ) then (
+          set_existing_sym_ownership_in_lowest_frame sym Moved state;
+          state)
+        else state
+    | _ -> failwith (make_move_err_msg sym sym_status) in
+
+    let handle_var_acc sym ~sym_status state = 
+      match sym_status with
+      | Owned -> state
+      | _ ->failwith (make_acc_err_msg sym sym_status)
+
   in
   let open Ast in
   match typed_ast with
@@ -136,7 +133,11 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       in
 
       match state.borrow_kind with
-      | None -> handle_var_acc_or_move sym ~sym_status state
+      | None -> (
+        match state.is_in with 
+        | Some _ -> handle_var_move sym ~sym_status state 
+        | None -> handle_var_acc sym ~sym_status state
+      ) 
       | Some bk -> handle_var_borrow sym ~sym_status ~borrow_kind:bk state)
   | Let { sym; expr; declared_type; _ } ->
       let new_state =

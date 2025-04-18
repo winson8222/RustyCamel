@@ -160,7 +160,7 @@ let test_fun_fails () =
            })
     in
     let actual = check_type node tc in
-    let expected = Error "Missing return in function body" in
+    let expected = Error "Missing return in function body. Declared return type: (Types.TFunction { Types.ret = Types.TInt; prms = [Types.TInt] })" in
     Alcotest.(check (result unit string)) "test" expected actual
 
     

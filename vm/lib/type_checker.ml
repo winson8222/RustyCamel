@@ -134,7 +134,7 @@ let rec type_ast ast_node state : tc_type =
                  failwith
                    ("Function should return " ^ Types.show_value_type ret
                    ^ " but returns " ^ Types.show_value_type actual_ret)
-           | Value _ -> failwith "Missing return in function body")
+           | Value _ -> failwith ("Missing return in function body. Declared return type: " ^ Types.show_value_type declared_type))
           |> fun typ -> Value typ
       | _ -> failwith "Expected function type in Fun declaration"
     )
