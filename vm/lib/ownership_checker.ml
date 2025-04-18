@@ -167,6 +167,9 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
   | Literal _ -> state
   | Binop {  frst; scnd; _ }-> 
     check_ownership_aux frst state |> check_ownership_aux scnd
+  | Unop { sym = _; frst } ->
+      (* Unary operations like -x or !x just check the operand's ownership *)
+      check_ownership_aux frst state
   | other -> failwith ("Unsupported ast node in ownership checking: " ^ (show_typed_ast other))
 
 let check_ownership typed_ast state =
