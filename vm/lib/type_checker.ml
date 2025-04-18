@@ -1,6 +1,7 @@
 type tc_type =
   | Value of Types.value_type
   | Ret of Types.value_type
+[@@deriving show]
 
 type symbol_table = (string, Types.value_type) Hashtbl.t
 
@@ -144,12 +145,16 @@ let rec type_ast ast_node state : tc_type =
       | Ret _ -> failwith "Nested return not allowed"
     )
 
-  | Binop { frst; scnd; _ } ->
+  | Binop { frst; scnd; sym } ->
       let t1 = type_ast frst state in
       let t2 = type_ast scnd state in
       (match (t1, t2) with
        | Value v1, Value v2 ->
-           if are_types_compatible v1 v2 then Value v1
+           if are_types_compatible v1 v2 then (
+            match sym with 
+           | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual | Equal | NotEqual  -> Value Types.TBoolean 
+           | _ -> Value v1
+           )
            else failwith "Binary operands have incompatible types"
        | _ -> failwith "Return not allowed in binary operation")
 
@@ -189,7 +194,7 @@ let rec type_ast ast_node state : tc_type =
   | Cond { pred; cons; alt } ->
       (match type_ast pred state with
        | Value Types.TBoolean -> ()
-       | Value _ -> failwith "Condition must be boolean"
+       | Value other -> failwith ("Condition must be boolean. Actual type: " ^ (Types.show_value_type other))
        | Ret _ -> failwith "Return not allowed in condition predicate");
       let cons_t = type_ast cons state in
       let alt_t = type_ast alt state in
