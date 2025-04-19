@@ -1,7 +1,18 @@
 TODO:
-- Allow no explicit type declaration in letdecl and function
 - Optimization string pooling
 - if else allow one non-return, one return (in function)
+- ownership checking in tele
+- builtin functions
+- visualizer
+- assign type check + ownership cehck 
+```
+let mut x = "hello";
+let a = "world";
+x = a;
+a; // invalid
+```
+- Report, specification, documentation 
+
 
 # RustyCamel—A Rust Sublanguage Project
 
