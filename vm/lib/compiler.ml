@@ -126,6 +126,22 @@ let rec compile (node : Ast.ast_node) state =
       (* Then compile body *)
       let state_after_body = compile body state_after_enter in
 
+
+      (* check if it is top level, look for function main and do LD { pos } CALL 0 *)
+(* Insert call to main if at top level and main exists *)
+  let with_main_call_instr =
+    if state.is_top_level then
+      match Hashtbl.find_opt state_after_body.used_symbols "main" with
+      | Some main_pos ->
+          let main_instr = LD { pos = main_pos } in
+          let call_instr = CALL 0 in
+          state_after_body.instrs @ [ main_instr; call_instr ]
+      | None ->
+          (* no main, just run as usual *)
+          state_after_body.instrs
+    else
+      state_after_body.instrs
+    in
       let free_instrs =
         if state.is_top_level then [] (* Skip FREE instructions at top level *)
         else
@@ -137,7 +153,7 @@ let rec compile (node : Ast.ast_node) state =
       in
   
       (* Add FREE instructions followed by EXIT_SCOPE *)
-      let final_instrs = state_after_body.instrs @ free_instrs @ [ EXIT_SCOPE ] in
+      let final_instrs = with_main_call_instr @ free_instrs @ [ EXIT_SCOPE ] in
       {
         state with
         instrs = final_instrs;

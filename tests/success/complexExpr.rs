@@ -1,18 +1,19 @@
-fn f(n) -> i32 {
+fn f(n : i32) -> i32 {
     if (n <= 0) {
         return 1;
+    } else {
+        let x : i32 = 5;
+        return x * f(n - 1);
     }
-    let x : i32 = 5;
- 
-    return x * f(n - 1);
 }
 
-fn g(n) -> i32 {
+fn g(n : i32) -> i32 {
     if (n <= 0) {
         return 1;
+    } else {
+        let x : i32 = 5;
+        return  g(n - 1) + x;
     }
-    let x : i32 = 5;
-    return  g(n - 1) + x;
 }
 
 fn main() -> i32{
@@ -23,4 +24,3 @@ fn main() -> i32{
 }
 
 
-main();
