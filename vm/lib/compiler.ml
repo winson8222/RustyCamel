@@ -64,6 +64,37 @@ let get_compile_time_environment_pos sym ce =
 
 let compile_time_environment_extend frame_vars ce = ce @ [ frame_vars ]
 
+let fold_binop sym a b =
+  let open Types in
+  match (sym, a, b) with
+  | Add, Int x, Int y -> Some (Int (x + y))
+  | Add, Float x, Float y -> Some (Float (x +. y))
+  | Subtract, Int x, Int y -> Some (Int (x - y))
+  | Subtract, Float x, Float y -> Some (Float (x -. y))
+  | Multiply, Int x, Int y -> Some (Int (x * y))
+  | Multiply, Float x, Float y -> Some (Float (x *. y))
+  | Divide, Int x, Int y when y != 0 -> Some (Int (x / y))
+  | Divide, Float x, Float y when y != 0.0 -> Some (Float (x /. y))
+  | Equal, Int x, Int y -> Some (Boolean (x = y))
+  | Equal, Float x, Float y -> Some (Boolean (x = y))
+  | Equal, String x, String y -> Some (Boolean (String.equal x y))
+  | Equal, Boolean x, Boolean y -> Some (Boolean (x = y))
+  | Equal, Undefined, Undefined -> Some (Boolean true)
+  | NotEqual, Int x, Int y -> Some (Boolean (x <> y))
+  | NotEqual, Float x, Float y -> Some (Boolean (x <> y))
+  | NotEqual, String x, String y -> Some (Boolean (not (String.equal x y)))
+  | NotEqual, Boolean x, Boolean y -> Some (Boolean (x <> y))
+  | NotEqual, Undefined, Undefined -> Some (Boolean false)
+  | LessThan, Int x, Int y -> Some (Boolean (x < y))
+  | LessThan, Float x, Float y -> Some (Boolean (x < y))
+  | LessThanEqual, Int x, Int y -> Some (Boolean (x <= y))
+  | LessThanEqual, Float x, Float y -> Some (Boolean (x <= y))
+  | GreaterThan, Int x, Int y -> Some (Boolean (x > y))
+  | GreaterThan, Float x, Float y -> Some (Boolean (x > y))
+  | GreaterThanEqual, Int x, Int y -> Some (Boolean (x >= y))
+  | GreaterThanEqual, Float x, Float y -> Some (Boolean (x >= y))
+  | _ -> None
+
 (* Compilation functions *)
 let rec compile (node : Ast.ast_node) state =
   let open Ast in
@@ -114,17 +145,35 @@ let rec compile (node : Ast.ast_node) state =
         is_top_level = state.is_top_level; (* Preserve the top level state *)
         used_symbols = old_used_symbols;
       }
-  | Binop { sym; frst; scnd } ->
-      let frst_state = compile frst state in
-      let sec_state = compile scnd frst_state in
-      let new_instr = BINOP sym in
-      {
-        instrs = sec_state.instrs @ [ new_instr ];
-        wc = sec_state.wc + 1;
-        ce = sec_state.ce;
-        used_symbols = sec_state.used_symbols;
-        is_top_level = state.is_top_level;
-      }
+      | Binop { sym; frst; scnd } -> (
+        match (frst, scnd) with
+        | Literal lit1, Literal lit2 -> (
+            match fold_binop sym lit1 lit2 with
+            | Some folded ->
+                { state with instrs = state.instrs @ [ LDC folded ]; wc = state.wc + 1 }
+            | None ->
+                (* fallback to normal compilation *)
+                let frst_state = compile frst state in
+                let sec_state = compile scnd frst_state in
+                let new_instr = BINOP sym in
+                {
+                  instrs = sec_state.instrs @ [ new_instr ];
+                  wc = sec_state.wc + 1;
+                  ce = sec_state.ce;
+                  used_symbols = sec_state.used_symbols;
+                  is_top_level = state.is_top_level;
+                })
+        | _ ->
+            let frst_state = compile frst state in
+            let sec_state = compile scnd frst_state in
+            let new_instr = BINOP sym in
+            {
+              instrs = sec_state.instrs @ [ new_instr ];
+              wc = sec_state.wc + 1;
+              ce = sec_state.ce;
+              used_symbols = sec_state.used_symbols;
+              is_top_level = state.is_top_level;
+            })
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
       let new_instr = UNOP sym in

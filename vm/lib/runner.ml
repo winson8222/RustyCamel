@@ -176,8 +176,8 @@ let apply_binop ~op state =
         | VBoolean b1, VBoolean b2 -> VBoolean (b1 = b2)
         | VString s1, VString s2 -> VBoolean (String.equal s1 s2)
         | VUndefined, VUndefined -> VBoolean true
-        | _ -> VBoolean false)
-    | NotEqual -> (
+        | _ -> VBoolean false) (* this is ok*)
+      | NotEqual -> (
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VBoolean (n1 <> n2)
         | VBoolean b1, VBoolean b2 -> VBoolean (b1 <> b2)

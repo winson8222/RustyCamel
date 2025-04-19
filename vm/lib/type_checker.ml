@@ -68,6 +68,28 @@ let make_type_err_msg declared_type actual_type =
   ^ ", got "
   ^ Types.show_value_type actual_type
 
+let is_binop_type_compatible sym t1 t2 =
+  let open Ast in
+  match sym with
+  | Add | Subtract | Multiply | Divide -> (
+      match (t1, t2) with
+      | Types.TInt, Types.TInt | Types.TFloat, Types.TFloat -> true
+      | _ -> false
+    )
+  | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual -> (
+      match (t1, t2) with
+      | Types.TInt, Types.TInt | Types.TFloat, Types.TFloat -> true
+      | _ -> false
+    )
+  | Equal | NotEqual -> (
+      match (t1, t2) with
+      | Types.TInt, Types.TInt | Types.TFloat, Types.TFloat -> true
+      | Types.TString, Types.TString -> true
+      | Types.TBoolean, Types.TBoolean -> true
+      | Types.TUndefined, Types.TUndefined -> true
+      | _ -> false
+    )
+
 let make_deref_non_ref_val_msg actual_type =
   "Cannot dereference expression of type " ^ Types.show_value_type actual_type
 
@@ -128,13 +150,19 @@ let rec type_ast ast_node state : tc_type =
           put_decls_in_table param_decls extended_state.te;
           let body_tc = type_ast body extended_state in
           (match body_tc with
-           | Ret actual_ret ->
-               if are_types_compatible actual_ret ret then declared_type
-               else
-                 failwith
-                   ("Function should return " ^ Types.show_value_type ret
-                   ^ " but returns " ^ Types.show_value_type actual_ret)
-           | Value _ -> failwith ("Missing return in function body. Declared return type: " ^ Types.show_value_type declared_type))
+          | Ret actual_ret ->
+              if are_types_compatible actual_ret ret then declared_type
+              else
+                failwith
+                  ("Function should return " ^ Types.show_value_type ret
+                  ^ " but returns " ^ Types.show_value_type actual_ret)
+          | Value _ ->
+              if are_types_compatible ret Types.TUndefined then
+                declared_type
+              else
+                failwith
+                  ("Missing return in function body. Declared return type: "
+                  ^ Types.show_value_type ret))
           |> fun typ -> Value typ
       | _ -> failwith "Expected function type in Fun declaration"
     )
@@ -154,10 +182,10 @@ let rec type_ast ast_node state : tc_type =
       Printf.printf "t2: %s\n" (show_tc_type t2);
       (match (t1, t2) with
        | Value v1, Value v2 ->
-           if are_types_compatible v1 v2 then (
+           if is_binop_type_compatible sym v1 v2 then (
             match sym with 
-           | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual | Equal | NotEqual  -> Value Types.TBoolean 
-           | _ -> Value v1
+            | LessThan | LessThanEqual | GreaterThan | GreaterThanEqual | Equal | NotEqual -> Value Types.TBoolean 
+            | _ -> Value v1
            )
            else failwith "Binary operands have incompatible types"
        | _ -> failwith "Return not allowed in binary operation")
