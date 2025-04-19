@@ -78,21 +78,17 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
     match is_borrow_valid ~borrow_kind ~sym_status with
     | true -> (
         match state.is_in with
-        | Some Let ->
-            let sym_typ = lookup_symbol_type ~sym state in
-            if not (Types.is_type_implement_copy sym_typ) then (
-              let new_ownership_status =
-                borrow_kind_to_ownership_status borrow_kind
-              in
-              set_sym_ownership_in_cur_frame ~sym
-                ~new_status:new_ownership_status ~state;
-              state)
-            else state
         | Some App -> state
-        | None ->
-            (* Rust compiler does this *)
-            failwith
-              "Warning: unused borrow that must be used. Use let _ = expr")
+        | _ ->  (
+          let sym_typ = lookup_symbol_type ~sym state in
+          if not (Types.is_type_implement_copy sym_typ) then (
+            let new_ownership_status =
+              borrow_kind_to_ownership_status borrow_kind
+            in
+            set_sym_ownership_in_cur_frame ~sym
+              ~new_status:new_ownership_status ~state;
+            state)
+          else state))
     | false -> failwith (make_borrow_err_msg sym sym_status)
   in
   let handle_var_move sym ~sym_status state =
