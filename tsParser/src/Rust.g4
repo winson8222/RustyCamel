@@ -56,12 +56,12 @@ exprUnary
     | '!' exprUnary                    #UnaryNot
     | RETURN expr                      #ReturnExpr
     | REF MUT? exprUnary               #BorrowExpr
-    | '*' exprUnary                    #DerefExpr   
     | exprAtom                         #UnaryToAtom
     ;
 
 exprAtom
-    : IDENTIFIER '(' argList? ')'      #FunctionCall
+    : DEREF expr                 #DerefExpr   
+    | IDENTIFIER '(' argList? ')'      #FunctionCall
     | IDENTIFIER '!' '(' argList? ')'  #MacroCall
     | '(' expr ')'                     #ParensExpr
     | literal                          #LiteralExpr
@@ -88,6 +88,7 @@ literal
     ;
 
 // === Lexer Rules ===
+DEREF: '*';
 RETURN: 'return';
 MUT: 'mut';
 REF: '&';

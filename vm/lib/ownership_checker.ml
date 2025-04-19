@@ -139,7 +139,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
         | None -> handle_var_acc sym ~sym_status state
       ) 
       | Some bk -> handle_var_borrow sym ~sym_status ~borrow_kind:bk state)
-  | Let { sym; expr; declared_type; _ } ->
+  | Let { sym; expr; declared_type; _ } | Const { sym ; expr; declared_type; _} ->
       let new_state =
         check_ownership_aux expr { state with is_in = Some Let }
       in
@@ -184,7 +184,10 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
     let _ = check_ownership_aux pred state in
     let new_state = extend_scope state in
     check_ownership_aux body new_state
-  | other -> failwith ("Unsupported ast node in ownership checking: " ^ (show_typed_ast other))
+  | Deref expr -> 
+    check_ownership_aux expr state
+
+  
 
 let check_ownership typed_ast state =
   Printf.printf "=========Starting ownership checking=========";

@@ -20,8 +20,8 @@ import { UnaryNegationContext } from "./RustParser.js";
 import { UnaryNotContext } from "./RustParser.js";
 import { ReturnExprContext } from "./RustParser.js";
 import { BorrowExprContext } from "./RustParser.js";
-import { DerefExprContext } from "./RustParser.js";
 import { UnaryToAtomContext } from "./RustParser.js";
+import { DerefExprContext } from "./RustParser.js";
 import { FunctionCallContext } from "./RustParser.js";
 import { MacroCallContext } from "./RustParser.js";
 import { ParensExprContext } from "./RustParser.js";
@@ -222,18 +222,6 @@ export class RustListener implements ParseTreeListener {
      */
     exitBorrowExpr?: (ctx: BorrowExprContext) => void;
     /**
-     * Enter a parse tree produced by the `DerefExpr`
-     * labeled alternative in `RustParser.exprUnary`.
-     * @param ctx the parse tree
-     */
-    enterDerefExpr?: (ctx: DerefExprContext) => void;
-    /**
-     * Exit a parse tree produced by the `DerefExpr`
-     * labeled alternative in `RustParser.exprUnary`.
-     * @param ctx the parse tree
-     */
-    exitDerefExpr?: (ctx: DerefExprContext) => void;
-    /**
      * Enter a parse tree produced by the `UnaryToAtom`
      * labeled alternative in `RustParser.exprUnary`.
      * @param ctx the parse tree
@@ -245,6 +233,18 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitUnaryToAtom?: (ctx: UnaryToAtomContext) => void;
+    /**
+     * Enter a parse tree produced by the `DerefExpr`
+     * labeled alternative in `RustParser.exprAtom`.
+     * @param ctx the parse tree
+     */
+    enterDerefExpr?: (ctx: DerefExprContext) => void;
+    /**
+     * Exit a parse tree produced by the `DerefExpr`
+     * labeled alternative in `RustParser.exprAtom`.
+     * @param ctx the parse tree
+     */
+    exitDerefExpr?: (ctx: DerefExprContext) => void;
     /**
      * Enter a parse tree produced by the `FunctionCall`
      * labeled alternative in `RustParser.exprAtom`.
