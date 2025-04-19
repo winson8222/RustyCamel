@@ -612,6 +612,46 @@ let test_complex_ownership_with_nested_blocks () =
   Alcotest.(check (result unit string))
     "complex ownership with nested blocks fails" expected result
 
+
+let test_return_local_ref_fails () =
+  let checker = create () in
+  let open Vm.Ast in
+  let node =
+    Sequence
+      [
+        Fun
+          {
+            sym = "f";
+            body = 
+              Block (
+                (Sequence
+                  [
+                    Let
+                    {
+                      sym = "x";
+                      expr = Literal (String "hello");
+                      is_mutable = false;
+                      declared_type = TString;
+                    };
+                  Let
+                    {
+                      sym = "ref_x";
+                      expr = Borrow { is_mutable = false; expr = Nam "x" };
+                      is_mutable = false;
+                      declared_type = TRef { is_mutable = false; base = TString };
+                    };
+                  Ret (Nam "ref_x")
+                ]));
+            prms = [];
+            declared_type = TFunction { ret = TRef { is_mutable = false; base = TString }; prms = [] };
+          };
+      ]
+  in
+  let result = check_ownership node checker in
+  let expected = Error "Cannot return non-parameter reference" in
+  Alcotest.(check (result unit string))
+    "return local reference fails" expected result
+
 let () =
   let open Alcotest in
   run "Ownership Checker Tests"
@@ -651,5 +691,7 @@ let () =
             `Quick test_move_and_borrow_same_var_in_nested_blocks_fails;
           test_case "test_complex_ownership_with_nested_blocks" `Quick
             test_complex_ownership_with_nested_blocks;
+          test_case "test_return_local_ref_fails" `Quick
+            test_return_local_ref_fails;
         ] );
     ]

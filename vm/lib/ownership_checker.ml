@@ -1,7 +1,11 @@
 type ownership_status = Owned | ImmutablyBorrowed | MutablyBorrowed | Moved
 [@@deriving show]
 
-type symbol_info = { ownership : ownership_status; typ : Types.value_type }
+type symbol_info = { 
+  ownership : ownership_status; 
+  typ : Types.value_type;
+  is_param : bool; 
+}
 [@@deriving show]
 
 type symbol_table = (string, symbol_info) Hashtbl.t
@@ -48,11 +52,11 @@ let rec set_existing_sym_ownership_in_lowest_frame sym new_status state =
 let set_sym_ownership_in_cur_frame ~sym ~new_status ~state =
   let declared_type = lookup_symbol_type ~sym state in
   Hashtbl.replace state.sym_table sym
-    { ownership = new_status; typ = declared_type }
+    { ownership = new_status; typ = declared_type; is_param = false }
 
 let extend_scope parent =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
-  { sym_table; parent = Some parent; is_in = None; borrow_kind = None }
+  { sym_table; parent = Some parent; is_in = None; borrow_kind = None; }
 
 let create () =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
@@ -143,7 +147,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
         check_ownership_aux expr { state with is_in = Some Let }
       in
       Hashtbl.add new_state.sym_table sym
-        { ownership = Owned; typ = declared_type };
+        { ownership = Owned; typ = declared_type; is_param = false };
       new_state
   | Block body ->
       let new_state = extend_scope state in
@@ -155,13 +159,30 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
         app_state args
   | Fun { prms; body; declared_type; _ } ->
       let new_state = extend_scope state in
-      List.iter
-        (fun prm_sym ->
-          Hashtbl.replace new_state.sym_table prm_sym
-            { ownership = Owned; typ = declared_type })
+      List.iter (fun prm_sym ->
+        Hashtbl.replace new_state.sym_table prm_sym
+          { ownership = Owned; typ = declared_type; is_param = true })
         prms;
       check_ownership_aux body new_state
-  | Ret expr -> check_ownership_aux expr state
+  | Ret expr -> (
+      match expr with
+      | Nam sym -> (
+          let sym_info = 
+            match Hashtbl.find_opt state.sym_table sym with
+            | Some info -> info
+            | None -> (
+                match state.parent with
+                | Some parent -> (
+                    match Hashtbl.find_opt parent.sym_table sym with
+                    | Some info -> info
+                    | None -> failwith "Unbound value")
+                | None -> failwith "Unbound value")
+          in
+          match sym_info.typ with
+          | Types.TRef _ when not sym_info.is_param -> 
+              failwith "Cannot return non-parameter reference"
+          | _ -> check_ownership_aux expr state)
+      | _ -> check_ownership_aux expr state)
   | Literal _ -> state
   | _ -> failwith "Unsupported ast node in ownership checking"
 
