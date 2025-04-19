@@ -3,7 +3,7 @@ type tc_type =
   | Ret of Types.value_type
 [@@deriving show]
 
-type symbol_table = (string, Types.value_type * bool) Hashtbl.t
+type symbol_table = (string, (Types.value_type * bool)) Hashtbl.t
 
 type t = {
   te : symbol_table;
@@ -38,24 +38,24 @@ let get_local_decls = function
       List.filter is_declaration stmts
       |> List.map (function
            | Ast.Let { sym; declared_type; is_mutable; _ } ->
-               (sym, declared_type, is_mutable)
+               (sym, (declared_type, is_mutable))
            | Ast.Const { sym; declared_type; _ } ->
-               (sym, declared_type, false)
+               (sym, (declared_type, false))
            | Ast.Fun { sym; declared_type; _ } ->
-               (sym, declared_type, false)
+               (sym, (declared_type, false))
            | _ -> failwith "Invalid declaration node")
   | single -> (
       match single with
       | Ast.Let { sym; declared_type; is_mutable; _ } ->
-          [ (sym, declared_type, is_mutable) ]
+          [ (sym, (declared_type, is_mutable)) ]
       | Ast.Const { sym; declared_type; _ } ->
-          [ (sym, declared_type, false) ]
+          [ (sym, (declared_type, false)) ]
       | Ast.Fun { sym; declared_type; _ } ->
-          [ (sym, declared_type, false) ]
+          [ (sym, (declared_type, false)) ]
       | _ -> failwith "Invalid declaration node")
 
 let put_decls_in_table decls te =
-  List.iter (fun (sym, typ, is_mutable) -> Hashtbl.replace te sym (typ, is_mutable)) decls
+  List.iter (fun (sym, (typ, is_mutable)) -> Hashtbl.replace te sym (typ, is_mutable)) decls
 
 let are_types_compatible = ( = )
 
@@ -146,10 +146,10 @@ let rec type_ast ast_node state : tc_type =
 
   | Fun { body; declared_type; prms; _ } -> (
       match declared_type with
-      | Types.TFunction { ret; prms = param_types } ->
+      | Types.TFunction { ret; prms=param_types } ->
           if List.length prms <> List.length param_types then
             failwith "Mismatched parameters and types";
-          let param_decls = List.map2 (fun sym (typ, is_mutable) -> (sym, typ, is_mutable)) prms param_types in
+          let param_decls = List.map2 (fun name prm_type -> (name, prm_type)) prms param_types in
           let extended_state = extend_env state in
           put_decls_in_table param_decls extended_state.te;
           let body_tc = type_ast body extended_state in

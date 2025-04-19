@@ -39,7 +39,7 @@ let binop_of_string = function
   | Assign of { sym : string; expr : ast_node }
   | Binop of { sym : binop_sym; frst : ast_node; scnd : ast_node }
   | Unop of { sym : unop_sym; frst : ast_node }
-  | Fun of { sym : string; prms : (string * (Types.value_type * bool)) list; body : ast_node }
+  | Fun of { sym : string; prms : string list; body : ast_node }
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
   | Borrow of { expr : ast_node }
@@ -69,7 +69,7 @@ type typed_ast =
   | Unop of { sym : unop_sym; frst : typed_ast }
   | Fun of {
       sym : string;
-      prms : (string * (Types.value_type * bool)) list;
+      prms : string list;
       declared_type : Types.value_type;
       body : typed_ast;
     }
@@ -192,10 +192,11 @@ let rec of_json json =
       let body = json |> member "body" |> of_json in
       let ret_type = json |> member "returnType" |> extract_type in
       let prms_type = List.map (fun (_, typ) -> typ) prms in
+      let prm_names = List.map (fun (name, _) -> name) prms in
       Fun
         {
           sym;
-          prms;
+          prms = prm_names;
           body;
           declared_type = TFunction { ret = ret_type; prms = prms_type };
         }
@@ -248,8 +249,8 @@ let rec strip_types (ast : typed_ast) : ast_node =
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
   | Fun { sym; prms; body; _ } -> 
-      let stripped_prms = List.map (fun (name, (typ, is_mutable)) -> (name, (typ, is_mutable))) prms in
-      Fun { sym; prms = stripped_prms; body = strip_types body }
+      
+      Fun { sym; prms = prms; body = strip_types body }
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->
       App { fun_nam = strip_types fun_nam; args = List.map strip_types args }

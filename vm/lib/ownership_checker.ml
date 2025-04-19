@@ -151,13 +151,17 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
         (fun acc_state arg -> check_ownership_aux arg acc_state)
         app_state args
   | Fun { prms; body; declared_type; _ } ->
-      let new_state = extend_scope state in
+(     match declared_type with 
+     | Types.TFunction { prms=prms_types; _ } ->
+      (let new_state = extend_scope state in
+      let combined_prms = List.combine prms prms_types in
       List.iter
-        (fun prm_sym ->
+        (fun (prm_sym, (prm_type, _)) ->
           Hashtbl.replace new_state.sym_table prm_sym
-            { ownership = Owned; typ = declared_type })
-        prms;
-      check_ownership_aux body new_state
+            { ownership = Owned; typ =prm_type})
+        combined_prms;
+      check_ownership_aux body new_state)
+      | _ -> failwith "Declared type should be a function type")
   | Ret expr -> check_ownership_aux expr state
   | Cond { pred; alt; cons} -> 
     check_ownership_aux pred state |> check_ownership_aux alt |> check_ownership_aux cons
