@@ -42,7 +42,7 @@ let rec scan_for_locals (node : Ast.ast_node) =
   | Let { sym; _ } | Const { sym; _ } | Fun { sym; _ } -> [ sym ]
   | Sequence stmts ->
       List.fold_left (fun acc x -> acc @ scan_for_locals x) [] stmts
-  | _ -> []
+  | _ -> [] (* this is ok *)
 
 let get_compile_time_environment_pos sym ce =
   let reversed_ce = List.rev ce in
@@ -243,6 +243,7 @@ let rec compile (node : Ast.ast_node) state =
         let excluded_sym =
           match expr with
           | Nam sym -> Some sym
+          | Deref (Nam sym) -> Some sym  (* include the symbol of the deref *)
           | _ -> None
         in
     

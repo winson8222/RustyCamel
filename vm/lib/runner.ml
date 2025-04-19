@@ -382,18 +382,11 @@ let execute_instruction state instr =
 
       Ok (VAddress addr)
   | CALL arity ->
-      (* print the operand stack *)
-      (* Printf.printf "before os: ["; *)
-      (* List.iter (fun addr -> Printf.printf "%d; " addr) !(state.os); *)
-
-      (* Printf.printf "]\n"; *)
 
       (* 1. Get the function from the top n of the operand stack *)
       let fun_addr = List.nth !(state.os) arity in
 
       (* print the address of the function *)
-      (* Printf.printf "fun_addr: %d\n" fun_addr; *)
-      (* 2. Check if it's a builtin *)
       if Heap.heap_get_tag state.heap fun_addr = Heap.Builtin_tag then
         (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
         (* TODO: Implement apply_builtin *)
@@ -403,10 +396,6 @@ let execute_instruction state instr =
         let frame_addr =
           Heap.heap_allocate_frame state.heap ~num_values:arity
         in
-
-        (* print the frame address *)
-        (* Printf.printf "[call] frame address: %d\n" frame_addr; *)
-        (* Printf.printf "[call] num frame vals: %d\n" (Heap.heap_get_num_children state.heap frame_addr); *)
         (* 4. Pop arguments from operand stack and set them in the frame *)
         let rec set_args i =
           if i < 0 then ()
@@ -448,16 +437,51 @@ let execute_instruction state instr =
           Heap.heap_get_closure_code_addr state.heap fun_addr
         in
         (* AT call the address is *)
-        (* Printf.printf "[CALL] closure PC is %d\n" closure_code_addr; *)
-
-        (* Printf.printf "OS len: %d\n" (List.length !(state.os)); *)
-        (* Printf.printf "OS after call: ["; *)
         Ok (VAddress closure_code_addr)
-  | other ->
-      Error
-        (TypeError
-           (Printf.sprintf "Unrecognized instruction %s"
-              (Compiler.string_of_instruction other)))
+  | TAILCALL arity ->
+      (* 1. Get the function from the top n of the operand stack *)
+      let fun_addr = List.nth !(state.os) arity in
+
+      (* print the address of the function *)
+      if Heap.heap_get_tag state.heap fun_addr = Heap.Builtin_tag then
+        (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
+        (* TODO: Implement apply_builtin *)
+        failwith "Builtin functions not implemented yet"
+      else
+        (* 3. Allocate frame for arguments *)
+        let frame_addr =
+          Heap.heap_allocate_frame state.heap ~num_values:arity
+        in
+        (* 4. Pop arguments from operand stack and set them in the frame *)
+        let rec set_args i =
+          if i < 0 then ()
+          else
+            let arg_addr = List.hd !(state.os) in
+            (* Printf.printf "setting child %d to %d\n" i arg_addr; *)
+            state.os := List.tl !(state.os);
+            (* Printf.printf "arg_addr: %d\n" arg_addr; *)
+            Heap.heap_set_child state.heap ~address:frame_addr ~child_index:i
+              ~value:(Float.of_int arg_addr);
+            set_args (i - 1)
+        in
+        set_args (arity - 1);
+
+        (* pop fun from OS*)
+        state.os := List.tl !(state.os);
+        (* 7. Update environment *)
+          let closure_env = Heap.heap_get_closure_env_addr state.heap fun_addr in
+
+          (* print the closure env *)
+          state.env_addr :=
+            Heap.heap_env_extend state.heap ~new_frame_addr:frame_addr
+              ~env_addr:closure_env;
+
+          (* 8. Update PC to function's code address *)
+          let closure_code_addr =
+            Heap.heap_get_closure_code_addr state.heap fun_addr
+      in
+      (* AT call the address is *)
+      Ok (VAddress closure_code_addr)
 
 (** Main VM execution loop *)
 let run state instrs =
