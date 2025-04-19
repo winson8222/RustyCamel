@@ -3,7 +3,7 @@ type tc_type =
   | Ret of Types.value_type
 [@@deriving show]
 
-type symbol_table = (string, Types.value_type) Hashtbl.t
+type symbol_table = (string, Types.value_type * bool) Hashtbl.t
 
 type t = {
   te : symbol_table;
@@ -26,7 +26,7 @@ let extend_env (state : t) =
 
 let rec lookup_sym sym state =
   match Hashtbl.find_opt state.te sym with
-  | Some typ -> Some typ
+  | Some (typ, is_mutable) -> Some (typ, is_mutable)
   | None -> Option.bind state.parent (lookup_sym sym)
 
 let is_declaration = function
@@ -37,28 +37,32 @@ let get_local_decls = function
   | Ast.Sequence stmts ->
       List.filter is_declaration stmts
       |> List.map (function
-           | Ast.Let { sym; declared_type; _ }
-           | Ast.Const { sym; declared_type; _ }
+           | Ast.Let { sym; declared_type; is_mutable; _ } ->
+               (sym, declared_type, is_mutable)
+           | Ast.Const { sym; declared_type; _ } ->
+               (sym, declared_type, false)
            | Ast.Fun { sym; declared_type; _ } ->
-               (sym, declared_type)
+               (sym, declared_type, false)
            | _ -> failwith "Invalid declaration node")
   | single -> (
       match single with
-      | Ast.Let { sym; declared_type; _ }
-      | Ast.Const { sym; declared_type; _ }
+      | Ast.Let { sym; declared_type; is_mutable; _ } ->
+          [ (sym, declared_type, is_mutable) ]
+      | Ast.Const { sym; declared_type; _ } ->
+          [ (sym, declared_type, false) ]
       | Ast.Fun { sym; declared_type; _ } ->
-          [ (sym, declared_type) ]
+          [ (sym, declared_type, false) ]
       | _ -> failwith "Invalid declaration node")
 
 let put_decls_in_table decls te =
-  List.iter (fun (sym, typ) -> Hashtbl.replace te sym typ) decls
+  List.iter (fun (sym, typ, is_mutable) -> Hashtbl.replace te sym (typ, is_mutable)) decls
 
 let are_types_compatible = ( = )
 
 let lookup_fun_type sym state : Types.function_type =
   match lookup_sym sym state with
-  | Some (TFunction value) -> value
-  | Some other ->
+  | Some (Types.TFunction value, _) -> value
+  | Some (other, _) ->
       failwith ("Expected function type, got: " ^ Types.show_value_type other)
   | None -> failwith ("Function symbol not found: " ^ sym)
 
@@ -108,11 +112,11 @@ let rec type_ast ast_node state : tc_type =
 
   | Nam sym -> (
       match lookup_sym sym state with
-      | Some t -> Value t
+      | Some (t, _) -> Value t
       | None -> failwith ("Unbound symbol: " ^ sym)
     )
 
-  | Let { declared_type; expr; _ } ->
+  | Let { declared_type; expr; _ } -> 
       let expr_type = type_ast expr state in
       (match expr_type with
        | Value actual ->
@@ -142,10 +146,10 @@ let rec type_ast ast_node state : tc_type =
 
   | Fun { body; declared_type; prms; _ } -> (
       match declared_type with
-      | TFunction { ret; prms = param_types } ->
+      | Types.TFunction { ret; prms = param_types } ->
           if List.length prms <> List.length param_types then
             failwith "Mismatched parameters and types";
-          let param_decls = List.combine prms param_types in
+          let param_decls = List.map2 (fun sym (typ, is_mutable) -> (sym, typ, is_mutable)) prms param_types in
           let extended_state = extend_env state in
           put_decls_in_table param_decls extended_state.te;
           let body_tc = type_ast body extended_state in
@@ -201,15 +205,15 @@ let rec type_ast ast_node state : tc_type =
       if List.length prm_types <> List.length arg_types then
         failwith "Mismatched number of arguments";
       List.iter2
-        (fun expected actual ->
+        (fun (expected_type, _) actual ->
            match actual with
            | Value a ->
-               if not (are_types_compatible expected a) then
+               if not (are_types_compatible expected_type a) then
                  failwith "Argument type mismatch"
            | Ret _ -> failwith "Return not allowed in argument")
         prm_types arg_types;
       Value fun_type.ret
-      | Unop { sym; frst } -> (
+  | Unop { sym; frst } -> (
         match type_ast frst state with
         | Value t -> (
             match sym with
@@ -261,14 +265,25 @@ let rec type_ast ast_node state : tc_type =
       | Ret _, Value _ | Value _, Ret _ ->
           failwith "Only one branch returns in conditional")
   | Assign { sym; expr } -> (
+    (* check if sym is mutable *)
+    let _= match lookup_sym sym state with
+      | Some (Types.TRef { is_mutable; _ }, _) ->
+        if is_mutable then ()
+        else failwith "Cannot assign to a non-mutable reference"
+     (* for other types, check if they are mutable *)
+     | Some (other, is_mutable) ->
+        if is_mutable then ()
+        else failwith ("Expected mutable reference type, got: " ^ (Types.show_value_type other))
+     | None -> failwith ("Unbound symbol for assignment: " ^ sym)
+    in
     match lookup_sym sym state with
-    | Some declared_type -> (
+    | Some (typ, _) -> (
         match type_ast expr state with
         | Value actual_type ->
-            if are_types_compatible declared_type actual_type then
+            if are_types_compatible typ actual_type then
               Value Types.TUndefined
             else
-              failwith (make_type_err_msg declared_type actual_type)
+              failwith (make_type_err_msg typ actual_type)
         | Ret _ -> failwith "Return not allowed in assignment expression"
       )
     | None -> failwith ("Unbound symbol for assignment: " ^ sym)
