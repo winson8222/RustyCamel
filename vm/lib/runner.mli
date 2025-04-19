@@ -1,6 +1,5 @@
 type t
 
-
 type vm_value =
   | VNumber of float
   | VString of string
@@ -8,6 +7,9 @@ type vm_value =
   | VBoolean of bool
   | VRef of vm_value
   | VAddress of int (* byte address *)
+  | VClosure of int * int * int
+  | VFrame of int
+  | VEnvironment of int
 [@@deriving show]
 
 type vm_error = TypeError of string

@@ -1,3 +1,12 @@
-let n: i32 = 1;
-let m: i32 = 10;
-n + m;
+let s : String = "programming";
+
+fn borrow(a: &String) {
+    a;
+}
+
+fn take(a: String) {
+    a;
+}
+
+borrow(&s);
+s;

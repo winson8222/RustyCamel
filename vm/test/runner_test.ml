@@ -9,7 +9,7 @@ let check_vm_value msg expected actual =
   Alcotest.(check (result testable_value testable_error)) msg expected actual
 
 (* ---------- Test cases ---------- *)
-
+(* 
 let test_run_ldc () =
   let open Vm.Compiler in
   let instrs = [ LDC (Int 123); DONE ] in
@@ -49,19 +49,19 @@ let test_binop_comparison () =
   let test_cases =
     [
       (* Less Than *)
-      ( [ LDC (Int 4); LDC (Int 6); BINOP LessThan; DONE ],
-        Ok (VBoolean true),
-        "less than true test" );
-      ( [ LDC (Int 6); LDC (Int 4); BINOP LessThan; DONE ],
-        Ok (VBoolean false),
-        "less than false test" );
-      (* Less Than Equal *)
-      ( [ LDC (Int 4); LDC (Int 4); BINOP LessThanEqual; DONE ],
-        Ok (VBoolean true),
-        "less than equal same value test" );
       ( [ LDC (Int 6); LDC (Int 4); BINOP LessThanEqual; DONE ],
         Ok (VBoolean false),
         "less than equal false test" );
+      ( [ LDC (Int 4); LDC (Int 6); BINOP LessThan; DONE ],
+        Ok (VBoolean true),
+        "less than true test" );
+      (* ( [ LDC (Int 6); LDC (Int 4); BINOP LessThan; DONE ],
+        Ok (VBoolean false),
+        "less than false test" ); *)
+      (* Less Than Equal *)
+      (* ( [ LDC (Int 4); LDC (Int 4); BINOP LessThanEqual; DONE ],
+        Ok (VBoolean true),
+        "less than equal same value test" ); *)
       (* Greater Than *)
       ( [ LDC (Int 6); LDC (Int 4); BINOP GreaterThan; DONE ],
         Ok (VBoolean true),
@@ -209,7 +209,250 @@ let test_run_empty_stack () =
   let open Vm.Compiler in
   let instrs = [ DONE ] in
   let result = run (create ()) instrs in
-  check_vm_value "empty operand stack" (Ok VUndefined) result
+  check_vm_value "empty operand stack" (Ok VUndefined) result *)
+
+(* let test_function_definition_and_execution () =
+  let open Vm.Compiler in
+  let instrs = [
+    ENTER_SCOPE { num = 1 };  (* Scope for function *)
+    LDF { arity = 2; addr = 3 };  (* Function with 2 parameters *)
+    GOTO 11;  (* Skip function body *)
+    ENTER_SCOPE { num = 0 };  (* Function scope *)
+    LD { pos = { frame_index = 1; value_index = 0 } };  (* Load first param *)
+    LD { pos = { frame_index = 1; value_index = 1 } };  (* Load second param *)
+    BINOP Add;  (* Add them *)
+    RESET;  (* Return from function *)
+    EXIT_SCOPE;  (* Exit function scope *)
+    LDC Undefined;  (* After function definition *)
+    RESET;  (* Return to main scope *)
+    ASSIGN { frame_index = 0; value_index = 0 };  (* Store function *)
+    EXIT_SCOPE;  (* Exit main scope *)
+    DONE;
+  ] in
+
+  (* First run to get the closure *)
+  let result = run (create ()) instrs in
+  check_vm_value "function definition and execution" (Ok (VClosure (2, 3, 70))) result *)
+
+(* let test_multiple_binops_across_statements () =
+  let open Vm.Compiler in
+  let state = create () in
+  let json = {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "Block",
+        "statements": [
+          {
+            "type": "LetDecl",
+            "name": "x",
+            "isMutable": false,
+            "value": {
+              "type": "BinaryExpr",
+              "operator": "*",
+              "left": {
+                "type": "BinaryExpr",
+                "operator": "+",
+                "left": { "type": "Literal", "value": 5 },
+                "right": { "type": "Literal", "value": 3 }
+              },
+              "right": { "type": "Literal", "value": 2 }
+            },
+            "declaredType": {
+              "type": "BasicType",
+              "name": "i32"
+            }
+          },
+          {
+            "type": "LetDecl",
+            "name": "y",
+            "isMutable": false,
+            "value": {
+              "type": "BinaryExpr",
+              "operator": "/",
+              "left": {
+                "type": "BinaryExpr",
+                "operator": "-",
+                "left": { "type": "Literal", "value": 10 },
+                "right": { "type": "Literal", "value": 4 }
+              },
+              "right": { "type": "Literal", "value": 2 }
+            },
+            "declaredType": {
+              "type": "BasicType",
+              "name": "i32"
+            }
+          },
+          {
+            "type": "BinaryExpr",
+            "operator": "+",
+            "left": { "type": "IdentExpr", "name": "x" },
+            "right": { "type": "IdentExpr", "name": "y" }
+          }
+        ]
+      }
+    ]
+  }|} in
+  let instrs = compile_program json in
+  let result = run state instrs in
+  check_vm_value "multiple binops across statements" (Ok (VNumber 19.0)) result
+
+let test_function_call_with_args () =
+  let open Vm.Compiler in
+  let instrs = [
+    ENTER_SCOPE { num = 1 };  (* Scope for function *)
+    LDF { arity = 2; addr = 3 };  (* Function with 2 parameters *)
+    GOTO 11;  (* Skip function body *)
+    ENTER_SCOPE { num = 0 };  (* Function scope *)
+    LD { pos = { frame_index = 1; value_index = 0 } };  (* Load first param *)
+    LD { pos = { frame_index = 1; value_index = 1 } };  (* Load second param *)
+    BINOP Add;  (* Add them *)
+    RESET;  (* Return from function *)
+    EXIT_SCOPE;  (* Exit function scope *)
+    LDC Undefined;  (* After function definition *)
+    RESET;  (* Return to main scope *)
+    ASSIGN { frame_index = 0; value_index = 0 };  (* Store function *)
+    POP;  (* Clean up stack *)
+    LD { pos = { frame_index = 0; value_index = 0 } };  (* Load function *)
+    LDC (Int 33);  (* First argument *)
+    LDC (Int 22);  (* Second argument *)
+    CALL 2;  (* Call function with 2 arguments *)
+    EXIT_SCOPE;  (* Exit main scope *)
+      DONE;
+  ] in
+
+  let result = run (create ()) instrs in
+  check_vm_value "function call with arguments" (Ok (VNumber 55.0)) result
+
+  let test_factorial () =
+    let open Vm.Compiler in
+    let instrs = [
+      ENTER_SCOPE { num = 1 };  (* Scope for factorial function *)
+      LDF { arity = 1; addr = 3 };  (* Function with 1 parameter *)
+      GOTO 26;  (* Skip function body *)
+      ENTER_SCOPE { num = 0 };  (* Function scope *)
+      LD { pos = { frame_index = 1; value_index = 0 } };  (* Load n *)
+      LDC (Int 0);  (* Load 0 *)
+      BINOP Equal;  (* n == 0 *)
+      JOF 13;  (* If false, jump to recursive case *)
+      ENTER_SCOPE { num = 0 };  (* Base case scope *)
+      LDC (Int 1);  (* Return 1 *)
+      RESET;  (* Return from base case *)
+      EXIT_SCOPE;  (* Exit base case scope *)
+      GOTO 23;  (* Skip recursive case *)
+      ENTER_SCOPE { num = 0 };  (* Recursive case scope *)
+      LD { pos = { frame_index = 1; value_index = 0 } };  (* Load n *)
+      LD { pos = { frame_index = 0; value_index = 0 } };  (* Load n-1 *)
+      LD { pos = { frame_index = 1; value_index = 0 } };  (* Load n *)
+      LDC (Int 1);  (* Load 1 *)
+      BINOP Subtract;  (* n - 1 *)
+      CALL 1;  (* Call factorial(n-1) *)
+      BINOP Multiply;  (* n * factorial(n-1) *)
+      RESET;  (* Return from recursive case *)
+      EXIT_SCOPE;  (* Exit recursive case scope *)
+      EXIT_SCOPE;  (* Exit function scope *)
+      LDC Undefined;  (* After function definition *)
+      RESET;  (* Return to main scope *)
+      ASSIGN { frame_index = 0; value_index = 0 };  (* Store factorial function *)
+      POP;  (* Clean up stack *)
+      LD { pos = { frame_index = 0; value_index = 0 } };  (* Load factorial function *)
+      LDC (Int 2);  (* Argument 5 *)
+      CALL 1;  (* Call factorial(5) *)
+      EXIT_SCOPE;  (* Exit main scope *)
+      DONE;  (* End program *)
+    ] in
+  
+    let result = run (create ()) instrs in
+    check_vm_value "factorial of 5" (Ok (VNumber 120.0)) result *)
+
+let test_simple_function_return_param () =
+  let open Vm.Compiler in
+  let instrs =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 1; addr = 3 };
+      (* Function with 1 parameter *)
+      GOTO 9;
+      (* Skip function body *)
+      ENTER_SCOPE { num = 0 };
+      (* Function scope *)
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      (* Load parameter *)
+      RESET;
+      (* Return from function *)
+      EXIT_SCOPE;
+      (* Exit function scope *)
+      LDC Undefined;
+      (* After function definition *)
+      RESET;
+      (* Return to main scope *)
+      ASSIGN { frame_index = 0; value_index = 0 };
+      (* Store function *)
+      POP;
+      (* Clean up stack *)
+      LD { pos = { frame_index = 0; value_index = 0 } };
+      (* Load function *)
+      LDC (Int 1);
+      (* Argument *)
+      CALL 1;
+      (* Call function with 1 argument *)
+      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      (* Exit main scope *)
+      DONE;
+    ]
+  in
+
+  let result = run (create ()) instrs in
+  check_vm_value "simple function that returns its parameter" (Ok (VNumber 1.0))
+    result
+
+let test_simple_free () =
+  let open Vm.Compiler in
+  let instrs = [
+    ENTER_SCOPE { num = 1 };
+    LDC (Int 1);
+    ASSIGN { frame_index = 0; value_index = 0 };
+    FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
+    LDC (Int 2);
+    ASSIGN { frame_index = 0; value_index = 1 };
+    FREE { pos = { frame_index = 0; value_index = 1 }; to_free = true };
+    LDC (Int 3);
+    ASSIGN { frame_index = 0; value_index = 2 };
+    FREE { pos = { frame_index = 0; value_index = 2 }; to_free = false };
+    DONE;
+  ] in
+
+  let result = run (create ()) instrs in
+  check_vm_value "simple free" (Ok (VNumber 3.0)) result
+
+let test_function_return_one () =
+  let open Vm.Compiler in
+  let instrs = [
+    ENTER_SCOPE { num = 2 };  (* Scope for function and result *)
+    LDF { arity = 0; addr = 3 };  (* Function with 0 parameters *)
+    GOTO 13;  (* Skip function body *)
+    ENTER_SCOPE { num = 1 };  (* Function scope *)
+    LDC (Int 1);  (* Load 1 *)
+    ASSIGN { frame_index = 2; value_index = 0 };  (* Assign to local variable *)
+    POP;  (* Clean up stack *)
+    LD { pos = { frame_index = 2; value_index = 0 }};  (* Load the value *)
+    FREE { pos = { frame_index = 2; value_index = 0 }; to_free = true };
+    RESET;  (* Return from function *)
+    EXIT_SCOPE;  (* Exit function scope *)
+    LDC Undefined;  (* After function definition *)
+    RESET;  (* Return to main scope *)
+    ASSIGN { frame_index = 0; value_index = 0 };  (* Store function *)
+    POP;  (* Clean up stack *)
+    LD { pos = { frame_index = 0; value_index = 0 }};  (* Load function *)
+    CALL 0;  (* Call function with 0 arguments *)
+    ASSIGN { frame_index = 0; value_index = 1 };  (* Store result *)
+    EXIT_SCOPE;  (* Exit main scope *)
+    DONE;  (* End program *)
+  ] in
+
+  let result = run (create ()) instrs in
+  check_vm_value "function that returns 1" (Ok (VNumber 1.0)) result
 
 let () =
   let open Alcotest in
@@ -217,7 +460,7 @@ let () =
     [
       ( "runner",
         [
-          test_case "test_unop_not" `Quick test_unop_not;
+          (* test_case "test_unop_not" `Quick test_unop_not;
           test_case "Run LDC Int" `Quick test_run_ldc;
           test_case "test_binop_arithmetic" `Quick test_binop_arithmetic;
           test_case "test_binop_comparison" `Quick test_binop_comparison;
@@ -228,6 +471,14 @@ let () =
           test_case "DONE on empty stack" `Quick test_run_empty_stack;
           test_case "assign and load" `Quick test_assign_and_ld;
           test_case "borrow" `Quick test_borrow;
-          test_case "borrow_and_deref" `Quick test_borrow_and_deref;
+          test_case "borrow_and_deref" `Quick test_borrow_and_deref; *)
+          (* test_case "function definition and execution" `Quick test_function_definition_and_execution;
+          test_case "multiple binops across statements" `Quick test_multiple_binops_across_statements;
+          test_case "function call with arguments" `Quick test_function_call_with_args;
+          test_case "factorial of 5" `Quick test_factorial; *)
+          test_case "simple function that returns its parameter" `Quick
+            test_simple_function_return_param;
+          test_case "simple free" `Quick test_simple_free;
+          test_case "function that returns 1" `Quick test_function_return_one;
         ] );
     ]

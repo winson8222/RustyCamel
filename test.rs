@@ -1,3 +1,4 @@
-let n: i32 = 1;
-let m: i32 = 10;
-n + m;
+fn while_loop(n: i32) -> &i32 {
+    let i : &i32 = &n;
+    return i;
+test(0);

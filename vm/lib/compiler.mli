@@ -1,22 +1,6 @@
+open Ast
+
 type pos_in_env = { frame_index : int; value_index : int }
-
-type unop_sym = 
-  | Negate 
-  | LogicalNot
-[@@deriving show]
-
-type binop_sym = 
-  | Add
-  | Subtract
-  | Multiply
-  | Divide
-  | LessThan
-  | LessThanEqual
-  | GreaterThan
-  | GreaterThanEqual
-  | Equal
-  | NotEqual
-[@@deriving show]
 
 type compiled_instruction =
   | LDC of Types.lit_value
@@ -35,14 +19,18 @@ type compiled_instruction =
   | RESET
   | TAILCALL of int
   | CALL of int
+  | FREE of { pos : pos_in_env; to_free : bool }
   | DONE
 [@@deriving show]
+
 val string_of_instruction : compiled_instruction -> string
 
 type state = {
   instrs : compiled_instruction list; (* Symbol table with positions *)
   ce : string list list; (* list of frames—list of syms *)
   wc : int;
+  used_symbols : (string, pos_in_env) Hashtbl.t;
+  is_top_level : bool;
 }
 
 val get_compile_time_environment_pos : string -> string list list -> pos_in_env

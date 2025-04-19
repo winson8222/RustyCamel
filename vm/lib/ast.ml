@@ -1,4 +1,33 @@
-type ast_node =
+type unop_sym = Negate | LogicalNot [@@deriving show]
+
+
+type binop_sym =
+  | Add
+  | Subtract
+  | Multiply
+  | Divide
+  | LessThan
+  | LessThanEqual
+  | GreaterThan
+  | GreaterThanEqual
+  | Equal
+  | NotEqual
+[@@deriving show]
+
+let binop_of_string = function
+  | "+" -> Add
+  | "-" -> Subtract
+  | "*" -> Multiply
+  | "/" -> Divide
+  | "<" -> LessThan
+  | "<=" -> LessThanEqual
+  | ">" -> GreaterThan
+  | ">=" -> GreaterThanEqual
+  | "==" -> Equal
+  | "!=" -> NotEqual
+  | op -> failwith ("Unknown binary operator: " ^ op)
+
+  type ast_node =
   | Literal of Types.lit_value
   | Nam of string
   | Block of ast_node
@@ -8,14 +37,13 @@ type ast_node =
   | Let of { sym : string; expr : ast_node }
   | Const of { sym : string; expr : ast_node }
   | Assign of { sym : string; expr : ast_node }
-  | Binop of { sym : string; frst : ast_node; scnd : ast_node }
-  | Unop of { sym : string; frst : ast_node }
+  | Binop of { sym : binop_sym; frst : ast_node; scnd : ast_node }
+  | Unop of { sym : unop_sym; frst : ast_node }
   | Fun of { sym : string; prms : string list; body : ast_node }
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
   | Borrow of { expr : ast_node }
   | Deref of ast_node
-  | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
 
 type typed_ast =
@@ -37,9 +65,8 @@ type typed_ast =
       declared_type : Types.value_type;
     }
   | Assign of { sym : string; expr : typed_ast }
-  | Binop of { sym : string; frst : typed_ast; scnd : typed_ast }
-  | Unop of { sym : string; frst : typed_ast }
-  | Lam of { prms : string list; body : typed_ast }
+  | Binop of { sym : binop_sym ; frst : typed_ast; scnd : typed_ast }
+  | Unop of { sym : unop_sym; frst : typed_ast }
   | Fun of {
       sym : string;
       prms : string list;
@@ -52,6 +79,9 @@ type typed_ast =
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
 
+
+
+
 let extract_basic_type (t : Yojson.Basic.t) =
   let open Yojson.Basic.Util in
   match t |> member "name" |> to_string with
@@ -63,29 +93,47 @@ let extract_basic_type (t : Yojson.Basic.t) =
       failwith (Printf.sprintf "unsupported type to extraact in json: %s" other)
 
 let rec extract_type declared_type_json =
+  
   let open Yojson.Basic.Util in
-  match declared_type_json |> member "type" |> to_string with
-  | "BasicType" -> extract_basic_type declared_type_json
-  | "RefType" ->
-      let referenced_type =
-        declared_type_json |> member "value" |> extract_type
-      in
-      let is_mutable = declared_type_json |> member "isMutable" |> to_bool in
-      Types.TRef { base = referenced_type; is_mutable }
-  | _ -> failwith "unexpected type"
+  if declared_type_json = `Null then Types.TUndefined
+  else
+    
+    (* Printf.printf "declared_type_json type: %s\n" (declared_type_json |> member "type" |> to_string); *)
+    match declared_type_json |> member "type" |> to_string with
+    | "BasicType" -> extract_basic_type declared_type_json
+    | "RefType" ->
+        let referenced_type =
+          declared_type_json |> member "value" |> extract_type
+        in
+        let is_mutable = declared_type_json |> member "isMutable" |> to_bool in
+        Types.TRef { base = referenced_type; is_mutable }
+    | _ -> failwith "unexpected type"
 
 (* Produces typed ast *)
 let rec of_json json =
+  Printf.printf "json: %s\n" (Yojson.Basic.to_string json);
   let open Yojson.Basic.Util in
   let tag = json |> member "type" |> to_string in
-  Printf.printf "Executing tag: %s" tag;
+  Printf.printf "Executing tag: %s\n" tag;
   match tag with
   | "Program" ->
       let stmts = json |> member "statements" |> to_list in
-      Block (Sequence (List.map of_json stmts))
+      Block
+        (Sequence
+           (List.map
+              (fun x ->
+                Printf.printf "next statement in program";
+                of_json x)
+              stmts))
   | "Block" ->
       let stmts = json |> member "statements" |> to_list in
-      Block (Sequence (List.map of_json stmts))
+      Block
+        (Sequence
+           (List.map
+              (fun x ->
+                Printf.printf "next statement in block\n";
+                of_json x)
+              stmts))
   | "Literal" -> (
       let value = member "value" json in
       match value with
@@ -117,17 +165,17 @@ let rec of_json json =
   | "BinaryExpr" ->
       Binop
         {
-          sym = json |> member "operator" |> to_string;
+          sym = json |> member "operator" |> to_string |> binop_of_string ;
           frst = of_json (member "left" json);
           scnd = of_json (member "right" json);
         }
-  | "UnaryNegation" -> Unop { sym = "-"; frst = of_json (member "expr" json) }
-  | "UnaryNot" -> Unop { sym = "!"; frst = of_json (member "expr" json) }
+  | "UnaryNegation" -> Unop { sym = Negate; frst = of_json (member "expr" json) }
+  | "UnaryNot" -> Unop { sym = LogicalNot; frst = of_json (member "expr" json) }
   | "IdentExpr" -> Nam (member "name" json |> to_string)
   | "BorrowExpr" ->
       Borrow
         {
-          is_mutable = member "mutable" json |> to_bool;
+          is_mutable = json |> member "isMutable" |> to_bool;
           expr = member "expr" json |> of_json;
         }
   | "DerefExpr" -> Deref (member "expr" json |> of_json)
@@ -150,13 +198,6 @@ let rec of_json json =
           body;
           declared_type = TFunction { ret = ret_type; prms = prms_type };
         }
-  | "lam" ->
-      let prms =
-        json |> member "prms" |> to_list
-        |> List.map (fun p -> p |> member "name" |> to_string)
-      in
-      let body = json |> member "body" |> of_json in
-      Lam { prms; body }
   | "WhileLoop" ->
       While
         {
@@ -165,14 +206,15 @@ let rec of_json json =
         }
   | "ReturnExpr" -> Ret (json |> member "expr" |> of_json)
   | "FunctionCall" ->
+      Printf.printf "function casll";
       let fun_nam = Nam (json |> member "name" |> to_string) in
       let args = json |> member "args" |> to_list |> List.map of_json in
       App { fun_nam; args }
-  | "assmt" ->
+  | "AssignmentStmt" ->
       Assign
         {
-          sym = json |> member "sym" |> to_string;
-          expr = json |> member "expr" |> of_json;
+          sym = json |> member "name" |> to_string;
+          expr = json |> member "value" |> of_json;
         }
   | "IfExpr" ->
       Cond
@@ -204,8 +246,6 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Binop { sym; frst; scnd } ->
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
-  | Lam { prms; body } ->
-      Fun { sym = "anonymous"; prms; body = strip_types body }
   | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->

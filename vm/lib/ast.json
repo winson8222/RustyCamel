@@ -1,0 +1,59 @@
+{
+  "type": "Program",
+  "statements": [
+    {
+      "type": "FnDecl",
+      "name": "main",
+      "params": [],
+      "returnType": null,
+      "body": {
+        "type": "Block",
+        "statements": [
+          {
+            "type": "LetDecl",
+            "name": "n",
+            "value": {
+              "type": "Literal",
+              "value": 1
+            },
+            "declaredType": {
+              "type": "BasicType",
+              "name": "i32"
+            },
+            "isMutable": false
+          },
+          {
+            "type": "LetDecl",
+            "name": "m",
+            "value": {
+              "type": "Literal",
+              "value": 10
+            },
+            "declaredType": {
+              "type": "BasicType",
+              "name": "i32"
+            },
+            "isMutable": false
+          },
+          {
+            "type": "BinaryExpr",
+            "left": {
+              "type": "IdentExpr",
+              "name": "m"
+            },
+            "operator": "+",
+            "right": {
+              "type": "IdentExpr",
+              "name": "n"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "name": "main",
+      "args": []
+    }
+  ]
+}

@@ -6,17 +6,22 @@ program: statement* EOF;
 // === Statements ===
 statement
     : letDecl ';'
+    | assignment ';'           // <— new top-level assignment
     | fnDecl
     | whileLoop
     | ifExpr
     | block
-    | expr ';'   // ← this allows expressions as standalone statements
-    | returnExpr
+    | expr ';'                 // ← other expressions as statements
     ;
 
 // === Let Declaration ===
 letDecl
     : 'let' MUT? IDENTIFIER (':' typeExpr)? ('=' expr)?
+    ;
+
+// === Assignment Statement (not an expression)
+assignment
+    : IDENTIFIER '=' expr      #AssignmentStmt
     ;
 
 // === Function Declaration ===
@@ -31,12 +36,7 @@ whileLoop: 'while' expr block;
 
 // === Block ===
 block
-    : '{' statement* returnExpr? '}'
-    ;
-
-returnExpr
-    : expr                             #ImplicitReturn
-    | expr ';'                         #ExplicitReturn
+    : '{' statement* '}'
     ;
 
 // === If Expression ===
@@ -54,14 +54,14 @@ exprBinary
 exprUnary
     : '-' exprUnary                    #UnaryNegation
     | '!' exprUnary                    #UnaryNot
+    | RETURN expr                      #ReturnExpr
     | REF MUT? exprUnary               #BorrowExpr
-    | '*' exprUnary                    #DerefExpr   
     | exprAtom                         #UnaryToAtom
     ;
 
-
 exprAtom
-    : IDENTIFIER '(' argList? ')'      #FunctionCall
+    : DEREF expr                 #DerefExpr   
+    | IDENTIFIER '(' argList? ')'      #FunctionCall
     | IDENTIFIER '!' '(' argList? ')'  #MacroCall
     | '(' expr ')'                     #ParensExpr
     | literal                          #LiteralExpr
@@ -88,10 +88,11 @@ literal
     ;
 
 // === Lexer Rules ===
+DEREF: '*';
+RETURN: 'return';
 MUT: 'mut';
 REF: '&';
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;
-
 INT: [0-9]+;
 FLOAT: [0-9]+ '.' [0-9]*;
 STRING: '"' (~["\\] | '\\' .)* '"';

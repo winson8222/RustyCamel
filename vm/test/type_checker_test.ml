@@ -143,8 +143,27 @@ let test_fun_fails () =
          })
   in
   let actual = check_type node tc in
-  let expected = Error "Return type mismatch" in
+  let expected = Error "Function should return Types.TUndefined but returns Types.TInt" in
   Alcotest.(check (result unit string)) "test" expected actual
+
+  let test_fun_no_ret_fails () =
+    let tc = create () in
+    let open Vm.Ast in
+    let node =
+      Block
+        (Fun
+           {
+             sym = "f";
+             prms = [ "a" ];
+             declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+             body = (Literal (Int 1));
+           })
+    in
+    let actual = check_type node tc in
+    let expected = Error "Missing return in function body. Declared return type: (Types.TFunction { Types.ret = Types.TInt; prms = [Types.TInt] })" in
+    Alcotest.(check (result unit string)) "test" expected actual
+
+    
 
 let test_fun_compatible_prms_args_succeeds () =
   let tc = create () in
@@ -197,7 +216,7 @@ let test_binop_mismatched_operands_fails () =
          [
            Binop
              {
-               sym = "+";
+               sym = Add;
                frst = Literal (Int 1);
                scnd = Literal (Boolean false);
              };
@@ -213,7 +232,7 @@ let test_binop_matching_operands_succeeds () =
   let node =
     Block
       (Sequence
-         [ Binop { sym = "+"; frst = Literal (Int 1); scnd = Literal (Int 5) } ])
+         [ Binop { sym = Add; frst = Literal (Int 1); scnd = Literal (Int 5) } ])
   in
   let actual = check_type node tc in
   let expected = Ok () in
@@ -226,8 +245,10 @@ let () =
       ( "Type checker",
         [
           test_case "Literal int" `Quick test_literal_mismatch_fails;
+          test_case "test_fun_no_ret_fails" `Quick test_fun_no_ret_fails;
           test_case "Literal borrow" `Quick test_literal_borrow_succeeds;
-          test_case "test_literal_borrow_and_deref_succeeds" `Quick test_literal_borrow_and_deref_succeeds;
+          test_case "test_literal_borrow_and_deref_succeeds" `Quick
+            test_literal_borrow_and_deref_succeeds;
           test_case "test_deref_literal_fails" `Quick test_deref_literal_fails;
           test_case "Literal int" `Quick test_match_int_succeeds;
           test_case "Function that returns int" `Quick test_fun_succeeds;
