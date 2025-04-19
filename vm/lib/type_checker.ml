@@ -228,6 +228,33 @@ let rec type_ast ast_node state : tc_type =
           else failwith "Branches of if-else return incompatible types"
       | Ret _, Value _ | Value _, Ret _ ->
           failwith "Only one branch returns in conditional")
+  | Assign { sym; expr } -> (
+    match lookup_sym sym state with
+    | Some declared_type -> (
+        match type_ast expr state with
+        | Value actual_type ->
+            if are_types_compatible declared_type actual_type then
+              Value Types.TUndefined
+            else
+              failwith (make_type_err_msg declared_type actual_type)
+        | Ret _ -> failwith "Return not allowed in assignment expression"
+      )
+    | None -> failwith ("Unbound symbol for assignment: " ^ sym)
+  )
+
+  | While { pred; body } ->
+    (* Check the condition type *)
+    (match type_ast pred state with
+     | Value Types.TBoolean -> ()
+     | Value other ->
+         failwith
+           ("Condition of while loop must be boolean. Got: "
+           ^ Types.show_value_type other)
+     | Ret _ -> failwith "Return not allowed in while condition");
+    (* Type check body in a new scope *)
+    let new_state = extend_env state in
+    let _ = type_ast body new_state in
+    Value Types.TUndefined
   | _ -> failwith "Type checking not supported"
 
 let check_type ast_node state =

@@ -171,6 +171,19 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
   | Unop { sym = _; frst } ->
       (* Unary operations like -x or !x just check the operand's ownership *)
       check_ownership_aux frst state
+  | Assign { sym; expr } ->
+    (* Ensure the symbol exists and is assignable *)
+    let sym_status =
+      match lookup_symbol_status sym state with
+      | Some status -> status
+      | None -> failwith ("Cannot assign to undeclared variable: " ^ sym)
+    in
+    let _ = handle_var_acc sym ~sym_status state in
+    check_ownership_aux expr state 
+  | While { pred; body } ->
+    let _ = check_ownership_aux pred state in
+    let new_state = extend_scope state in
+    check_ownership_aux body new_state
   | other -> failwith ("Unsupported ast node in ownership checking: " ^ (show_typed_ast other))
 
 let check_ownership typed_ast state =
