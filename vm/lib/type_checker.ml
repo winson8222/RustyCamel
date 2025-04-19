@@ -1,3 +1,4 @@
+
 type tc_type =
   | Value of Types.value_type
   | Ret of Types.value_type
@@ -13,10 +14,23 @@ type t = {
 let guessed_max_var_count_per_scope = 10
 
 let create () =
-  {
+  let state = {
     te = Hashtbl.create guessed_max_var_count_per_scope;
     parent = None;
-  }
+  } in
+  let add_builtin_functions state =
+    let println_type =
+      Types.TFunction {
+        prms = [ (Types.TString, false) ];  (* println! takes one string, not mutable *)
+        ret = Types.TUndefined;
+      }
+    in
+    Hashtbl.replace state.te "println" (println_type, false)
+
+    (* add more here*)
+  in
+  add_builtin_functions state;
+  state
 
 let extend_env (state : t) =
   {
@@ -199,20 +213,32 @@ let rec type_ast ast_node state : tc_type =
         | Nam n -> n
         | _ -> failwith "Expected function name (Nam)"
       in
-      let fun_type = lookup_fun_type fun_sym state in
-      let arg_types = List.map (fun a -> type_ast a state) args in
-      let prm_types = fun_type.prms in
-      if List.length prm_types <> List.length arg_types then
-        failwith "Mismatched number of arguments";
-      List.iter2
-        (fun (expected_type, _) actual ->
-           match actual with
-           | Value a ->
-               if not (are_types_compatible expected_type a) then
-                 failwith "Argument type mismatch"
-           | Ret _ -> failwith "Return not allowed in argument")
-        prm_types arg_types;
-      Value fun_type.ret
+      if Builtins.is_builtin_name fun_sym then (
+        let builtin_id = Builtins.get_builtin_id_by_name fun_sym in
+        let arg_types = List.map (fun a -> 
+          match type_ast a state with
+          | Value t -> t
+          | Ret _ -> failwith "Return not allowed in argument"
+        ) args in
+        if not (Builtins.validate_builtin_args builtin_id arg_types) then
+          failwith "Invalid argument types for builtin function";
+        Value (Builtins.get_builtin_ret_type builtin_id)
+      ) else (
+        let fun_type = lookup_fun_type fun_sym state in
+        let arg_types = List.map (fun a -> type_ast a state) args in
+        let prm_types = fun_type.prms in
+        if List.length prm_types <> List.length arg_types then
+          failwith "Mismatched number of arguments";
+        List.iter2
+          (fun (expected_type, _) actual ->
+             match actual with
+             | Value a ->
+                 if not (are_types_compatible expected_type a) then
+                   failwith "Argument type mismatch"
+             | Ret _ -> failwith "Return not allowed in argument")
+          prm_types arg_types;
+        Value fun_type.ret
+      )
   | Unop { sym; frst } -> (
         match type_ast frst state with
         | Value t -> (

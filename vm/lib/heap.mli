@@ -63,6 +63,8 @@ val heap_get_env_val_addr_at_pos :
 val heap_allocate_callframe : t -> pc:int -> env_addr:int -> int
 val heap_allocate_blockframe : t -> env_addr:int -> int
 val heap_get_blockframe_env : t -> int -> int
+val heap_allocate_builtin_frame : t -> int
+val heap_allocate_builtin : t -> builtin_id:int -> int
 val heap_get_number_value : t -> int -> float
 val heap_get_bool_value : t -> int -> bool
 val heap_get_string_value : t -> int -> string
@@ -87,6 +89,7 @@ val heap_allocate_closure :
 val heap_get_closure_arity : t -> int -> int
 val heap_get_closure_code_addr : t -> int -> int
 val heap_get_closure_env_addr : t -> int -> int
+val heap_get_builtin_id : t -> int -> int
 val string_of_node_tag : node_tag -> string
 val heap_allocate_frame : t -> num_values:int -> int
 val pretty_print_heap : t -> unit

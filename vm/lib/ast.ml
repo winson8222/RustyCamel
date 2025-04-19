@@ -225,6 +225,10 @@ let rec of_json json =
           cons = json |> member "thenBranch" |> of_json;
           alt = json |> member "elseBranch" |> of_json;
         }
+  | "MacroCall" ->
+      let name = json |> member "name" |> to_string in
+      let args = json |> member "args" |> to_list |> List.map of_json in
+      App { fun_nam = Nam name; args }
   | tag -> failwith ("Unknown tag: " ^ tag)
 
 let rec strip_types (ast : typed_ast) : ast_node =

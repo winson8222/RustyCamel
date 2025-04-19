@@ -23,6 +23,36 @@ type t = {
   string_intern_table : (string, int) Hashtbl.t;
 }
 
+let address_to_printable_string heap addr =
+  match Heap.heap_get_tag heap addr with
+  | Number_tag ->
+      let float_val = Heap.heap_get_number_value heap addr in
+      if Float.is_integer float_val then
+        string_of_int (int_of_float float_val)
+      else
+        string_of_float float_val
+  | String_tag ->
+      Heap.heap_get_string_value heap addr
+  | True_tag -> "true"
+  | False_tag -> "false"
+  | Undefined_tag -> "undefined"
+  | Closure_tag -> "<closure>"
+  | Frame_tag -> "<frame>"
+  | Environment_tag -> "<environment>"
+  | Blockframe_tag -> "<blockframe>"
+  | _ -> "<unprintable>"
+
+let apply_builtin name state =
+  match name with
+  | "println" -> (
+      (* pop the argument from the stack *)
+      let arg_addr = List.hd !(state.os) in
+      (* print the argument *)
+      Printf.printf "%s\n" (address_to_printable_string state.heap arg_addr);
+      Ok VUndefined
+    )
+  | _ -> Error (TypeError ("Unknown built-in function: " ^ name))
+
 let string_of_vm_value = show_vm_value
 let string_of_vm_error = show_vm_error
 
@@ -32,7 +62,7 @@ let create () =
       heap = Heap.create ();
       pc = ref 0;
       os = ref [];
-      env_addr = ref 40;
+      env_addr = ref 70;
       (* temp *)
       rts = ref [];
       string_intern_table = Hashtbl.create 1000;
@@ -88,9 +118,9 @@ let rec vm_value_to_address (state : t) (value : vm_value) : int =
   match value with
   | VNumber n -> Heap.heap_allocate_number state.heap n
   | VString s -> (
+    (* disabled for now*)
       match Hashtbl.find_opt state.string_intern_table s with
-      | Some addr -> addr
-      | None ->
+      | _ ->
           let addr = Heap.heap_allocate_string state.heap s in
           Hashtbl.add state.string_intern_table s addr;
           addr
@@ -282,6 +312,8 @@ let execute_instruction state instr =
       in
 
       (* print the value address *)
+      Printf.printf "LD value_addr: %d\n" value_addr;
+      (* print the value address *)
       state.os := value_addr :: !(state.os);
       Ok VUndefined
   | LDF { arity; addr } ->
@@ -397,9 +429,11 @@ let execute_instruction state instr =
       if Heap.heap_get_tag state.heap fun_addr = Heap.Builtin_tag then
         (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
         (* TODO: Implement apply_builtin *)
-        failwith "Builtin functions not implemented yet"
+        let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in
+        apply_builtin (Builtins.get_builtin_name_by_id builtin_id) state;
       else
         (* 3. Allocate frame for arguments *)
+        (* print that its not a builtin *)
         let frame_addr =
           Heap.heap_allocate_frame state.heap ~num_values:arity
         in
@@ -417,6 +451,8 @@ let execute_instruction state instr =
         in
         set_args (arity - 1);
 
+        (* print the frame address *)
+
         (* print the frame adn values of the args *)
 
         (* 5. Pop the function *)
@@ -427,7 +463,7 @@ let execute_instruction state instr =
           Heap.heap_allocate_callframe state.heap ~pc:!(state.pc)
             ~env_addr:!(state.env_addr)
         in
-
+        
         (* print the size of the callframe *)
         state.rts := callframe_addr :: !(state.rts);
 
@@ -453,7 +489,8 @@ let execute_instruction state instr =
       if Heap.heap_get_tag state.heap fun_addr = Heap.Builtin_tag then
         (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
         (* TODO: Implement apply_builtin *)
-        failwith "Builtin functions not implemented yet"
+        let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in
+        apply_builtin (Builtins.get_builtin_name_by_id builtin_id) state;
       else
         (* 3. Allocate frame for arguments *)
         let frame_addr =

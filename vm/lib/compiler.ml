@@ -31,9 +31,12 @@ type state = {
   used_symbols: (string, pos_in_env) Hashtbl.t;
   is_top_level: bool; (* New field to track if we're at top level *)
 }
-
+  let builtin_functions : string list = [
+    "println"
+  ]
 (* TODO: Add global compile environment with builtin frames *)
 let initial_state = { instrs = []; ce = []; used_symbols = Hashtbl.create 10; wc = 0; is_top_level = true }
+(** TODO: Add global compile environment with builtin frames *)
 
 (** Helper functions *)
 let rec scan_for_locals (node : Ast.ast_node) =
@@ -95,6 +98,11 @@ let fold_binop sym a b =
   | GreaterThanEqual, Float x, Float y -> Some (Boolean (x >= y))
   | _ -> None
 
+
+let create_builtin_frame () =
+  let extend_env_with_builtin_env = compile_time_environment_extend builtin_functions initial_state.ce in
+  extend_env_with_builtin_env
+  
 (* Compilation functions *)
 let rec compile (node : Ast.ast_node) state =
   let open Ast in
@@ -519,5 +527,7 @@ let compile_program json_str =
   in
   
   let ast = Ast.strip_types typed_ast in
+
+  let initial_state = { initial_state with ce = create_builtin_frame () } in
   let state = compile ast initial_state in
   state.instrs @ [ DONE ]

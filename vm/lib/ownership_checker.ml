@@ -124,9 +124,17 @@ let set_sym_ownership_in_cur_frame ~sym ~new_status ~state =
 let extend_scope parent =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
   { sym_table; parent = Some parent; is_in = None; borrow_kind = None }
-
+let add_builtin_functions (table : symbol_table) =
+    let println_type =
+      Types.TFunction {
+        prms = [ (Types.TString, false) ];  (* println! takes one string, not mutable *)
+        ret = Types.TUndefined;
+      }
+    in
+    Hashtbl.replace table "println" { ownership = Owned; typ = println_type }
 let create () =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
+  add_builtin_functions sym_table;
   { sym_table; parent = None; is_in = None; borrow_kind = None }
 
 let make_err_msg action sym sym_ownership_status =

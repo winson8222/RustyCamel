@@ -55,7 +55,7 @@ type t = {
   mutable canonical_values : canonical_values option;
 }
 
-let heap_size_words = 5000
+let heap_size_words = 3000
 
 let initial_config =
   {
@@ -65,6 +65,7 @@ let initial_config =
     size_offset = 2;
     node_size = 10;
   }
+
 
 (* Exported functions *)
 
@@ -385,42 +386,33 @@ let heap_get_closure_code_addr state addr =
 let heap_get_closure_env_addr state addr =
   heap_get_child_as_int state ~address:addr ~child_index:0
 
-  
 let heap_allocate_frame state ~num_values =
   let res = heap_allocate state ~size:(num_values + 1) ~tag:Frame_tag in
   res
 
-let create () =
-  let state =
-    {
-      config = initial_config;
-      buffer =
-        Buffer.create (initial_config.heap_size_words * initial_config.word_size);
-      free = ref 0;
-      canonical_values = None;
-    }
-  in
-  (* Initialize free pointers first *)
-  let rec set_free_pointers cur_state prev_addr cur_addr =
-    if cur_addr > heap_size_words - state.config.node_size then
-      heap_set cur_state ~address:prev_addr ~word:(Float.of_int (-1))  (* sentinel *)
-    else (
-      heap_set cur_state ~address:prev_addr ~word:(Float.of_int cur_addr);
-      set_free_pointers cur_state cur_addr (cur_addr + state.config.node_size))
-  in
-  set_free_pointers state 0 initial_config.node_size;
+let heap_allocate_builtin state ~builtin_id =
+  (* print the builtin id *)
+  let addr = heap_allocate state ~size:1 ~tag:Builtin_tag in
+  heap_set_byte_at_offset state ~addr ~offset:1 ~value:builtin_id;
+  addr
 
-  (* Then allocate canonical values *)
-  heap_allocate_canonical_values state;
+let heap_allocate_builtin_frame state =
+  (* print the builtin id *)
 
-  (* create an env with 1 frame*)
-  let _ = heap_allocate_environment state ~num_frames:0 in
+  Printf.printf "Allocating builtin frame\n";
+  let builtins = Builtins.all_builtins () in
+  let frame_addr = heap_allocate_frame state ~num_values:(List.length builtins) in
+  List.iteri
+    (fun i { Builtins.id; _ } ->
+      let builtin_addr = heap_allocate_builtin state ~builtin_id:id in
+      heap_set_child state ~address:frame_addr ~child_index:i ~value:(Float.of_int builtin_addr))
+    builtins;
+  frame_addr
 
-  state
+let heap_get_builtin_id state addr =
+  heap_get_byte_at_offset state ~addr ~offset:1
 
-(* Set all children to unassigned *)
 let pretty_print_heap state =
-  (* Printf.printf "\n======= HEAP NODE DUMP =======\n"; *)
   let rec print_node addr =
     if addr >= heap_size_words then ()
     else
@@ -480,5 +472,41 @@ let pretty_print_heap state =
         let next_addr = addr + 1 in
         if next_addr >= heap_size_words then () else print_node next_addr
   in
-  print_node 0;
-  (* Printf.printf "================================\n" *)
+  print_node 0
+
+let create () =
+  let state =
+    {
+      config = initial_config;
+      buffer =
+        Buffer.create (initial_config.heap_size_words * initial_config.word_size);
+      free = ref 0;
+      canonical_values = None;
+    }
+  in
+  (* Initialize free pointers first *)
+  let rec set_free_pointers cur_state prev_addr cur_addr =
+    if cur_addr > heap_size_words - state.config.node_size then
+      heap_set cur_state ~address:prev_addr ~word:(Float.of_int (-1))  (* sentinel *)
+    else (
+      heap_set cur_state ~address:prev_addr ~word:(Float.of_int cur_addr);
+      set_free_pointers cur_state cur_addr (cur_addr + state.config.node_size))
+  in
+  set_free_pointers state 0 initial_config.node_size;
+
+  (* Then allocate canonical values *)
+  heap_allocate_canonical_values state;
+
+  (* create an env with 1 frame*)
+  let env_addr = heap_allocate_environment state ~num_frames:0 in
+
+  Printf.printf "free: %d\n" !(state.free);
+
+  let builtin_frame_addr = heap_allocate_builtin_frame state in
+
+  let _ = heap_env_extend state ~new_frame_addr:builtin_frame_addr ~env_addr:env_addr in
+
+  Printf.printf "free: %d\n" !(state.free);
+  pretty_print_heap state;
+
+  state
