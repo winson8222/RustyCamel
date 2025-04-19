@@ -31,6 +31,7 @@ run_test() {
             return 0
         else
             echo -e "${RED}❌ Test $test_name failed: Expected success but failed${NC}"
+            echo -e "Error message: $(tail -n 1 "test_outputs/${test_name}.log")"
             return 1
         fi
     fi
@@ -41,13 +42,13 @@ mkdir -p test_outputs
 
 # Run all tests
 echo "=== Running Expected Success Tests ==="
-for test_file in rsTests/success/*.rs; do
+for test_file in tests/success/*.rs; do
     run_test "$test_file" false
 done
 
 
 echo "=== Running Expected Failure Tests ==="
-for test_file in rsTests/fail/*.rs; do
+for test_file in tests/fail/*.rs; do
     run_test "$test_file" true
 done
 
