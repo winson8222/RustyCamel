@@ -183,7 +183,7 @@ let rec compile (node : Ast.ast_node) state =
         wc = state_after_expr.wc + 1;
         is_top_level = state.is_top_level;
       }
-  | Lam { prms; body } ->
+  | Fun { sym; prms; body; _ } ->
       let loadFunInstr = LDF { arity = List.length prms; addr = wc + 2 } in
       let gotoInstrIndex = wc + 1 in
       (* Index where GOTO will be *)
@@ -225,9 +225,19 @@ let rec compile (node : Ast.ast_node) state =
             else instr)
           final_state.instrs
       in
-      { final_state with instrs = updated_instrs }
-  | Fun { sym; prms; body; _ } ->
-      compile (Let { sym; expr = Lam { prms; body } }) state
+      let state_aft_fun_expr = { final_state with instrs = updated_instrs } in
+      let pos = get_compile_time_environment_pos sym state_aft_fun_expr.ce in
+      (* TODO: Add symbol to the used_symbols table *)
+      let outmost_table = state.used_symbols in
+      Hashtbl.add outmost_table sym pos;
+
+      let new_instr = ASSIGN pos in
+      {
+        state_aft_fun_expr with
+        instrs = state_aft_fun_expr.instrs @ [ new_instr ];
+        wc = state_aft_fun_expr.wc + 1;
+        is_top_level = state.is_top_level;
+      }
   | Nam sym ->
       let pos = get_compile_time_environment_pos sym state.ce in
       { 

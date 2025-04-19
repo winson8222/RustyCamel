@@ -44,7 +44,6 @@ let binop_of_string = function
   | App of { fun_nam : ast_node; args : ast_node list }
   | Borrow of { expr : ast_node }
   | Deref of ast_node
-  | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
 
 type typed_ast =
@@ -68,7 +67,6 @@ type typed_ast =
   | Assign of { sym : string; expr : typed_ast }
   | Binop of { sym : binop_sym ; frst : typed_ast; scnd : typed_ast }
   | Unop of { sym : unop_sym; frst : typed_ast }
-  | Lam of { prms : string list; body : typed_ast }
   | Fun of {
       sym : string;
       prms : string list;
@@ -200,13 +198,6 @@ let rec of_json json =
           body;
           declared_type = TFunction { ret = ret_type; prms = prms_type };
         }
-  | "lam" ->
-      let prms =
-        json |> member "prms" |> to_list
-        |> List.map (fun p -> p |> member "name" |> to_string)
-      in
-      let body = json |> member "body" |> of_json in
-      Lam { prms; body }
   | "WhileLoop" ->
       While
         {
@@ -255,8 +246,6 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Binop { sym; frst; scnd } ->
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
-  | Lam { prms; body } ->
-      Fun { sym = "anonymous"; prms; body = strip_types body }
   | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->

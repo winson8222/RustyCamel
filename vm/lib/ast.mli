@@ -31,7 +31,6 @@ type binop_sym =
   | App of { fun_nam : ast_node; args : ast_node list }
   | Borrow of { expr : ast_node }
   | Deref of ast_node
-  | Lam of { prms : string list; body : ast_node }
 [@@deriving show]
 
 type typed_ast =
@@ -55,7 +54,6 @@ type typed_ast =
   | Assign of { sym : string; expr : typed_ast }
   | Binop of { sym : binop_sym ; frst : typed_ast; scnd : typed_ast }
   | Unop of { sym : unop_sym; frst : typed_ast }
-  | Lam of { prms : string list; body : typed_ast }
   | Fun of {
       sym : string;
       prms : string list;
