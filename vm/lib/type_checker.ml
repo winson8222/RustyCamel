@@ -148,6 +148,10 @@ let rec type_ast ast_node state : tc_type =
   | Binop { frst; scnd; sym } ->
       let t1 = type_ast frst state in
       let t2 = type_ast scnd state in
+
+      (*print out the 2 types*)
+      Printf.printf "t1: %s\n" (show_tc_type t1);
+      Printf.printf "t2: %s\n" (show_tc_type t2);
       (match (t1, t2) with
        | Value v1, Value v2 ->
            if are_types_compatible v1 v2 then (
