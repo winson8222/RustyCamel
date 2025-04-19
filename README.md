@@ -1,3 +1,8 @@
+TODO:
+- Allow no explicit type declaration in letdecl and function
+- Optimization string pooling
+- if else allow one non-return, one return (in function)
+
 # RustyCamel—A Rust Sublanguage Project
 
 ## How to run the project
