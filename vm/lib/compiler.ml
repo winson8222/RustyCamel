@@ -299,12 +299,15 @@ let rec compile (node : Ast.ast_node) state =
         let state_after_expr = compile expr state in
     
         (* Determine if expr is a variable *)
+
         let excluded_sym =
           match expr with
           | Nam sym -> Some sym
-          | Deref (Nam sym) -> Some sym  (* include the symbol of the deref *)
+          | Deref (Nam sym) -> Some sym
           | _ -> None
         in
+
+        (**)
     
         (* Generate FREE instructions for everything in used_symbols except excluded_sym *)
         let free_instrs =

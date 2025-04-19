@@ -342,7 +342,19 @@ let execute_instruction state instr =
       Ok VUndefined
   | BORROW ->
       let operand_addr = Float.of_int (List.hd os) in
-      let addr = Heap.heap_allocate_ref state.heap operand_addr in
+
+      (* check the type of the operand *)
+      let tag = Heap.heap_get_tag state.heap (Float.to_int operand_addr) in
+      let actual_ref_addr = 
+        match tag with
+        | Number_tag | True_tag | False_tag | Undefined_tag ->
+          (* allocate a new value *)
+          let original_value = vm_value_of_address state.heap (Float.to_int operand_addr) in
+          let new_value_addr = vm_value_to_address state.heap original_value in
+          Float.of_int new_value_addr
+        | _ -> operand_addr
+      in
+      let addr = Heap.heap_allocate_ref state.heap actual_ref_addr in
       state.os := addr :: List.tl os;
       Ok VUndefined
   | DEREF ->
