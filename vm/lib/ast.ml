@@ -39,7 +39,7 @@ let binop_of_string = function
   | Assign of { sym : string; expr : ast_node }
   | Binop of { sym : binop_sym; frst : ast_node; scnd : ast_node }
   | Unop of { sym : unop_sym; frst : ast_node }
-  | Fun of { sym : string; prms : string list; body : ast_node }
+  | Fun of { sym : string; prms : (string * (Types.value_type * bool)) list; body : ast_node }
   | Ret of ast_node
   | App of { fun_nam : ast_node; args : ast_node list }
   | Borrow of { expr : ast_node }
@@ -69,7 +69,7 @@ type typed_ast =
   | Unop of { sym : unop_sym; frst : typed_ast }
   | Fun of {
       sym : string;
-      prms : string list;
+      prms : (string * (Types.value_type * bool)) list;
       declared_type : Types.value_type;
       body : typed_ast;
     }
@@ -183,14 +183,15 @@ let rec of_json json =
       let sym = json |> member "name" |> to_string in
       let prms =
         json |> member "params" |> to_list
-        |> List.map (fun p -> p |> member "name" |> to_string)
+        |> List.map (fun p -> 
+          let name = p |> member "name" |> to_string in
+          let typ = p |> member "paramType" |> extract_type in
+          let is_mutable = p |> member "isMutable" |> to_bool in
+          (name, (typ, is_mutable)))
       in
       let body = json |> member "body" |> of_json in
       let ret_type = json |> member "returnType" |> extract_type in
-      let prms_type =
-        json |> member "params" |> to_list
-        |> List.map (fun p -> p |> member "paramType" |> extract_type)
-      in
+      let prms_type = List.map snd prms in
       Fun
         {
           sym;
@@ -246,7 +247,9 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Binop { sym; frst; scnd } ->
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
-  | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
+  | Fun { sym; prms; body; _ } -> 
+      let stripped_prms = List.map fst prms in
+      Fun { sym; prms = stripped_prms; body = strip_types body }
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->
       App { fun_nam = strip_types fun_nam; args = List.map strip_types args }

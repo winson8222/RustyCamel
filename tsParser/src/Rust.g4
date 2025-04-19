@@ -28,7 +28,7 @@ assignment
 fnDecl: 'fn' IDENTIFIER '(' paramList? ')' returnType? block;
 
 paramList: param (',' param)*;
-param: IDENTIFIER ':' typeExpr;
+param: MUT? IDENTIFIER ':' typeExpr;
 returnType: '->' typeExpr;
 
 // === While Loop ===
