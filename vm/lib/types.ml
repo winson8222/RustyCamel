@@ -3,7 +3,7 @@ type ref_type = {
   base : value_type; (* TODO: Add lifetime *)
 }
 
-and function_type = { ret : value_type; prms : value_type list }
+and function_type = { ret : value_type; prms : (value_type * bool) list }
 
 and value_type =
   | TInt

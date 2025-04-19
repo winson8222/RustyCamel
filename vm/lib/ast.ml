@@ -191,7 +191,7 @@ let rec of_json json =
       in
       let body = json |> member "body" |> of_json in
       let ret_type = json |> member "returnType" |> extract_type in
-      let prms_type = List.map snd prms in
+      let prms_type = List.map (fun (_, typ) -> typ) prms in
       Fun
         {
           sym;
@@ -248,7 +248,7 @@ let rec strip_types (ast : typed_ast) : ast_node =
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
   | Fun { sym; prms; body; _ } -> 
-      let stripped_prms = List.map fst prms in
+      let stripped_prms = List.map (fun (name, (typ, is_mutable)) -> (name, (typ, is_mutable))) prms in
       Fun { sym; prms = stripped_prms; body = strip_types body }
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->
