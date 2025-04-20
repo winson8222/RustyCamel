@@ -2,7 +2,7 @@ fn plus_one(n: i32) -> i32 {
     return n + 1;
 }
 
-fn while_loop(n: i32) -> i32 {
+fn while_loop(mut n: i32) -> i32 {
     let mut i: i32 = 0;
     let mut j: i32 = 0;
     while i < 3 {

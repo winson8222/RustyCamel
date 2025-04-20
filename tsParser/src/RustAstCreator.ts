@@ -118,6 +118,7 @@ class RustAstVisitor
       type: "Param",
       name: ctx.IDENTIFIER().getText(),
       paramType: this.visit(ctx.typeExpr()),
+      isMutable: ctx.MUT() !== null,
     };
   }
 

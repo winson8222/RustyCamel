@@ -6,4 +6,4 @@ fn factorial(n: i32) -> i32 {
     }
 }
 
-factorial(3);
+factorial(4);

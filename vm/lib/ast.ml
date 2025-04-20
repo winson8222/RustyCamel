@@ -183,18 +183,20 @@ let rec of_json json =
       let sym = json |> member "name" |> to_string in
       let prms =
         json |> member "params" |> to_list
-        |> List.map (fun p -> p |> member "name" |> to_string)
+        |> List.map (fun p -> 
+          let name = p |> member "name" |> to_string in
+          let typ = p |> member "paramType" |> extract_type in
+          let is_mutable = p |> member "isMutable" |> to_bool in
+          (name, (typ, is_mutable)))
       in
       let body = json |> member "body" |> of_json in
       let ret_type = json |> member "returnType" |> extract_type in
-      let prms_type =
-        json |> member "params" |> to_list
-        |> List.map (fun p -> p |> member "paramType" |> extract_type)
-      in
+      let prms_type = List.map (fun (_, typ) -> typ) prms in
+      let prm_names = List.map (fun (name, _) -> name) prms in
       Fun
         {
           sym;
-          prms;
+          prms = prm_names;
           body;
           declared_type = TFunction { ret = ret_type; prms = prms_type };
         }
@@ -223,6 +225,10 @@ let rec of_json json =
           cons = json |> member "thenBranch" |> of_json;
           alt = json |> member "elseBranch" |> of_json;
         }
+  | "MacroCall" ->
+      let name = json |> member "name" |> to_string in
+      let args = json |> member "args" |> to_list |> List.map of_json in
+      App { fun_nam = Nam name; args }
   | tag -> failwith ("Unknown tag: " ^ tag)
 
 let rec strip_types (ast : typed_ast) : ast_node =
@@ -246,7 +252,9 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Binop { sym; frst; scnd } ->
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
-  | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
+  | Fun { sym; prms; body; _ } -> 
+      
+      Fun { sym; prms = prms; body = strip_types body }
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->
       App { fun_nam = strip_types fun_nam; args = List.map strip_types args }

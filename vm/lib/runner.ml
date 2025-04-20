@@ -20,7 +20,38 @@ type t = {
   os : int list ref;
   env_addr : int ref;
   rts : int list ref;
+  string_intern_table : (string, int) Hashtbl.t;
 }
+
+let address_to_printable_string heap addr =
+  match Heap.heap_get_tag heap addr with
+  | Number_tag ->
+      let float_val = Heap.heap_get_number_value heap addr in
+      if Float.is_integer float_val then
+        string_of_int (int_of_float float_val)
+      else
+        string_of_float float_val
+  | String_tag ->
+      Heap.heap_get_string_value heap addr
+  | True_tag -> "true"
+  | False_tag -> "false"
+  | Undefined_tag -> "undefined"
+  | Closure_tag -> "<closure>"
+  | Frame_tag -> "<frame>"
+  | Environment_tag -> "<environment>"
+  | Blockframe_tag -> "<blockframe>"
+  | _ -> "<unprintable>"
+
+let apply_builtin name state =
+  match name with
+  | "println" -> (
+      (* pop the argument from the stack *)
+      let arg_addr = List.hd !(state.os) in
+      (* print the argument *)
+      Printf.printf "%s\n" (address_to_printable_string state.heap arg_addr);
+      Ok VUndefined
+    )
+  | _ -> Error (TypeError ("Unknown built-in function: " ^ name))
 
 let string_of_vm_value = show_vm_value
 let string_of_vm_error = show_vm_error
@@ -31,10 +62,11 @@ let create () =
       heap = Heap.create ();
       pc = ref 0;
       os = ref [];
-      env_addr = ref 40;
+      env_addr = ref 70;
       (* temp *)
       rts = ref [];
-    }
+      string_intern_table = Hashtbl.create 1000;
+      }
   in
   (* Printf.printf "initialized pc: %d\n" !(initial_state.pc); *)
   initial_state
@@ -82,16 +114,23 @@ let pop_stack stack_ref =
       Ok hd
   | [] -> Error (TypeError "Stack underflow")
 
-let rec vm_value_to_address (heap : Heap.t) (value : vm_value) : int =
+let rec vm_value_to_address (state : t) (value : vm_value) : int =
   match value with
-  | VNumber n -> Heap.heap_allocate_number heap n
-  | VString s -> Heap.heap_allocate_string heap s
+  | VNumber n -> Heap.heap_allocate_number state.heap n
+  | VString s -> (
+    (* disabled for now*)
+      match Hashtbl.find_opt state.string_intern_table s with
+      | _ ->
+          let addr = Heap.heap_allocate_string state.heap s in
+          Hashtbl.add state.string_intern_table s addr;
+          addr
+    )
   | VBoolean b ->
-      if b then Heap.heap_get_true heap else Heap.heap_get_false heap
-  | VUndefined -> Heap.heap_get_undefined heap
+      if b then Heap.heap_get_true state.heap else Heap.heap_get_false state.heap
+  | VUndefined -> Heap.heap_get_undefined state.heap
   | VRef v ->
-      let addr = vm_value_to_address heap v in
-      Heap.heap_allocate_ref heap (Float.of_int addr)
+      let addr = vm_value_to_address state v in
+      Heap.heap_allocate_ref state.heap (Float.of_int addr)
   | VAddress addr -> addr
   | other ->
       Printf.sprintf "Unexpected value: %s" (show_vm_value other) |> failwith
@@ -105,14 +144,14 @@ let apply_unop ~op state =
     match op with
     | Ast.LogicalNot -> (
         match operand with
-        | VBoolean b -> VBoolean (not b) |> vm_value_to_address heap
+        | VBoolean b -> VBoolean (not b) |> vm_value_to_address state
         | other ->
             failwith
               (Printf.sprintf "unexpected type for unary not: %s"
                  (show_vm_value other)))
     | Negate -> (
         match operand with
-        | VNumber n -> VNumber (Float.mul (-1.0) n) |> vm_value_to_address heap
+        | VNumber n -> VNumber (Float.mul (-1.0) n) |> vm_value_to_address state
         | _ -> failwith "wrong")
   in
   state.os := res_addr :: List.tl os
@@ -176,8 +215,8 @@ let apply_binop ~op state =
         | VBoolean b1, VBoolean b2 -> VBoolean (b1 = b2)
         | VString s1, VString s2 -> VBoolean (String.equal s1 s2)
         | VUndefined, VUndefined -> VBoolean true
-        | _ -> VBoolean false)
-    | NotEqual -> (
+        | _ -> VBoolean false) (* this is ok*)
+      | NotEqual -> (
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VBoolean (n1 <> n2)
         | VBoolean b1, VBoolean b2 -> VBoolean (b1 <> b2)
@@ -195,7 +234,7 @@ let apply_binop ~op state =
         compute_comparison op
   in
 
-  let res_addr = vm_value_to_address heap res_value in
+  let res_addr = vm_value_to_address state res_value in
   (* Printf.printf "res_addr: %d\n" res_addr; *)
   (* Printf.printf "os after pop: ["; *)
   state.os := res_addr :: List.tl (List.tl os)
@@ -273,19 +312,7 @@ let execute_instruction state instr =
       in
 
       (* print the value address *)
-
-      (* print the value *)
-
-      (* print the type of the value address *)
-      (* let tag = Heap.heap_get_tag heap value_addr in *)
-      (* Printf.printf "LD got tag: %s" (Heap.string_of_node_tag tag);
-      (match tag with
-      | Heap.Number_tag ->
-          let value = Heap.heap_get_number_value heap value_addr in
-          Printf.printf " (value: %f)" value
-      | _ -> ());
-      Printf.printf "\n"; *)
-
+      Printf.printf "LD value_addr: %d\n" value_addr;
       (* print the value address *)
       state.os := value_addr :: !(state.os);
       Ok VUndefined
@@ -342,7 +369,19 @@ let execute_instruction state instr =
       Ok VUndefined
   | BORROW ->
       let operand_addr = Float.of_int (List.hd os) in
-      let addr = Heap.heap_allocate_ref state.heap operand_addr in
+
+      (* check the type of the operand *)
+      let tag = Heap.heap_get_tag state.heap (Float.to_int operand_addr) in
+      let actual_ref_addr = 
+        match tag with
+        | Number_tag | True_tag | False_tag | Undefined_tag ->
+          (* allocate a new value *)
+          let original_value = vm_value_of_address state.heap (Float.to_int operand_addr) in
+          let new_value_addr = vm_value_to_address state original_value in
+          Float.of_int new_value_addr
+        | _ -> operand_addr
+      in
+      let addr = Heap.heap_allocate_ref state.heap actual_ref_addr in
       state.os := addr :: List.tl os;
       Ok VUndefined
   | DEREF ->
@@ -390,9 +429,11 @@ let execute_instruction state instr =
       if Heap.heap_get_tag state.heap fun_addr = Heap.Builtin_tag then
         (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
         (* TODO: Implement apply_builtin *)
-        failwith "Builtin functions not implemented yet"
+        let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in
+        apply_builtin (Builtins.get_builtin_name_by_id builtin_id) state;
       else
         (* 3. Allocate frame for arguments *)
+        (* print that its not a builtin *)
         let frame_addr =
           Heap.heap_allocate_frame state.heap ~num_values:arity
         in
@@ -410,6 +451,8 @@ let execute_instruction state instr =
         in
         set_args (arity - 1);
 
+        (* print the frame address *)
+
         (* print the frame adn values of the args *)
 
         (* 5. Pop the function *)
@@ -420,7 +463,7 @@ let execute_instruction state instr =
           Heap.heap_allocate_callframe state.heap ~pc:!(state.pc)
             ~env_addr:!(state.env_addr)
         in
-
+        
         (* print the size of the callframe *)
         state.rts := callframe_addr :: !(state.rts);
 
@@ -446,7 +489,8 @@ let execute_instruction state instr =
       if Heap.heap_get_tag state.heap fun_addr = Heap.Builtin_tag then
         (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
         (* TODO: Implement apply_builtin *)
-        failwith "Builtin functions not implemented yet"
+        let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in
+        apply_builtin (Builtins.get_builtin_name_by_id builtin_id) state;
       else
         (* 3. Allocate frame for arguments *)
         let frame_addr =

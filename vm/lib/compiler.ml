@@ -31,9 +31,12 @@ type state = {
   used_symbols: (string, pos_in_env) Hashtbl.t;
   is_top_level: bool; (* New field to track if we're at top level *)
 }
-
+  let builtin_functions : string list = [
+    "println"
+  ]
 (* TODO: Add global compile environment with builtin frames *)
 let initial_state = { instrs = []; ce = []; used_symbols = Hashtbl.create 10; wc = 0; is_top_level = true }
+(** TODO: Add global compile environment with builtin frames *)
 
 (** Helper functions *)
 let rec scan_for_locals (node : Ast.ast_node) =
@@ -64,6 +67,42 @@ let get_compile_time_environment_pos sym ce =
 
 let compile_time_environment_extend frame_vars ce = ce @ [ frame_vars ]
 
+let fold_binop sym a b =
+  let open Types in
+  match (sym, a, b) with
+  | Add, Int x, Int y -> Some (Int (x + y))
+  | Add, Float x, Float y -> Some (Float (x +. y))
+  | Subtract, Int x, Int y -> Some (Int (x - y))
+  | Subtract, Float x, Float y -> Some (Float (x -. y))
+  | Multiply, Int x, Int y -> Some (Int (x * y))
+  | Multiply, Float x, Float y -> Some (Float (x *. y))
+  | Divide, Int x, Int y when y != 0 -> Some (Int (x / y))
+  | Divide, Float x, Float y when y != 0.0 -> Some (Float (x /. y))
+  | Equal, Int x, Int y -> Some (Boolean (x = y))
+  | Equal, Float x, Float y -> Some (Boolean (x = y))
+  | Equal, String x, String y -> Some (Boolean (String.equal x y))
+  | Equal, Boolean x, Boolean y -> Some (Boolean (x = y))
+  | Equal, Undefined, Undefined -> Some (Boolean true)
+  | NotEqual, Int x, Int y -> Some (Boolean (x <> y))
+  | NotEqual, Float x, Float y -> Some (Boolean (x <> y))
+  | NotEqual, String x, String y -> Some (Boolean (not (String.equal x y)))
+  | NotEqual, Boolean x, Boolean y -> Some (Boolean (x <> y))
+  | NotEqual, Undefined, Undefined -> Some (Boolean false)
+  | LessThan, Int x, Int y -> Some (Boolean (x < y))
+  | LessThan, Float x, Float y -> Some (Boolean (x < y))
+  | LessThanEqual, Int x, Int y -> Some (Boolean (x <= y))
+  | LessThanEqual, Float x, Float y -> Some (Boolean (x <= y))
+  | GreaterThan, Int x, Int y -> Some (Boolean (x > y))
+  | GreaterThan, Float x, Float y -> Some (Boolean (x > y))
+  | GreaterThanEqual, Int x, Int y -> Some (Boolean (x >= y))
+  | GreaterThanEqual, Float x, Float y -> Some (Boolean (x >= y))
+  | _ -> None
+
+
+let create_builtin_frame () =
+  let extend_env_with_builtin_env = compile_time_environment_extend builtin_functions initial_state.ce in
+  extend_env_with_builtin_env
+  
 (* Compilation functions *)
 let rec compile (node : Ast.ast_node) state =
   let open Ast in
@@ -95,6 +134,22 @@ let rec compile (node : Ast.ast_node) state =
       (* Then compile body *)
       let state_after_body = compile body state_after_enter in
 
+
+      (* check if it is top level, look for function main and do LD { pos } CALL 0 *)
+(* Insert call to main if at top level and main exists *)
+  let with_main_call_instr =
+    if state.is_top_level then
+      match Hashtbl.find_opt state_after_body.used_symbols "main" with
+      | Some main_pos ->
+          let main_instr = LD { pos = main_pos } in
+          let call_instr = CALL 0 in
+          state_after_body.instrs @ [ main_instr; call_instr ]
+      | None ->
+          (* no main, just run as usual *)
+          state_after_body.instrs
+    else
+      state_after_body.instrs
+    in
       let free_instrs =
         if state.is_top_level then [] (* Skip FREE instructions at top level *)
         else
@@ -106,7 +161,7 @@ let rec compile (node : Ast.ast_node) state =
       in
   
       (* Add FREE instructions followed by EXIT_SCOPE *)
-      let final_instrs = state_after_body.instrs @ free_instrs @ [ EXIT_SCOPE ] in
+      let final_instrs = with_main_call_instr @ free_instrs @ [ EXIT_SCOPE ] in
       {
         state with
         instrs = final_instrs;
@@ -114,17 +169,35 @@ let rec compile (node : Ast.ast_node) state =
         is_top_level = state.is_top_level; (* Preserve the top level state *)
         used_symbols = old_used_symbols;
       }
-  | Binop { sym; frst; scnd } ->
-      let frst_state = compile frst state in
-      let sec_state = compile scnd frst_state in
-      let new_instr = BINOP sym in
-      {
-        instrs = sec_state.instrs @ [ new_instr ];
-        wc = sec_state.wc + 1;
-        ce = sec_state.ce;
-        used_symbols = sec_state.used_symbols;
-        is_top_level = state.is_top_level;
-      }
+      | Binop { sym; frst; scnd } -> (
+        match (frst, scnd) with
+        | Literal lit1, Literal lit2 -> (
+            match fold_binop sym lit1 lit2 with
+            | Some folded ->
+                { state with instrs = state.instrs @ [ LDC folded ]; wc = state.wc + 1 }
+            | None ->
+                (* fallback to normal compilation *)
+                let frst_state = compile frst state in
+                let sec_state = compile scnd frst_state in
+                let new_instr = BINOP sym in
+                {
+                  instrs = sec_state.instrs @ [ new_instr ];
+                  wc = sec_state.wc + 1;
+                  ce = sec_state.ce;
+                  used_symbols = sec_state.used_symbols;
+                  is_top_level = state.is_top_level;
+                })
+        | _ ->
+            let frst_state = compile frst state in
+            let sec_state = compile scnd frst_state in
+            let new_instr = BINOP sym in
+            {
+              instrs = sec_state.instrs @ [ new_instr ];
+              wc = sec_state.wc + 1;
+              ce = sec_state.ce;
+              used_symbols = sec_state.used_symbols;
+              is_top_level = state.is_top_level;
+            })
   | Unop { sym; frst } ->
       let state_aft_frst = compile frst state in
       let new_instr = UNOP sym in
@@ -250,12 +323,15 @@ let rec compile (node : Ast.ast_node) state =
         let state_after_expr = compile expr state in
     
         (* Determine if expr is a variable *)
+
         let excluded_sym =
           match expr with
           | Nam sym -> Some sym
-          | Deref (Nam sym) -> Some sym  (* include the symbol of the deref *)
+          | Deref (Nam sym) -> Some sym
           | _ -> None
         in
+
+        (**)
     
         (* Generate FREE instructions for everything in used_symbols except excluded_sym *)
         let free_instrs =
@@ -451,5 +527,7 @@ let compile_program json_str =
   in
   
   let ast = Ast.strip_types typed_ast in
+
+  let initial_state = { initial_state with ce = create_builtin_frame () } in
   let state = compile ast initial_state in
   state.instrs @ [ DONE ]

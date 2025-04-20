@@ -6,5 +6,3 @@ fn main() -> i32{
     return *r;
     // let sum : i32 = *r + y;
 }
-
-main();

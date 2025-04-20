@@ -124,9 +124,17 @@ let set_sym_ownership_in_cur_frame ~sym ~new_status ~state =
 let extend_scope parent =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
   { sym_table; parent = Some parent; is_in = None; borrow_kind = None }
-
+let add_builtin_functions (table : symbol_table) =
+    let println_type =
+      Types.TFunction {
+        prms = [ (Types.TString, false) ];  (* println! takes one string, not mutable *)
+        ret = Types.TUndefined;
+      }
+    in
+    Hashtbl.replace table "println" { ownership = Owned; typ = println_type }
 let create () =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
+  add_builtin_functions sym_table;
   { sym_table; parent = None; is_in = None; borrow_kind = None }
 
 let make_err_msg action sym sym_ownership_status =
@@ -222,13 +230,17 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
         (fun acc_state arg -> check_ownership_aux arg acc_state)
         app_state args
   | Fun { prms; body; declared_type; _ } ->
-      let new_state = extend_scope state in
+(     match declared_type with 
+     | Types.TFunction { prms=prms_types; _ } ->
+      (let new_state = extend_scope state in
+      let combined_prms = List.combine prms prms_types in
       List.iter
-        (fun prm_sym ->
+        (fun (prm_sym, (prm_type, _)) ->
           Hashtbl.replace new_state.sym_table prm_sym
-            { ownership = Owned; typ = declared_type })
-        prms;
-      check_ownership_aux body new_state
+            { ownership = Owned; typ =prm_type})
+        combined_prms;
+      check_ownership_aux body new_state)
+      | _ -> failwith "Declared type should be a function type")
   | Ret expr -> check_ownership_aux expr state
   | Cond { pred; alt; cons} -> 
     check_ownership_aux pred state |> check_ownership_aux alt |> check_ownership_aux cons
