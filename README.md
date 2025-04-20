@@ -127,9 +127,13 @@ Note:
   2.2. Move via function application
   Example 2.2.1: 
   ```
+  fn f(s: &mut String) -> &mut String {
+    return s;
+  }
+
   let mut x: &mut String = "hello";
-  let y = f(x)
-  let z = f(x) // Invalid
+  let y: &mut String = f(x)
+  let z: &mut String = f(x) // Invalid
   ```
 
   2.3. Move parameter (non-ref / ref) out of function via return statement
@@ -152,7 +156,15 @@ Note:
   fn f() {
     let s : String = "hello";
     let a : &String = &s;
-    return a; // Cannot return value referencing a local variable
+    return a; // Cannot return value referencing a local variable (regardless of type)
+  }
+  ```
+
+    ```
+  fn f() -> &i32 {
+    let a : i32 = 5;
+    let b : &i32 = &a;
+    return b; // Cannot return value referencing a local variable (regardless of type)
   }
   ```
 

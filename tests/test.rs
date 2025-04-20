@@ -1,7 +1,9 @@
-fn factorial(n: u32) -> u32 {
+fn factorial(n: i32) -> i32 {
+    let x: i32 = 5;
     if n == 0 {
-        1
+        let y: i32= x;
+        return 1;
     } else {
-        n * factorial(n - 1)
+        return n * factorial(n - 1);
     }
 }

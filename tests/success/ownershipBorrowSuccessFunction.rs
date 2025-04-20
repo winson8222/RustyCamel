@@ -1,4 +1,4 @@
-let s : String = "programminggggggggggggggg";
+let s : String = "program";
 
 fn borrow(a: &String) -> &String {
     return a;
