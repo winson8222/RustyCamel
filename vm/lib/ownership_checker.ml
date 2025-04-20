@@ -204,7 +204,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       let sym_status =
         match lookup_symbol_status sym state with
         | Some status -> status
-        | None -> failwith "Unbound value"
+        | None -> failwith (Printf.sprintf "Unbound value: %s" sym)
       in
 
       match state.borrow_kind with
@@ -224,11 +224,30 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
   | Block body ->
       let new_state = extend_scope state in
       check_ownership_aux body new_state
-  | App { args; _ } ->
-      let app_state = { state with is_in = Some App } in
-      List.fold_left
-        (fun acc_state arg -> check_ownership_aux arg acc_state)
-        app_state args
+      | App { fun_nam; args } -> (
+        match fun_nam with
+        | Nam sym ->
+            if Builtins.is_builtin_name sym then
+              (* 1. Built-in: arguments are only accessed, not moved *)
+              List.fold_left
+                (fun acc_state arg -> check_ownership_aux arg acc_state)
+                state args
+            else
+              (* 2. Named non-builtin: treat as user-defined function call *)
+              let app_state = { state with is_in = Some App } in
+              List.fold_left
+                (fun acc_state arg -> check_ownership_aux arg acc_state)
+                app_state args
+        | _ ->
+            (* 3. Function is a complex expression (e.g., (foo())()) *)
+            let app_state = { state with is_in = Some App } in
+            let state_after_args =
+              List.fold_left
+                (fun acc_state arg -> check_ownership_aux arg acc_state)
+                app_state args
+            in
+            check_ownership_aux fun_nam state_after_args
+    )
   | Fun { prms; body; declared_type; _ } ->
 (     match declared_type with 
      | Types.TFunction { prms=prms_types; _ } ->
@@ -255,7 +274,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
     let sym_status =
       match lookup_symbol_status sym state with
       | Some status -> status
-      | None -> failwith ("Cannot assign to undeclared variable: " ^ sym)
+      | None -> failwith (Printf.sprintf "Unbound value: %s" sym)
     in
     let _ = handle_var_acc sym ~sym_status state in
     check_ownership_aux expr state 
