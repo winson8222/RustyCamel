@@ -5,6 +5,7 @@ TODO:
 - builtin functions
 - visualizer
 - assign type check + ownership cehck 
+- throw err if no type declr (function) (letdecl) etc
 ```
 let mut x = "hello";
 let a = "world";
@@ -79,12 +80,10 @@ Example:
   - While
     - Check that the predicate has type `bool`
 
-
-
-
-
-
 ## Ownership Checking
+Note:
+- Conditional branches must have the same ownership updates
+
 1. Borrows (Mutable/Immutable)
   1.1 Borrows via let declarations
 
@@ -128,7 +127,59 @@ Example:
   2.2. Move via function application
   Example 2.2.1: 
   ```
+  fn f(s: &mut String) -> &mut String {
+    return s;
+  }
+
   let mut x: &mut String = "hello";
-  let y = f(x)
-  let z = f(x) // Invalid
+  let y: &mut String = f(x)
+  let z: &mut String = f(x) // Invalid
   ```
+
+  2.3. Move parameter (non-ref / ref) out of function via return statement
+  ```
+  fn f(s: &String) -> &String {
+    return s;
+  }
+  ```
+
+  2.4. Move non-ref variable out of function via return statement
+  ```
+  fn f() {
+    let s : String = "hello";
+    return s;
+  }
+  ```
+
+  2.5. Move reference to local variable via return statement (Invalid)
+  ```
+  fn f() {
+    let s : String = "hello";
+    let a : &String = &s;
+    return a; // Cannot return value referencing a local variable (regardless of type)
+  }
+  ```
+
+    ```
+  fn f() -> &i32 {
+    let a : i32 = 5;
+    let b : &i32 = &a;
+    return b; // Cannot return value referencing a local variable (regardless of type)
+  }
+  ```
+
+  2.6. Move dereferenced variable via return statement (Invalid)
+  ```
+  fn f() {
+    let s : String = "hello";
+    let a : &String = &s;
+    return *a; // Cannot move out of a shared reference
+  }
+  ```
+
+  1. if deref 
+  2. else 
+    - if param 
+    - else
+      -  if ref
+      -  else (non-ref)
