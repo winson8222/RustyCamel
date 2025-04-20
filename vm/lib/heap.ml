@@ -59,7 +59,7 @@ type t = {
   string_intern_table : int StringLRU.t;
 }
 
-let heap_size_words = 500
+let heap_size_words = 5000
 
 let initial_config =
   {

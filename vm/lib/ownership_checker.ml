@@ -20,7 +20,29 @@ type t = {
   borrow_kind : borrow_kind option;
 }
 let guessed_max_var_count_per_scope = 10
-
+let has_ref_param_and_ret (typ : Types.value_type) : bool =
+  match typ with
+  | Types.TFunction { prms; ret } ->
+      let has_ref_param =
+        List.exists (fun (param_type, _) ->
+          match param_type with
+          | Types.TRef _ -> true
+          | _ -> false
+        ) prms
+      in
+      let returns_ref =
+        match ret with
+        | Types.TRef _ -> true
+        | _ -> false
+      in
+      if not has_ref_param then
+        Printf.printf "❌ Function does not take any reference parameter.\n";
+      if not returns_ref then
+        Printf.printf "❌ Function does not return a reference type.\n";
+      has_ref_param && returns_ref
+  | _ ->
+      Printf.printf "❌ Not a function type.\n";
+      false
 let rec lookup_symbol_status sym state =
   match Hashtbl.find_opt state.sym_table sym with
   | Some info -> Some info.ownership
@@ -31,7 +53,7 @@ let rec lookup_symbol_type ~sym state =
   | Some info -> info.typ
   | None -> (
       match state.parent with
-      | None -> failwith "Sym not found in table"
+      | None -> failwith ("Symbol not found in table: " ^ sym)
       | Some parent -> lookup_symbol_type ~sym parent)
 
 let rec set_existing_sym_ownership_in_lowest_frame sym new_status state =
@@ -163,17 +185,45 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       | App { fun_nam; args } -> (
         match fun_nam with
         | Nam sym ->
-            if Builtins.is_builtin_name sym then
-              (* 1. Built-in: arguments are only accessed, not moved *)
-              List.fold_left
+          if Builtins.is_builtin_name sym then
+            (* 1. Built-in: arguments are only accessed, not moved *)
+            List.fold_left
+              (fun acc_state arg -> check_ownership_aux arg acc_state)
+              state args
+          else
+            (* 2. Named non-builtin: treat as user-defined function call *)
+            let app_state = { state with is_in = Some App } in
+            let state_after_args = List.fold_left
                 (fun acc_state arg -> check_ownership_aux arg acc_state)
-                state args
-            else
-              (* 2. Named non-builtin: treat as user-defined function call *)
-              let app_state = { state with is_in = Some App } in
-              List.fold_left
-                (fun acc_state arg -> check_ownership_aux arg acc_state)
-                app_state args
+                app_state args in
+  
+            (* get the type of the function *)
+            let fun_typ = lookup_symbol_type ~sym state in
+            if (state.is_in = Some Let) && has_ref_param_and_ret fun_typ then (
+              List.iter
+                (fun arg ->
+                  match arg with
+                  | Borrow { is_mutable; expr = Nam borrowed_sym } ->
+                      let new_ownership =
+                        if is_mutable then MutablyBorrowed else ImmutablyBorrowed
+                      in
+                      set_existing_sym_ownership_in_lowest_frame borrowed_sym new_ownership state_after_args
+                  | _ -> ())
+                args;
+
+                (* restore parent state*)
+                let parent = state_after_args.parent in
+                match parent with
+                | Some p -> p
+                | None -> failwith "No parent state after extend scope"
+              
+            ) else (
+              let parent = state_after_args.parent in
+              match parent with
+              | Some p -> p
+              | None -> failwith "No parent state after extend scope"
+            )
+  
         | _ ->
             (* 3. Function is a complex expression (e.g., (foo())()) *)
             let app_state = { state with is_in = Some App } in
@@ -184,21 +234,41 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
             in
             check_ownership_aux fun_nam state_after_args
     )
-  | Fun { prms; body; declared_type; _ } -> (
+    | Fun { prms; body; declared_type; sym } -> (
       match declared_type with
-      | Types.TFunction { prms = prms_types; _ } -> (
+      | Types.TFunction { prms = prms_types; _ } ->
           let new_state = extend_scope state in
           let combined_prms = List.combine prms prms_types in
+  
+          (* Add function parameters into new frame *)
           List.iter
             (fun (prm_sym, (prm_type, _)) ->
               Hashtbl.replace new_state.sym_table prm_sym
                 { ownership = Owned; typ = prm_type })
             combined_prms;
+  
+          (* ✅ Add the function itself to the parent frame BEFORE evaluating *)
+          (* inf fun*)
+
+          (* add to new state too for recursive calls*)
+          Hashtbl.replace new_state.sym_table sym
+            { ownership = Owned; typ = declared_type };
+
+ 
+  
           let aft_state = check_ownership_aux body new_state in
-          match aft_state.parent with
-          | Some parent -> parent
-          | None -> failwith "Expected parent scope after extend scope")
-      | _ -> failwith "Declared type should be a function type")
+
+
+  
+          (* Drop the scope *)
+          (match aft_state.parent with
+           | Some parent -> 
+              Hashtbl.replace parent.sym_table sym
+                { ownership = Owned; typ = declared_type };
+              parent
+           | None -> failwith "Expected parent scope after extend scope")
+      | _ -> failwith "Declared type should be a function type"
+  )
   | Ret expr -> (
       match expr with
       | Deref _ -> failwith "Cannot move out of a shared reference"
