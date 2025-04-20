@@ -5,7 +5,7 @@ type symbol_info = { ownership : ownership_status; typ : Types.value_type }
 [@@deriving show]
 
 type symbol_table = (string, symbol_info) Hashtbl.t
-type scope = App | Let
+type scope = App of { fun_sym : string } | Let
 type borrow_kind = MutableBorrow | ImmutableBorrow [@@deriving show]
 
 let borrow_kind_to_ownership_status bk =
@@ -65,6 +65,75 @@ let add_builtin_functions (table : symbol_table) =
   in
   Hashtbl.replace table "println" { ownership = Owned; typ = println_type }
 
+type ownership_display = { color : string; symbol : string; label : string }
+
+let ownership_display = function
+  | Owned ->
+      {
+        color = "\027[32m";
+        (* Green *)
+        symbol = "✦";
+        label = "OWNED";
+      }
+  | Moved ->
+      {
+        color = "\027[31m";
+        (* Red *)
+        symbol = "✗";
+        label = "MOVED";
+      }
+  | ImmutablyBorrowed ->
+      {
+        color = "\027[34m";
+        (* Blue *)
+        symbol = "⟲";
+        label = "IMMUT BORROW";
+      }
+  | MutablyBorrowed ->
+      {
+        color = "\027[35m";
+        (* Magenta *)
+        symbol = "⟳";
+        label = "MUT BORROW";
+      }
+
+let reset_color = "\027[0m"
+let bold = "\027[1m"
+let dim = "\027[2m"
+
+let visualize_ownership_state state =
+  let border_top = "╔════════════════════════════════════════════╗" in
+  let border_bottom = "╚════════════════════════════════════════════╝" in
+  let border_mid = "╠════════════════════════════════════════════╣" in
+
+  Printf.printf "\n%s%s%s\n" bold border_top reset_color;
+  Printf.printf "%s║     🔍 Ownership Tracker - Memory State     ║%s\n" bold
+    reset_color;
+  Printf.printf "%s%s%s\n" dim border_mid reset_color;
+
+  let rec get_reversed_frames state =
+    match state.parent with
+    | None -> [ state ]
+    | Some parent -> get_reversed_frames parent @ [ state ]
+  in
+
+  let visualize_frame state depth =
+    let indent = String.make (depth * 2) ' ' in
+    Printf.printf "%s║ %s📦 Scope Level %d%s\n" dim indent depth reset_color;
+
+    Hashtbl.iter
+      (fun sym info ->
+        let display = ownership_display info.ownership in
+        Printf.printf "%s║ %s%s├─ %s %s%s%s: %s %s\n" dim indent
+          (if depth > 0 then "  " else "")
+          display.symbol display.color sym reset_color display.label
+          (dim ^ "(" ^ Types.show_value_type info.typ ^ ")" ^ reset_color))
+      state.sym_table
+  in
+  let frames = get_reversed_frames state in
+  List.iteri (fun i frame -> visualize_frame frame i) frames;
+  Printf.printf "%s%s%s\n\n" dim border_bottom reset_color
+
 let create () =
   let sym_table = Hashtbl.create guessed_max_var_count_per_scope in
   add_builtin_functions sym_table;
@@ -79,6 +148,9 @@ let make_move_err_msg sym status = make_err_msg "move" sym status
 let make_acc_err_msg sym status = make_err_msg "access" sym status
 
 let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
+  Printf.printf "Checking ownership for ast node: %s\n"
+    (Ast.show_typed_ast typed_ast);
+  visualize_ownership_state state;
   let is_borrow_valid ~borrow_kind ~sym_status =
     match (borrow_kind, sym_status) with
     | ImmutableBorrow, (Owned | ImmutablyBorrowed) | MutableBorrow, Owned ->
@@ -90,7 +162,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
     match is_borrow_valid ~borrow_kind ~sym_status with
     | true -> (
         match state.is_in with
-        | Some App -> state
+        | Some (App _) -> state
         | _ ->
             let sym_typ = lookup_symbol_type ~sym state in
             if not (Types.is_type_implement_copy sym_typ) then (
@@ -154,21 +226,27 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       Hashtbl.add new_state.sym_table sym
         { ownership = Owned; typ = declared_type };
       new_state
-  | Block body -> (
+  | Block body ->
       let new_state = extend_scope state in
-      let after_state = check_ownership_aux body new_state in
-      match after_state.parent with
-      | Some parent -> parent
-      | None -> failwith "No parent after extend scope"
-      (*TODO Restore parent state after App*))
-  | App { args; _ } ->
-      let app_state = { state with is_in = Some App } in
-      List.fold_left
-        (fun acc_state arg -> check_ownership_aux arg acc_state)
-        app_state args
-  | Fun { prms; body; declared_type; _ } -> (
+      let _ = check_ownership_aux body new_state in
+      state
+  | App { args; fun_nam } ->
+      let fun_sym =
+        match fun_nam with
+        | Nam sym -> sym
+        | _ -> failwith "Function should be a name"
+      in
+      let app_state = { state with is_in = Some (App { fun_sym }) } in
+      let _ =
+        List.fold_left
+          (fun acc_state arg -> check_ownership_aux arg acc_state)
+          app_state args
+      in
+      state
+  | Fun { prms; body; declared_type; sym } -> (
+      Hashtbl.add state.sym_table sym { ownership = Owned; typ = declared_type };
       match declared_type with
-      | Types.TFunction { prms = prms_types; _ } -> (
+      | Types.TFunction { prms = prms_types; _ } ->
           let new_state = extend_scope state in
           let combined_prms = List.combine prms prms_types in
           List.iter
@@ -176,19 +254,15 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
               Hashtbl.replace new_state.sym_table prm_sym
                 { ownership = Owned; typ = prm_type })
             combined_prms;
-          let aft_state = check_ownership_aux body new_state in
-          match aft_state.parent with
-          | Some parent -> parent
-          | None -> failwith "Expected parent scope after extend scope")
+          let _ = check_ownership_aux body new_state in
+          state
       | _ -> failwith "Declared type should be a function type")
   | Ret expr -> (
       match expr with
       | Deref _ -> failwith "Cannot move out of a shared reference"
       | non_deref -> (
           match non_deref with
-          | Borrow _ ->
-              (* guaranteed to be reference to local variable as we've checked its non-param*)
-              failwith "Cannot return a reference"
+          | Borrow _ -> failwith "Cannot return a reference"
           | nonref -> check_ownership_aux nonref state))
   | Cond { pred; alt; cons } -> (
       let check_same_state (s1 : t) (s2 : t) : bool =
@@ -242,10 +316,28 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       let aft_pred_state = check_ownership_aux pred state in
       let alt_state = check_ownership_aux alt aft_pred_state in
       let cons_state = check_ownership_aux cons aft_pred_state in
-      match check_same_state alt_state cons_state with
-      | true -> alt_state
-      | false -> failwith "Both branches should have the same ownership pattern"
-      )
+
+      match state.is_in with
+      | Some (App { fun_sym }) -> (
+          match lookup_symbol_type ~sym:fun_sym state with
+          | Types.TFunction { ret; _ } -> (
+              match ret with
+              | Types.TUndefined -> (
+                  (* For cases where branches don't return from function immediately, states must match *)
+                  match check_same_state alt_state cons_state with
+                  | true -> alt_state
+                  | false ->
+                      failwith
+                        "Both branches must have the same ownership pattern \
+                         when returning a value")
+              | _ -> alt_state)
+          | _ -> failwith "Expected function type")
+      | _ -> (
+          (* For non-function contexts, always check states match *)
+          match check_same_state alt_state cons_state with
+          | true -> alt_state
+          | false ->
+              failwith "Both branches must have the same ownership pattern"))
   | Literal _ -> state
   | Binop { frst; scnd; _ } ->
       check_ownership_aux frst state |> check_ownership_aux scnd
@@ -270,6 +362,8 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
 let check_ownership typed_ast state =
   try
     let _ = check_ownership_aux typed_ast state in
+    Printf.printf "Final state\n";
+    visualize_ownership_state state;
     Ok ()
   with
   | Failure e -> Error e
