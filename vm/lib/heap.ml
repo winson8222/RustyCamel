@@ -1,3 +1,7 @@
+open LRUCache
+
+module StringLRU = Make(String)
+
 type node_tag =
   | Unassigned_tag
   | False_tag
@@ -53,9 +57,10 @@ type t = {
   buffer : Buffer.t;
   free : int ref;
   mutable canonical_values : canonical_values option;
+  string_intern_table : int StringLRU.t;
 }
 
-let heap_size_words = 3000
+let heap_size_words = 500
 
 let initial_config =
   {
@@ -239,19 +244,22 @@ let heap_allocate_number state number =
   heap_set state ~address:(addr + 1) ~word:number;
   addr
 
-let heap_allocate_string state str =
-  let len_string = String.length str in
-  let addr = heap_allocate state ~size:(len_string + 1) ~tag:String_tag in
-  let rec helper_set_char char_index =
-    if char_index >= len_string then ()
-    else
-      let char_val = Float.of_int (Char.code (String.get str char_index)) in
-      heap_set_child state ~address:addr ~child_index:char_index ~value:char_val;
-      helper_set_char (char_index + 1)
-  in
-  helper_set_char 0;
-  addr
-
+  let heap_allocate_string state str =
+    match StringLRU.find state.string_intern_table str with
+    | Some addr -> addr
+    | None ->
+        let len_string = String.length str in
+        let addr = heap_allocate state ~size:(len_string + 1) ~tag:String_tag in
+        let rec helper_set_char char_index =
+          if char_index >= len_string then ()
+          else
+            let char_val = Float.of_int (Char.code (String.get str char_index)) in
+            heap_set_child state ~address:addr ~child_index:char_index ~value:char_val;
+            helper_set_char (char_index + 1)
+        in
+        helper_set_char 0;
+        StringLRU.add state.string_intern_table str addr;
+        addr
 let heap_get_true state = (get_canonical_values state).true_addr
 
 let heap_get_false state =
@@ -482,6 +490,7 @@ let create () =
         Buffer.create (initial_config.heap_size_words * initial_config.word_size);
       free = ref 0;
       canonical_values = None;
+      string_intern_table = StringLRU.create 10;
     }
   in
   (* Initialize free pointers first *)

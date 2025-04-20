@@ -1,5 +1,6 @@
 open Compiler
 
+
 type vm_value =
   | VNumber of float
   | VString of string
@@ -20,7 +21,7 @@ type t = {
   os : int list ref;
   env_addr : int ref;
   rts : int list ref;
-  string_intern_table : (string, int) Hashtbl.t;
+  
 }
 
 let address_to_printable_string heap addr =
@@ -65,8 +66,7 @@ let create () =
       env_addr = ref 70;
       (* temp *)
       rts = ref [];
-      string_intern_table = Hashtbl.create 1000;
-      }
+    }
   in
   (* Printf.printf "initialized pc: %d\n" !(initial_state.pc); *)
   initial_state
@@ -117,14 +117,7 @@ let pop_stack stack_ref =
 let rec vm_value_to_address (state : t) (value : vm_value) : int =
   match value with
   | VNumber n -> Heap.heap_allocate_number state.heap n
-  | VString s -> (
-    (* disabled for now*)
-      match Hashtbl.find_opt state.string_intern_table s with
-      | _ ->
-          let addr = Heap.heap_allocate_string state.heap s in
-          Hashtbl.add state.string_intern_table s addr;
-          addr
-    )
+  | VString s -> Heap.heap_allocate_string state.heap s
   | VBoolean b ->
       if b then Heap.heap_get_true state.heap else Heap.heap_get_false state.heap
   | VUndefined -> Heap.heap_get_undefined state.heap
@@ -389,13 +382,22 @@ let execute_instruction state instr =
       let value_addr = Heap.heap_get_ref_value state.heap operand_addr in
       state.os := value_addr :: List.tl os;
       Ok VUndefined
-  | FREE { pos; to_free } ->
-      (* if not to_free, just do nothing *)
-      if not to_free then Ok VUndefined
-      else (
-        Heap.heap_free_at_pos heap ~env_addr ~frame_index:pos.frame_index
-          ~val_index:pos.value_index;
-        Ok VUndefined)
+      | FREE { pos; to_free } ->
+        if not to_free then Ok VUndefined
+        else (
+          let val_addr =
+            Heap.heap_get_env_val_addr_at_pos heap ~env_addr
+              ~frame_index:pos.frame_index ~val_index:pos.value_index
+          in
+          match Heap.heap_get_tag heap val_addr with
+          | String_tag ->
+              (* Don't free strings, managed by LRU cache *)
+              Ok VUndefined
+          | _ ->
+              Heap.heap_free_at_pos heap ~env_addr
+                ~frame_index:pos.frame_index ~val_index:pos.value_index;
+              Ok VUndefined
+        )
   | JOF addr ->
       (* 1. Pop boolean value from operand stack *)
       let bool_addr = List.hd os in
