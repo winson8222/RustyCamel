@@ -128,7 +128,11 @@ let debug_print_bytes state byte_addr count =
   Printf.printf "\n"
 
 let heap_allocate state ~size ~tag =
-  if !(state.free) = -1 then failwith "Heap ran out of memory"
+  if size > state.config.node_size then
+    failwith
+      ("Node size must be less than equal "
+      ^ Int.to_string state.config.node_size)
+  else if !(state.free) = -1 then failwith "Heap ran out of memory"
   else
     let addr = !(state.free) in
     Printf.printf "Allocated address: %d\n" addr;
@@ -181,7 +185,8 @@ let heap_set_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index
   let frame_addr =
     heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
   in
-  Printf.printf "Setting value at frame %d, position %d to address %d\n" frame_addr val_index val_addr;
+  Printf.printf "Setting value at frame %d, position %d to address %d\n"
+    frame_addr val_index val_addr;
   (* Set the value at the specified index in the frame *)
   ignore
     (heap_set_child state ~address:frame_addr ~child_index:val_index
@@ -398,14 +403,16 @@ let heap_allocate_builtin state ~builtin_id =
 
 let heap_allocate_builtin_frame state =
   (* print the builtin id *)
-
   Printf.printf "Allocating builtin frame\n";
   let builtins = Builtins.all_builtins () in
-  let frame_addr = heap_allocate_frame state ~num_values:(List.length builtins) in
+  let frame_addr =
+    heap_allocate_frame state ~num_values:(List.length builtins)
+  in
   List.iteri
     (fun i { Builtins.id; _ } ->
       let builtin_addr = heap_allocate_builtin state ~builtin_id:id in
-      heap_set_child state ~address:frame_addr ~child_index:i ~value:(Float.of_int builtin_addr))
+      heap_set_child state ~address:frame_addr ~child_index:i
+        ~value:(Float.of_int builtin_addr))
     builtins;
   frame_addr
 
@@ -487,7 +494,8 @@ let create () =
   (* Initialize free pointers first *)
   let rec set_free_pointers cur_state prev_addr cur_addr =
     if cur_addr > heap_size_words - state.config.node_size then
-      heap_set cur_state ~address:prev_addr ~word:(Float.of_int (-1))  (* sentinel *)
+      heap_set cur_state ~address:prev_addr ~word:(Float.of_int (-1))
+      (* sentinel *)
     else (
       heap_set cur_state ~address:prev_addr ~word:(Float.of_int cur_addr);
       set_free_pointers cur_state cur_addr (cur_addr + state.config.node_size))
@@ -500,13 +508,11 @@ let create () =
   (* create an env with 1 frame*)
   let env_addr = heap_allocate_environment state ~num_frames:0 in
 
-  Printf.printf "free: %d\n" !(state.free);
-
+  (* Printf.printf "free: %d\n" !(state.free); *)
   let builtin_frame_addr = heap_allocate_builtin_frame state in
 
-  let _ = heap_env_extend state ~new_frame_addr:builtin_frame_addr ~env_addr:env_addr in
+  let _ = heap_env_extend state ~new_frame_addr:builtin_frame_addr ~env_addr in
 
-  Printf.printf "free: %d\n" !(state.free);
-  pretty_print_heap state;
-
+  (* Printf.printf "free: %d\n" !(state.free); *)
+  (* pretty_print_heap state; *)
   state
