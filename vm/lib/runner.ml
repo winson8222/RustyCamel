@@ -1,6 +1,5 @@
 open Compiler
 
-
 type vm_value =
   | VNumber of float
   | VString of string
@@ -21,19 +20,15 @@ type t = {
   os : int list ref;
   env_addr : int ref;
   rts : int list ref;
-  
 }
 
 let address_to_printable_string heap addr =
   match Heap.heap_get_tag heap addr with
   | Number_tag ->
       let float_val = Heap.heap_get_number_value heap addr in
-      if Float.is_integer float_val then
-        string_of_int (int_of_float float_val)
-      else
-        string_of_float float_val
-  | String_tag ->
-      Heap.heap_get_string_value heap addr
+      if Float.is_integer float_val then string_of_int (int_of_float float_val)
+      else string_of_float float_val
+  | String_tag -> Heap.heap_get_string_value heap addr
   | True_tag -> "true"
   | False_tag -> "false"
   | Undefined_tag -> "undefined"
@@ -45,13 +40,12 @@ let address_to_printable_string heap addr =
 
 let apply_builtin name state =
   match name with
-  | "println" -> (
+  | "println" ->
       (* pop the argument from the stack *)
       let arg_addr = List.hd !(state.os) in
       (* print the argument *)
       Printf.printf "%s\n" (address_to_printable_string state.heap arg_addr);
       Ok VUndefined
-    )
   | _ -> Error (TypeError ("Unknown built-in function: " ^ name))
 
 let string_of_vm_value = show_vm_value
@@ -119,7 +113,8 @@ let rec vm_value_to_address (state : t) (value : vm_value) : int =
   | VNumber n -> Heap.heap_allocate_number state.heap n
   | VString s -> Heap.heap_allocate_string state.heap s
   | VBoolean b ->
-      if b then Heap.heap_get_true state.heap else Heap.heap_get_false state.heap
+      if b then Heap.heap_get_true state.heap
+      else Heap.heap_get_false state.heap
   | VUndefined -> Heap.heap_get_undefined state.heap
   | VRef v ->
       let addr = vm_value_to_address state v in
@@ -208,8 +203,8 @@ let apply_binop ~op state =
         | VBoolean b1, VBoolean b2 -> VBoolean (b1 = b2)
         | VString s1, VString s2 -> VBoolean (String.equal s1 s2)
         | VUndefined, VUndefined -> VBoolean true
-        | _ -> VBoolean false) (* this is ok*)
-      | NotEqual -> (
+        | _ -> VBoolean false (* this is ok*))
+    | NotEqual -> (
         match (frst, scnd) with
         | VNumber n1, VNumber n2 -> VBoolean (n1 <> n2)
         | VBoolean b1, VBoolean b2 -> VBoolean (b1 <> b2)
@@ -241,7 +236,8 @@ let execute_instruction state instr =
   let os = !(state.os) in
 
   (* print the instruction *)
-  Printf.printf "Executing instruction: %s\n" (Compiler.string_of_instruction instr);
+  Printf.printf "Executing instruction: %s\n"
+    (Compiler.string_of_instruction instr);
 
   (* Printf.printf "OS: ["; *)
   (* List.iter (fun addr -> Printf.printf "%d; " addr) os; *)
@@ -259,6 +255,7 @@ let execute_instruction state instr =
   | ENTER_SCOPE { num } ->
       let new_blockframe_addr = Heap.heap_allocate_blockframe heap ~env_addr in
       state.rts := new_blockframe_addr :: !(state.rts);
+
       (* Printf.printf "RTS after ENTER_SCOPE: ["; *)
       (* List.iter (fun addr -> Printf.printf "%d; " addr) !(state.rts); *)
 
@@ -365,13 +362,15 @@ let execute_instruction state instr =
 
       (* check the type of the operand *)
       let tag = Heap.heap_get_tag state.heap (Float.to_int operand_addr) in
-      let actual_ref_addr = 
+      let actual_ref_addr =
         match tag with
         | Number_tag | True_tag | False_tag | Undefined_tag ->
-          (* allocate a new value *)
-          let original_value = vm_value_of_address state.heap (Float.to_int operand_addr) in
-          let new_value_addr = vm_value_to_address state original_value in
-          Float.of_int new_value_addr
+            (* allocate a new value *)
+            let original_value =
+              vm_value_of_address state.heap (Float.to_int operand_addr)
+            in
+            let new_value_addr = vm_value_to_address state original_value in
+            Float.of_int new_value_addr
         | _ -> operand_addr
       in
       let addr = Heap.heap_allocate_ref state.heap actual_ref_addr in
@@ -382,22 +381,21 @@ let execute_instruction state instr =
       let value_addr = Heap.heap_get_ref_value state.heap operand_addr in
       state.os := value_addr :: List.tl os;
       Ok VUndefined
-      | FREE { pos; to_free } ->
-        if not to_free then Ok VUndefined
-        else (
-          let val_addr =
-            Heap.heap_get_env_val_addr_at_pos heap ~env_addr
-              ~frame_index:pos.frame_index ~val_index:pos.value_index
-          in
-          match Heap.heap_get_tag heap val_addr with
-          | String_tag ->
-              (* Don't free strings, managed by LRU cache *)
-              Ok VUndefined
-          | _ ->
-              Heap.heap_free_at_pos heap ~env_addr
-                ~frame_index:pos.frame_index ~val_index:pos.value_index;
-              Ok VUndefined
-        )
+  | FREE { pos; to_free } -> (
+      if not to_free then Ok VUndefined
+      else
+        let val_addr =
+          Heap.heap_get_env_val_addr_at_pos heap ~env_addr
+            ~frame_index:pos.frame_index ~val_index:pos.value_index
+        in
+        match Heap.heap_get_tag heap val_addr with
+        | String_tag ->
+            (* Don't free strings, managed by LRU cache *)
+            Ok VUndefined
+        | _ ->
+            Heap.heap_free_at_pos heap ~env_addr ~frame_index:pos.frame_index
+              ~val_index:pos.value_index;
+            Ok VUndefined)
   | JOF addr ->
       (* 1. Pop boolean value from operand stack *)
       let bool_addr = List.hd os in
@@ -419,11 +417,10 @@ let execute_instruction state instr =
   | GOTO addr ->
       (* Simply set PC to target address *)
       state.pc := addr;
-      (* Printf.printf "OS len: %d\n" (List.length !(state.os)); *)
 
+      (* Printf.printf "OS len: %d\n" (List.length !(state.os)); *)
       Ok (VAddress addr)
   | CALL arity ->
-
       (* 1. Get the function from the top n of the operand stack *)
       let fun_addr = List.nth !(state.os) arity in
 
@@ -432,7 +429,7 @@ let execute_instruction state instr =
         (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
         (* TODO: Implement apply_builtin *)
         let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in
-        apply_builtin (Builtins.get_builtin_name_by_id builtin_id) state;
+        apply_builtin (Builtins.get_builtin_name_by_id builtin_id) state
       else
         (* 3. Allocate frame for arguments *)
         (* print that its not a builtin *)
@@ -465,7 +462,7 @@ let execute_instruction state instr =
           Heap.heap_allocate_callframe state.heap ~pc:!(state.pc)
             ~env_addr:!(state.env_addr)
         in
-        
+
         (* print the size of the callframe *)
         state.rts := callframe_addr :: !(state.rts);
 
@@ -492,7 +489,7 @@ let execute_instruction state instr =
         (* let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in *)
         (* TODO: Implement apply_builtin *)
         let builtin_id = Heap.heap_get_builtin_id state.heap fun_addr in
-        apply_builtin (Builtins.get_builtin_name_by_id builtin_id) state;
+        apply_builtin (Builtins.get_builtin_name_by_id builtin_id) state
       else
         (* 3. Allocate frame for arguments *)
         let frame_addr =
@@ -515,19 +512,19 @@ let execute_instruction state instr =
         (* pop fun from OS*)
         state.os := List.tl !(state.os);
         (* 7. Update environment *)
-          let closure_env = Heap.heap_get_closure_env_addr state.heap fun_addr in
+        let closure_env = Heap.heap_get_closure_env_addr state.heap fun_addr in
 
-          (* print the closure env *)
-          state.env_addr :=
-            Heap.heap_env_extend state.heap ~new_frame_addr:frame_addr
-              ~env_addr:closure_env;
+        (* print the closure env *)
+        state.env_addr :=
+          Heap.heap_env_extend state.heap ~new_frame_addr:frame_addr
+            ~env_addr:closure_env;
 
-          (* 8. Update PC to function's code address *)
-          let closure_code_addr =
-            Heap.heap_get_closure_code_addr state.heap fun_addr
-      in
-      (* AT call the address is *)
-      Ok (VAddress closure_code_addr)
+        (* 8. Update PC to function's code address *)
+        let closure_code_addr =
+          Heap.heap_get_closure_code_addr state.heap fun_addr
+        in
+        (* AT call the address is *)
+        Ok (VAddress closure_code_addr)
 
 (** Main VM execution loop *)
 let run state instrs =

@@ -1,6 +1,5 @@
 open LRUCache
-
-module StringLRU = Make(String)
+module StringLRU = Make (String)
 
 type node_tag =
   | Unassigned_tag
@@ -70,7 +69,6 @@ let initial_config =
     size_offset = 2;
     node_size = 10;
   }
-
 
 (* Exported functions *)
 
@@ -186,7 +184,8 @@ let heap_set_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index
   let frame_addr =
     heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
   in
-  Printf.printf "Setting value at frame %d, position %d to address %d\n" frame_addr val_index val_addr;
+  Printf.printf "Setting value at frame %d, position %d to address %d\n"
+    frame_addr val_index val_addr;
   (* Set the value at the specified index in the frame *)
   ignore
     (heap_set_child state ~address:frame_addr ~child_index:val_index
@@ -244,22 +243,24 @@ let heap_allocate_number state number =
   heap_set state ~address:(addr + 1) ~word:number;
   addr
 
-  let heap_allocate_string state str =
-    match StringLRU.find state.string_intern_table str with
-    | Some addr -> addr
-    | None ->
-        let len_string = String.length str in
-        let addr = heap_allocate state ~size:(len_string + 1) ~tag:String_tag in
-        let rec helper_set_char char_index =
-          if char_index >= len_string then ()
-          else
-            let char_val = Float.of_int (Char.code (String.get str char_index)) in
-            heap_set_child state ~address:addr ~child_index:char_index ~value:char_val;
-            helper_set_char (char_index + 1)
-        in
-        helper_set_char 0;
-        StringLRU.add state.string_intern_table str addr;
-        addr
+let heap_allocate_string state str =
+  match StringLRU.find state.string_intern_table str with
+  | Some addr -> addr
+  | None ->
+      let len_string = String.length str in
+      let addr = heap_allocate state ~size:(len_string + 1) ~tag:String_tag in
+      let rec helper_set_char char_index =
+        if char_index >= len_string then ()
+        else
+          let char_val = Float.of_int (Char.code (String.get str char_index)) in
+          heap_set_child state ~address:addr ~child_index:char_index
+            ~value:char_val;
+          helper_set_char (char_index + 1)
+      in
+      helper_set_char 0;
+      StringLRU.add state.string_intern_table str addr;
+      addr
+
 let heap_get_true state = (get_canonical_values state).true_addr
 
 let heap_get_false state =
@@ -406,14 +407,16 @@ let heap_allocate_builtin state ~builtin_id =
 
 let heap_allocate_builtin_frame state =
   (* print the builtin id *)
-
   Printf.printf "Allocating builtin frame\n";
   let builtins = Builtins.all_builtins () in
-  let frame_addr = heap_allocate_frame state ~num_values:(List.length builtins) in
+  let frame_addr =
+    heap_allocate_frame state ~num_values:(List.length builtins)
+  in
   List.iteri
     (fun i { Builtins.id; _ } ->
       let builtin_addr = heap_allocate_builtin state ~builtin_id:id in
-      heap_set_child state ~address:frame_addr ~child_index:i ~value:(Float.of_int builtin_addr))
+      heap_set_child state ~address:frame_addr ~child_index:i
+        ~value:(Float.of_int builtin_addr))
     builtins;
   frame_addr
 
@@ -496,7 +499,8 @@ let create () =
   (* Initialize free pointers first *)
   let rec set_free_pointers cur_state prev_addr cur_addr =
     if cur_addr > heap_size_words - state.config.node_size then
-      heap_set cur_state ~address:prev_addr ~word:(Float.of_int (-1))  (* sentinel *)
+      heap_set cur_state ~address:prev_addr ~word:(Float.of_int (-1))
+      (* sentinel *)
     else (
       heap_set cur_state ~address:prev_addr ~word:(Float.of_int cur_addr);
       set_free_pointers cur_state cur_addr (cur_addr + state.config.node_size))
@@ -513,7 +517,7 @@ let create () =
 
   let builtin_frame_addr = heap_allocate_builtin_frame state in
 
-  let _ = heap_env_extend state ~new_frame_addr:builtin_frame_addr ~env_addr:env_addr in
+  let _ = heap_env_extend state ~new_frame_addr:builtin_frame_addr ~env_addr in
 
   Printf.printf "free: %d\n" !(state.free);
   pretty_print_heap state;

@@ -1,13 +1,15 @@
-open Vm.Heap 
+open Vm.Heap
 
 (* Custom float testable with tolerance *)
-let test_float =  (* renamed to avoid conflict *)
+let test_float =
+  (* renamed to avoid conflict *)
   let module M = struct
     type t = float
+
     let equal a b = abs_float (a -. b) < 0.001
     let pp formatter t = Format.fprintf formatter "%f" t
   end in
-  (module M: Alcotest.TESTABLE with type t = float)
+  (module M : Alcotest.TESTABLE with type t = float)
 
 let test_heap_allocate_number () =
   let heap = create () in
@@ -48,13 +50,13 @@ let test_heap_frame () =
   let tag = heap_get_tag heap frame_addr in
   Alcotest.(check bool) "is frame" true (tag = Frame_tag)
 
-let test_heap_allocate_callframe () = 
-    let heap = create () in 
-    let callframe_addr = heap_allocate_callframe heap ~pc:12 ~env_addr:20 in
-    let res_env =heap_get_callframe_env heap callframe_addr in 
-    Alcotest.(check int) "callframe env" 20 res_env;
-    let res_pc =heap_get_callframe_pc heap callframe_addr in
-    Alcotest.(check int) "callframe pc" 12 res_pc
+let test_heap_allocate_callframe () =
+  let heap = create () in
+  let callframe_addr = heap_allocate_callframe heap ~pc:12 ~env_addr:20 in
+  let res_env = heap_get_callframe_env heap callframe_addr in
+  Alcotest.(check int) "callframe env" 20 res_env;
+  let res_pc = heap_get_callframe_pc heap callframe_addr in
+  Alcotest.(check int) "callframe pc" 12 res_pc
 (* 
 let test_heap_free () =
   let heap = create () in
@@ -82,16 +84,18 @@ let test_heap_free () =
 
 let () =
   let open Alcotest in
-  run "Heap" [
-    ( "heap operations",
-      [
-        test_case "allocate number" `Quick test_heap_allocate_number;
-        test_case "allocate string" `Quick test_heap_allocate_string;
-        test_case "allocate ref" `Quick test_heap_allocate_ref;
-        test_case "environment" `Quick test_heap_environment;
-        test_case "frame" `Quick test_heap_frame;
-        test_case "test_heap_allocate_callframe" `Quick test_heap_allocate_callframe
-        (* test_case "free" `Quick test_heap_free; *)
-        (* test_case "canonical values" `Quick test_heap_canonical_values; *)
-      ] );
-  ]
+  run "Heap"
+    [
+      ( "heap operations",
+        [
+          test_case "allocate number" `Quick test_heap_allocate_number;
+          test_case "allocate string" `Quick test_heap_allocate_string;
+          test_case "allocate ref" `Quick test_heap_allocate_ref;
+          test_case "environment" `Quick test_heap_environment;
+          test_case "frame" `Quick test_heap_frame;
+          test_case "test_heap_allocate_callframe" `Quick
+            test_heap_allocate_callframe
+          (* test_case "free" `Quick test_heap_free; *)
+          (* test_case "canonical values" `Quick test_heap_canonical_values; *);
+        ] );
+    ]

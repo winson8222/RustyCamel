@@ -7,8 +7,13 @@ type builtin = {
   ret_type : Types.value_type;
 }
 
-val register_builtin : name:string -> param_types:Types.value_type list list -> ret_type:Types.value_type -> builtin
-(** Registers a builtin function with a name, parameter types, and return type *)
+val register_builtin :
+  name:string ->
+  param_types:Types.value_type list list ->
+  ret_type:Types.value_type ->
+  builtin
+(** Registers a builtin function with a name, parameter types, and return type
+*)
 
 val all_builtins : unit -> builtin list
 (** Returns the full list of registered builtins *)
@@ -29,4 +34,5 @@ val get_builtin_ret_type : int -> Types.value_type
 (** Gets the return type for a builtin by ID *)
 
 val validate_builtin_args : int -> Types.value_type list -> bool
-(** Validates that a list of argument types matches the builtin's parameter types *)
+(** Validates that a list of argument types matches the builtin's parameter
+    types *)

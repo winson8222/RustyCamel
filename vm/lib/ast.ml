@@ -1,6 +1,5 @@
 type unop_sym = Negate | LogicalNot [@@deriving show]
 
-
 type binop_sym =
   | Add
   | Subtract
@@ -27,7 +26,7 @@ let binop_of_string = function
   | "!=" -> NotEqual
   | op -> failwith ("Unknown binary operator: " ^ op)
 
-  type ast_node =
+type ast_node =
   | Literal of Types.lit_value
   | Nam of string
   | Block of ast_node
@@ -65,7 +64,7 @@ type typed_ast =
       declared_type : Types.value_type;
     }
   | Assign of { sym : string; expr : typed_ast }
-  | Binop of { sym : binop_sym ; frst : typed_ast; scnd : typed_ast }
+  | Binop of { sym : binop_sym; frst : typed_ast; scnd : typed_ast }
   | Unop of { sym : unop_sym; frst : typed_ast }
   | Fun of {
       sym : string;
@@ -79,9 +78,6 @@ type typed_ast =
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
 
-
-
-
 let extract_basic_type (t : Yojson.Basic.t) =
   let open Yojson.Basic.Util in
   match t |> member "name" |> to_string with
@@ -93,11 +89,9 @@ let extract_basic_type (t : Yojson.Basic.t) =
       failwith (Printf.sprintf "unsupported type to extraact in json: %s" other)
 
 let rec extract_type declared_type_json =
-  
   let open Yojson.Basic.Util in
   if declared_type_json = `Null then Types.TUndefined
   else
-    
     (* Printf.printf "declared_type_json type: %s\n" (declared_type_json |> member "type" |> to_string); *)
     match declared_type_json |> member "type" |> to_string with
     | "BasicType" -> extract_basic_type declared_type_json
@@ -165,11 +159,12 @@ let rec of_json json =
   | "BinaryExpr" ->
       Binop
         {
-          sym = json |> member "operator" |> to_string |> binop_of_string ;
+          sym = json |> member "operator" |> to_string |> binop_of_string;
           frst = of_json (member "left" json);
           scnd = of_json (member "right" json);
         }
-  | "UnaryNegation" -> Unop { sym = Negate; frst = of_json (member "expr" json) }
+  | "UnaryNegation" ->
+      Unop { sym = Negate; frst = of_json (member "expr" json) }
   | "UnaryNot" -> Unop { sym = LogicalNot; frst = of_json (member "expr" json) }
   | "IdentExpr" -> Nam (member "name" json |> to_string)
   | "BorrowExpr" ->
@@ -183,11 +178,11 @@ let rec of_json json =
       let sym = json |> member "name" |> to_string in
       let prms =
         json |> member "params" |> to_list
-        |> List.map (fun p -> 
-          let name = p |> member "name" |> to_string in
-          let typ = p |> member "paramType" |> extract_type in
-          let is_mutable = p |> member "isMutable" |> to_bool in
-          (name, (typ, is_mutable)))
+        |> List.map (fun p ->
+               let name = p |> member "name" |> to_string in
+               let typ = p |> member "paramType" |> extract_type in
+               let is_mutable = p |> member "isMutable" |> to_bool in
+               (name, (typ, is_mutable)))
       in
       let body = json |> member "body" |> of_json in
       let ret_type = json |> member "returnType" |> extract_type in
@@ -252,9 +247,7 @@ let rec strip_types (ast : typed_ast) : ast_node =
   | Binop { sym; frst; scnd } ->
       Binop { sym; frst = strip_types frst; scnd = strip_types scnd }
   | Unop { sym; frst } -> Unop { sym; frst = strip_types frst }
-  | Fun { sym; prms; body; _ } -> 
-      
-      Fun { sym; prms = prms; body = strip_types body }
+  | Fun { sym; prms; body; _ } -> Fun { sym; prms; body = strip_types body }
   | Ret expr -> Ret (strip_types expr)
   | App { fun_nam; args } ->
       App { fun_nam = strip_types fun_nam; args = List.map strip_types args }

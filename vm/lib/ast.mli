@@ -1,6 +1,5 @@
 type unop_sym = Negate | LogicalNot [@@deriving show]
 
-
 type binop_sym =
   | Add
   | Subtract
@@ -14,7 +13,7 @@ type binop_sym =
   | NotEqual
 [@@deriving show]
 
-  type ast_node =
+type ast_node =
   | Literal of Types.lit_value
   | Nam of string
   | Block of ast_node
@@ -52,7 +51,7 @@ type typed_ast =
       declared_type : Types.value_type;
     }
   | Assign of { sym : string; expr : typed_ast }
-  | Binop of { sym : binop_sym ; frst : typed_ast; scnd : typed_ast }
+  | Binop of { sym : binop_sym; frst : typed_ast; scnd : typed_ast }
   | Unop of { sym : unop_sym; frst : typed_ast }
   | Fun of {
       sym : string;
@@ -65,8 +64,6 @@ type typed_ast =
   | Ret of typed_ast
   | App of { fun_nam : typed_ast; args : typed_ast list }
 [@@deriving show]
-
-
 
 val of_json : Yojson.Basic.t -> typed_ast
 
