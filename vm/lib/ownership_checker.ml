@@ -19,6 +19,7 @@ type t = {
   is_in : scope option;
   borrow_kind : borrow_kind option;
 }
+
 let guessed_max_var_count_per_scope = 10
 
 let rec lookup_symbol_status sym state =
@@ -187,9 +188,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
           match non_deref with
           | Borrow _ ->
               (* guaranteed to be reference to local variable as we've checked its non-param*)
-              failwith
-                "Cannot return value referencing a local variable (regardless \
-                 of type)"
+              failwith "Cannot return a reference"
           | nonref -> check_ownership_aux nonref state))
   | Cond { pred; alt; cons } -> (
       let check_same_state (s1 : t) (s2 : t) : bool =
