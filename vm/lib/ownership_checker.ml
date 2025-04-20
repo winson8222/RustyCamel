@@ -5,7 +5,7 @@ type symbol_info = { ownership : ownership_status; typ : Types.value_type }
 [@@deriving show]
 
 type symbol_table = (string, symbol_info) Hashtbl.t
-type scope = App | Let
+type scope = App | Let | Assign
 type borrow_kind = MutableBorrow | ImmutableBorrow [@@deriving show]
 
 let borrow_kind_to_ownership_status bk =
@@ -199,7 +199,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
   
             (* get the type of the function *)
             let fun_typ = lookup_symbol_type ~sym state in
-            if (state.is_in = Some Let) && has_ref_param_and_ret fun_typ then (
+            if (state.is_in = Some Let || state.is_in = Some Assign) && has_ref_param_and_ret fun_typ then (
               List.iter
                 (fun arg ->
                   match arg with
@@ -332,6 +332,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       let aft_pred_state = check_ownership_aux pred state in
       let alt_state = check_ownership_aux alt aft_pred_state in
       let cons_state = check_ownership_aux cons aft_pred_state in
+      (* print the 2 states*)
       match check_same_state alt_state cons_state with
       | true -> alt_state
       | false -> failwith "Both branches should have the same ownership pattern"
@@ -350,7 +351,7 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
         | None -> failwith ("Cannot assign to undeclared variable: " ^ sym)
       in
       let _ = handle_var_acc sym ~sym_status state in
-      check_ownership_aux expr state
+      check_ownership_aux expr { state with is_in = Some Assign }
   | While { pred; body } ->
       let _ = check_ownership_aux pred state in
       let new_state = extend_scope state in
