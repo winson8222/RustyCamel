@@ -153,8 +153,8 @@ let make_move_err_msg sym status = make_err_msg "move" sym status
 let make_acc_err_msg sym status = make_err_msg "access" sym status
 
 let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
-  Printf.printf "Checking ownership for ast node: %s\n"
-    (Ast.show_typed_ast typed_ast);
+  (* Printf.printf "Checking ownership for ast node: %s\n"
+    (Ast.show_typed_ast typed_ast); *)
   visualize_ownership_state state;
   let is_borrow_valid ~borrow_kind ~sym_status =
     match (borrow_kind, sym_status) with

@@ -1,4 +1,4 @@
-(* open Vm.Type_checker
+open Vm.Type_checker
 
 let test_literal_mismatch_fails () =
   let tc = create () in
@@ -120,8 +120,8 @@ let test_fun_succeeds () =
       (Fun
          {
            sym = "f";
-           prms = [ ("a", (TInt, false)) ];
-           declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+           prms = [ "a" ];
+           declared_type = TFunction { ret = TInt; prms = [ (TInt, false) ] };
            body = Ret (Literal (Int 1));
          })
   in
@@ -138,7 +138,7 @@ let test_fun_fails () =
          {
            sym = "f";
            prms = [ "a" ];
-           declared_type = TFunction { ret = TUndefined; prms = [ TInt ] };
+           declared_type = TFunction { ret = TUndefined; prms = [ (TInt, false) ] };
            body = Ret (Literal (Int 1));
          })
   in
@@ -146,24 +146,22 @@ let test_fun_fails () =
   let expected = Error "Function should return Types.TUndefined but returns Types.TInt" in
   Alcotest.(check (result unit string)) "test" expected actual
 
-  let test_fun_no_ret_fails () =
-    let tc = create () in
-    let open Vm.Ast in
-    let node =
-      Block
-        (Fun
-           {
-             sym = "f";
-             prms = [ "a" ];
-             declared_type = TFunction { ret = TInt; prms = [ TInt ] };
-             body = (Literal (Int 1));
-           })
-    in
-    let actual = check_type node tc in
-    let expected = Error "Missing return in function body. Declared return type: (Types.TFunction { Types.ret = Types.TInt; prms = [Types.TInt] })" in
-    Alcotest.(check (result unit string)) "test" expected actual
-
-    
+let test_fun_no_ret_fails () =
+  let tc = create () in
+  let open Vm.Ast in
+  let node =
+    Block
+      (Fun
+         {
+           sym = "f";
+           prms = [ "a" ];
+           declared_type = TFunction { ret = TInt; prms = [ (TInt, false) ] };
+           body = (Literal (Int 1));
+         })
+  in
+  let actual = check_type node tc in
+  let expected = Error "Missing return in function body. Declared return type: Types.TInt" in
+  Alcotest.(check (result unit string)) "test" expected actual
 
 let test_fun_compatible_prms_args_succeeds () =
   let tc = create () in
@@ -176,7 +174,7 @@ let test_fun_compatible_prms_args_succeeds () =
              {
                sym = "f";
                prms = [ "a" ];
-               declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+               declared_type = TFunction { ret = TInt; prms = [ (TInt, false) ] };
                body = Ret (Literal (Int 1));
              };
            App { fun_nam = Nam "f"; args = [ Literal (Int 1) ] };
@@ -197,7 +195,7 @@ let test_fun_uncompatible_prms_args_fails () =
              {
                sym = "f";
                prms = [ "a" ];
-               declared_type = TFunction { ret = TInt; prms = [ TInt ] };
+               declared_type = TFunction { ret = TInt; prms = [ (TInt, false) ] };
                body = Ret (Literal (Int 1));
              };
            App { fun_nam = Nam "f"; args = [ Literal (Boolean true) ] };
@@ -262,4 +260,4 @@ let () =
           test_case "uncompatible prms args" `Quick
             test_fun_uncompatible_prms_args_fails;
         ] );
-    ] *)
+    ]

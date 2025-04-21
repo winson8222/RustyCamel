@@ -1,4 +1,4 @@
-(* open Vm.Ownership_checker
+open Vm.Ownership_checker
 
 let test_simple_let_assmt_borrow_succeeds () =
   let checker = create () in
@@ -44,7 +44,7 @@ let test_simple_fun_arg_borrow_succeeds () =
             sym = "f";
             body = Ret (Literal (String "hello"));
             prms = [ "a" ];
-            declared_type = TFunction { ret = TString; prms = [ TString ] };
+            declared_type = TFunction { ret = TString; prms = [ (TString, false) ] };
           };
         App
           {
@@ -76,7 +76,7 @@ let test_simple_fun_arg_move_succeeds () =
             sym = "f";
             body = Ret (Literal (String "hello"));
             prms = [ "a" ];
-            declared_type = TFunction { ret = TString; prms = [ TString ] };
+            declared_type = TFunction { ret = TString; prms = [ (TString, false) ] };
           };
         App { fun_nam = Nam "f"; args = [ Nam "x" ] };
       ]
@@ -104,7 +104,7 @@ let test_use_after_fun_arg_move_fails () =
             sym = "f";
             body = Ret (Literal (String "Hi"));
             prms = [ "a" ];
-            declared_type = TFunction { ret = TString; prms = [ TString ] };
+            declared_type = TFunction { ret = TString; prms = [ (TString, false) ] };
           };
         App { fun_nam = Nam "f"; args = [ Nam "x" ] };
         Nam "x";
@@ -652,4 +652,4 @@ let () =
           test_case "test_complex_ownership_with_nested_blocks" `Quick
             test_complex_ownership_with_nested_blocks;
         ] );
-    ] *)
+    ]

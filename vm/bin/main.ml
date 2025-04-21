@@ -9,7 +9,7 @@ let () =
     (fun i instr ->
       Printf.printf "instr[%d]: %s\n" i (string_of_instruction instr))
     instructions; *)
-  Printf.printf "starting runner\n";
+  Printf.printf "Running program\n";
   let runner = Vm.Runner.create () in
   let program_result = Vm.Runner.run runner instructions in
   match program_result with

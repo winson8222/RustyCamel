@@ -105,10 +105,10 @@ let rec extract_type declared_type_json =
 
 (* Produces typed ast *)
 let rec of_json json =
-  Printf.printf "json: %s\n" (Yojson.Basic.to_string json);
+  (* Printf.printf "json: %s\n" (Yojson.Basic.to_string json); *)
   let open Yojson.Basic.Util in
   let tag = json |> member "type" |> to_string in
-  Printf.printf "Executing tag: %s\n" tag;
+  (* Printf.printf "Executing tag: %s\n" tag; *)
   match tag with
   | "Program" ->
       let stmts = json |> member "statements" |> to_list in
@@ -116,7 +116,6 @@ let rec of_json json =
         (Sequence
            (List.map
               (fun x ->
-                Printf.printf "next statement in program";
                 of_json x)
               stmts))
   | "Block" ->
@@ -125,7 +124,6 @@ let rec of_json json =
         (Sequence
            (List.map
               (fun x ->
-                Printf.printf "next statement in block\n";
                 of_json x)
               stmts))
   | "Literal" -> (
@@ -203,7 +201,7 @@ let rec of_json json =
         }
   | "ReturnExpr" -> Ret (json |> member "expr" |> of_json)
   | "FunctionCall" ->
-      Printf.printf "function casll";
+
       let fun_nam = Nam (json |> member "name" |> to_string) in
       let args = json |> member "args" |> to_list |> List.map of_json in
       App { fun_nam; args }

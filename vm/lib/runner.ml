@@ -552,8 +552,8 @@ let run state instrs =
       (fun i instr ->
         Printf.printf "instr[%d]: %s\n" i
           (Compiler.string_of_instruction instr))
-      instrs; *)
-(* 
+      instrs;
+(*  *)
     Printf.printf "The size of the rts is %d\n"
       (List.length !(state.rts)); *)
 

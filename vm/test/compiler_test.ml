@@ -11,2195 +11,6 @@ let check_instr_list msg expected actual =
 
 (* ---------- Test cases ---------- *)
 
-(* let test_literal_immut_borrow () =
-  let json =
-    {|{
-      "type": "Program",
-      "statements": [
-        {
-          "type": "LetDecl",
-          "name": "x",
-          "isMutable": false,
-          "value": { "type": "Literal", "value": "hello" },
-          "declaredType": {
-            "type": "BasicType",
-            "name": "String"
-          }
-        },
-        {
-          "type": "LetDecl",
-          "name": "y",
-          "isMutable": false,
-          "value": {
-            "type": "BorrowExpr",
-            "mutable": false,
-            "expr": { "type": "IdentExpr", "name": "x" }
-          },
-          "declaredType": {
-            "type": "RefType",
-            "isMutable": false,
-            "value": {
-              "type": "BasicType",
-              "name": "String"
-            }
-          }
-        }
-      ]
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 2 };
-      LDC (String "hello");
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      BORROW;
-      ASSIGN { frame_index = 0; value_index = 1 };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "literal string borrow" expected result
-
-let test_literal_int () =
-  let json = {|{
-    "type": "Program",
-    "statements": [
-      { "type": "Literal", "value": 42 }
-    ]
-  }|} in
-  let result = compile_program json in
-  let expected = [ ENTER_SCOPE { num = 0 }; LDC (Int 42); EXIT_SCOPE; DONE ] in
-  check_instr_list "literal int" expected result
-
-let test_literal_string () =
-  let json = {|{
-    "type": "Program",
-    "statements": [
-      { "type": "Literal", "value": "hello" }
-    ]
-  }|} in
-  let result = compile_program json in
-  let expected = [ ENTER_SCOPE { num = 0 }; LDC (String "hello");EXIT_SCOPE; DONE ] in
-  check_instr_list "literal string" expected result
-
-let test_binop_add () =
-  let json = {|{
-    "type": "Program",
-    "statements": [
-      {
-        "type": "Block",
-        "statements": [
-          {
-            "type": "BinaryExpr",
-            "operator": "+",
-            "left": {
-              "type": "Literal",
-              "value": 1
-            },
-            "right": {
-              "type": "Literal",
-              "value": 2
-            }
-          }
-        ]
-      }
-    ]
-  }|} in
-  let result = compile_program json in
-  let expected = [ ENTER_SCOPE {num = 0}; LDC (Int 1); LDC (Int 2); BINOP Add; EXIT_SCOPE; DONE ] in
-  check_instr_list "binary op + " expected result
-
-let test_seq_two_exprs () =
-  let json =
-    {|{
-    "tag": "seq",
-    "stmts": [
-      { "tag": "lit", "val": 1 },
-      { "tag": "lit", "val": 2 }
-    ]
-  }|}
-  in
-  let result = compile_program json in
-  let expected = [  ENTER_SCOPE {num = 0}; LDC (Int 1); POP; LDC (Int 2);EXIT_SCOPE; DONE ] in
-  check_instr_list "sequence of two expressions" expected result
-
-let test_blk_with_let () =
-  let json =
-    {|{
-    "tag": "blk",
-    "body": {
-      "tag": "seq",
-      "stmts": [
-        { "tag": "let", "sym": "x", 
-          "expr": { "tag": "lit", "val": 4 }, 
-          "is_mutable": false, 
-          "declared_type": {
-              "kind": "basic",
-              "value": "int"
-            }
-        }
-      ]
-    }
-  }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 4);
-      ASSIGN { frame_index = 0; value_index = 0 };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "block with let x" expected result
-
-let test_ld_variable () =
-  let json =
-    {|{"tag": "blk", "body": {"tag": "seq", "stmts": [{"tag": "let", "sym": "x", "is_mutable": false,"expr": {"tag": "lit", "val": 4}, "declared_type": {"kind": "basic", "value": "int"}}, {"tag": "nam", "sym": "x"}]}}|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 4);
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "load variable x" expected result
-
-let test_unary_minus () =
-  let json =
-    {|{"tag": "blk", "body": {"tag": "unop", "sym": "UnaryNegation", "frst": {"tag": "lit", "val": 3}}}|}
-  in
-  let result = compile_program json in
-  let expected =
-    [ ENTER_SCOPE { num = 0 }; LDC (Int 3); UNOP Negate; EXIT_SCOPE; DONE ]
-  in
-  check_instr_list "unary minus operation" expected result
-
-let test_unary_not () =
-  let json =
-    {|{"tag": "blk", "body": {"tag": "unop", "sym": "UnaryNot", "frst": {"tag": "lit", "val": true}}}|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 0 };
-      LDC (Boolean true);
-      UNOP LogicalNot;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "unary not operation" expected result
-
-let test_function_no_params () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "fun",
-        "sym": "f",
-        "prms": [],
-        "body": {
-          "tag": "blk",
-          "body": {
-            "tag": "seq",
-            "stmts": [{
-              "tag": "ret",
-              "expr": {
-                "tag": "lit",
-                "val": 1
-              }
-            }]
-          }
-        }, 
-        "declared_type": {
-          "kind": "function",
-          "ret": "int",
-          "prms": []
-        }
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 0; addr = 3 };
-      GOTO 9;
-      ENTER_SCOPE { num = 0 };
-      LDC (Int 1);
-      RESET;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "function declaration with no parameters" expected result
-
-let test_function_with_params () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "fun",
-        "sym": "f",
-        "prms": [
-          { "name": "x" },
-          { "name": "y" }
-        ],
-        "body": {
-          "tag": "blk",
-          "body": {
-            "tag": "seq",
-            "stmts": [{
-              "tag": "ret",
-              "expr": {
-                "tag": "lit",
-                "val": 1
-              }
-            }]
-          }
-        },
-         "declared_type": {
-          "kind": "function", 
-          "ret": "int",
-          "prms": ["int", "int"]
-        }
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 9;
-      ENTER_SCOPE { num = 0 };
-      LDC (Int 1);
-      RESET;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "function declaration with parameters" expected result
-
-let test_function_with_binop () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "fun",
-        "sym": "f",
-        "prms": [
-          { "name": "x" },
-          { "name": "y" }
-        ],
-        "body": {
-          "tag": "blk",
-          "body": {
-            "tag": "seq",
-            "stmts": [{
-              "tag": "ret",
-              "expr": {
-                "tag": "binop",
-                "sym": "+",
-                "frst": { "tag": "nam", "sym": "x" },
-                "scnd": { "tag": "nam", "sym": "y" }
-              }
-            }]
-          }
-        },
-         "declared_type": {
-         "kind": "function",
-          "ret": "int",
-          "prms": ["int", "int"]
-        }
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 11;
-      ENTER_SCOPE { num = 0 };
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Add;
-      RESET;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "function with binop parameters" expected result
-
-let test_function_with_block_and_const () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "fun",
-        "sym": "f",
-        "prms": [
-          { "name": "x" },
-          { "name": "y" }
-        ],
-        "declared_type": {
-        "kind": "function",
-          "ret": "int",
-          "prms": ["int", "int"]
-        },
-        "body": {
-          "tag": "blk",
-          "body": {
-            "tag": "seq",
-            "stmts": [
-              {
-                "tag": "const",
-                "sym": "z",
-                "expr": {
-                  "tag": "lit",
-                  "val": 0
-                },
-                "declared_type": {
-                  "kind": "basic",
-                  "value": "int"
-                }
-              },
-              {
-                "tag": "ret",
-                "expr": {
-                  "tag": "binop",
-                  "sym": "+",
-                  "frst": { "tag": "nam", "sym": "x" },
-                  "scnd": { "tag": "nam", "sym": "y" }
-                }
-              }
-            ]
-          }
-        }
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 14;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Add;
-      RESET;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "function with block and const" expected result
-
-let test_function_application () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "seq",
-        "stmts": [
-          {
-            "tag": "fun",
-            "sym": "f",
-            "prms": [
-              { "name": "x" },
-              { "name": "y" }
-            ],
-            "body": {
-              "tag": "blk",
-              "body": {
-                "tag": "ret",
-                "expr": {
-                  "tag": "binop",
-                  "sym": "+",
-                  "frst": { "tag": "nam", "sym": "x" },
-                  "scnd": { "tag": "nam", "sym": "y" }
-                }
-              }
-            },
-             "declared_type": {
-             "kind": "function",
-              "ret": "int",
-              "prms": ["int", "int"]
-            }
-          },
-          {
-            "tag": "app",
-            "fun": { "tag": "nam", "sym": "f" },
-            "args": [
-              { "tag": "lit", "val": 33 },
-              { "tag": "lit", "val": 22 }
-            ]
-          }
-        ]
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 11;
-      ENTER_SCOPE { num = 0 };
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Add;
-      RESET;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 33);
-      LDC (Int 22);
-      CALL 2;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "function application" expected result
-
-let test_nested_function_calls () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "seq",
-        "stmts": [
-          {
-            "tag": "fun",
-            "sym": "k",
-            "prms": [
-              { "name": "x" }
-            ],
-            "body": {
-              "tag": "ret",
-              "expr": {
-                "tag": "nam",
-                "sym": "x"
-              }
-            },
-            "declared_type": {
-              "kind": "function",
-              "ret": "int",
-              "prms": ["int"]
-            }
-          },
-          {
-            "tag": "fun",
-            "sym": "g",
-            "prms": [
-              { "name": "x" }
-            ],
-            "body": {
-              "tag": "ret",
-              "expr": {
-                "tag": "nam",
-                "sym": "x"
-              }
-            },
-            "declared_type": {
-            "kind": "function",
-              "ret": "int",
-              "prms": ["int"]
-            }
-          },
-          {
-            "tag": "fun",
-            "sym": "f",
-            "prms": [
-              { "name": "x" },
-              { "name": "y" }
-            ],
-            "declared_type": {
-            "kind": "function",
-              "ret": "int",
-              "prms": ["int", "int"]
-            },
-            "body": {
-              "tag": "blk",
-              "body": {
-                "tag": "seq",
-                "stmts": [
-                  {
-                    "tag": "const",
-                    "sym": "z",
-                    "expr": {
-                      "tag": "lit",
-                      "val": 0
-                    },
-                    "declared_type": {
-                      "kind": "basic",
-                      "value": "int"
-                    }
-                  },
-                  {
-                    "tag": "ret",
-                    "expr": {
-                      "tag": "app",
-                      "fun": {
-                        "tag": "nam",
-                        "sym": "g"
-                      },
-                      "args": [
-                        {
-                          "tag": "nam",
-                          "sym": "x"
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          {
-            "tag": "app",
-            "fun": {
-              "tag": "nam",
-              "sym": "f"
-            },
-            "args": [
-              {
-                "tag": "lit",
-                "val": 33
-              },
-              {
-                "tag": "lit",
-                "val": 22
-              }
-            ]
-          }
-        ]
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 3 };
-      (* Function k *)
-      LDF { arity = 1; addr = 3 };
-      GOTO 7;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      RESET;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      (* Function g *)
-      LDF { arity = 1; addr = 11 };
-      GOTO 15;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      RESET;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 1 };
-      POP;
-      (* Function f *)
-      LDF { arity = 2; addr = 19 };
-      GOTO 29;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 1 } };
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      TAILCALL 1;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 2 };
-      POP;
-      (* Call f(33, 22) *)
-      LD { pos = { frame_index = 0; value_index = 2 } };
-      LDC (Int 33);
-      LDC (Int 22);
-      CALL 2;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "nested function calls with tail call" expected result
-
-let test_conditional_function () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "seq",
-        "stmts": [
-          {
-            "tag": "fun",
-            "sym": "f",
-            "prms": [
-              { "name": "x" },
-              { "name": "y" }
-            ],
-            "body": {
-              "tag": "seq",
-              "stmts": [
-                {
-                  "tag": "cond",
-                  "pred": {
-                    "tag": "binop",
-                    "sym": ">",
-                    "frst": { "tag": "nam", "sym": "x" },
-                    "scnd": { "tag": "lit", "val": 0 }
-                  },
-                  "cons": {
-                    "tag": "blk",
-                    "body": {
-                      "tag": "const",
-                      "sym": "z",
-                      "expr": { "tag": "lit", "val": 0 },
-                      "declared_type": {
-                        "kind": "basic",
-                        "value": "int"
-                      }
-                    }
-                  },
-                  "alt": {
-                    "tag": "blk",
-                    "body": {
-                      "tag": "const",
-                      "sym": "z",
-                      "expr": { "tag": "lit", "val": 3 },
-                      "declared_type": {
-                        "kind": "basic",
-                        "value": "int"
-                      }
-                    }
-                  }
-                },
-                {
-                  "tag": "ret",
-                  "expr": {
-                    "tag": "binop",
-                    "sym": "-",
-                    "frst": { "tag": "nam", "sym": "x" },
-                    "scnd": { "tag": "nam", "sym": "y" }
-                  }
-                }
-              ]
-            },
-            "declared_type": {
-              "kind": "function",
-              "ret": "int",
-              "prms": ["int", "int"]
-            }
-          },
-          {
-            "tag": "app",
-            "fun": { "tag": "nam", "sym": "f" },
-            "args": [
-              { "tag": "lit", "val": 33 },
-              { "tag": "lit", "val": 22 }
-            ]
-          }
-        ]
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 23;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LDC (Int 0);
-      BINOP GreaterThan;
-      JOF 12;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 2; value_index = 0 };
-      EXIT_SCOPE;
-      GOTO 16;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 3);
-      ASSIGN { frame_index = 2; value_index = 0 };
-      EXIT_SCOPE;
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Subtract;
-      RESET;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 33);
-      LDC (Int 22);
-      CALL 2;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "nested function calls with tail call" expected result
-
-let test_while_loop () =
-  let json =
-    {|{
-        "tag": "blk",
-        "body": {
-          "tag": "while",
-          "pred": {
-            "tag": "lit",
-            "val": false
-          },
-          "body": {
-            "tag": "lit",
-            "val": 1
-          }
-        }
-      }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 0 };
-      LDC (Boolean false);
-      JOF 6;
-      LDC (Int 1);
-      POP;
-      GOTO 1;
-      LDC Undefined;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "while loop with false predicate" expected result
-
-let test_assignment_and_while () =
-  let json =
-    {|{
-        "tag": "blk",
-        "body": {
-          "tag": "seq",
-          "stmts": [
-            {
-              "tag": "let",
-              "sym": "x",
-              "expr": {
-                "tag": "lit",
-                "val": 0
-              },
-              "is_mutable": true,
-              "declared_type": {
-                "kind": "basic",
-                "value": "int"
-              }
-            },
-            {
-              "tag": "assmt",
-              "sym": "x",
-              "expr": {
-                "tag": "lit",
-                "val": 1
-              }
-            },
-            {
-              "tag": "while",
-              "pred": {
-                "tag": "binop",
-                "sym": "<",
-                "frst": {
-                  "tag": "nam",
-                  "sym": "x"
-                },
-                "scnd": {
-                  "tag": "lit",
-                  "val": 10
-                }
-              },
-              "body": {
-                "tag": "seq",
-                "stmts": [
-                  {
-                    "tag": "lit",
-                    "val": 1
-                  },
-                  {
-                    "tag": "assmt",
-                    "sym": "x",
-                    "expr": {
-                      "tag": "binop",
-                      "sym": "+",
-                      "frst": {
-                        "tag": "nam",
-                        "sym": "x"
-                      },
-                      "scnd": {
-                        "tag": "lit",
-                        "val": 1
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "tag": "nam",
-              "sym": "x"
-            }
-          ]
-        }
-      }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LDC (Int 1);
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 10);
-      BINOP LessThan;
-      JOF 19;
-      LDC (Int 1);
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 1);
-      BINOP Add;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      GOTO 7;
-      LDC Undefined;
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "assignment and while loop with variable modification"
-    expected result
-
-let test_while_with_const () =
-  let json =
-    {|{
-        "tag": "blk",
-        "body": {
-          "tag": "seq",
-          "stmts": [
-            {
-              "tag": "let",
-              "sym": "x",
-              "expr": {
-                "tag": "lit",
-                "val": 0
-              },
-              "is_mutable": true,
-              "declared_type": {
-                "kind": "basic",
-                "value": "int"
-              }
-            },
-            {
-              "tag": "assmt",
-              "sym": "x",
-              "expr": {
-                "tag": "lit",
-                "val": 1
-              }
-            },
-            {
-              "tag": "while",
-              "pred": {
-                "tag": "binop",
-                "sym": "<",
-                "frst": {
-                  "tag": "nam",
-                  "sym": "x"
-                },
-                "scnd": {
-                  "tag": "lit",
-                  "val": 10
-                }
-              },
-              "body": {
-                "tag": "blk",
-                "body": {
-                  "tag": "seq",
-                  "stmts": [
-                    {
-                      "tag": "const",
-                      "sym": "k",
-                      "expr": {
-                        "tag": "lit",
-                        "val": 0
-                      },
-                      "declared_type": {
-                        "kind": "basic",
-                        "value": "int"
-                      }
-                    },
-                    {
-                      "tag": "assmt",
-                      "sym": "x",
-                      "expr": {
-                        "tag": "binop",
-                        "sym": "+",
-                        "frst": {
-                          "tag": "nam",
-                          "sym": "x"
-                        },
-                        "scnd": {
-                          "tag": "lit",
-                          "val": 1
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "tag": "nam",
-              "sym": "x"
-            }
-          ]
-        }
-      }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LDC (Int 1);
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 10);
-      BINOP LessThan;
-      JOF 22;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 1; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 1);
-      BINOP Add;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      EXIT_SCOPE;
-      POP;
-      GOTO 7;
-      LDC Undefined;
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "while loop with constant declaration inside loop body"
-    expected result
-
-let test_nested_while_loops () =
-  let json =
-    {|{
-        "tag": "blk",
-        "body": {
-          "tag": "seq",
-          "stmts": [
-            {
-              "tag": "let",
-              "sym": "x",
-              "expr": {
-                "tag": "lit",
-                "val": 0
-              },
-              "is_mutable": true,
-              "declared_type": {
-                "kind": "basic",
-                "value": "int"
-              }
-            },
-            {
-              "tag": "let",
-              "sym": "i",
-              "expr": {
-                "tag": "lit",
-                "val": 0
-              },
-              "is_mutable": true,
-              "declared_type": {
-                "kind": "basic",
-                "value": "int"
-              }
-            },
-            {
-              "tag": "while",
-              "pred": {
-                "tag": "binop",
-                "sym": "<",
-                "frst": {
-                  "tag": "nam",
-                  "sym": "i"
-                },
-                "scnd": {
-                  "tag": "lit",
-                  "val": 100
-                }
-              },
-              "body": {
-                "tag": "blk",
-                "body": {
-                  "tag": "seq",
-                  "stmts": [
-                    {
-                      "tag": "let",
-                      "sym": "j",
-                      "expr": {
-                        "tag": "lit",
-                        "val": 0
-                      },
-                      "is_mutable": true,
-                      "declared_type": {
-                        "kind": "basic",
-                        "value": "int"
-                      }
-                    },
-                    {
-                      "tag": "while",
-                      "pred": {
-                        "tag": "binop",
-                        "sym": "<",
-                        "frst": {
-                          "tag": "nam",
-                          "sym": "j"
-                        },
-                        "scnd": {
-                          "tag": "lit",
-                          "val": 100
-                        }
-                      },
-                      "body": {
-                        "tag": "seq",
-                        "stmts": [
-                          {
-                            "tag": "assmt",
-                            "sym": "x",
-                            "expr": {
-                              "tag": "binop",
-                              "sym": "+",
-                              "frst": {
-                                "tag": "binop",
-                                "sym": "+",
-                                "frst": {
-                                  "tag": "nam",
-                                  "sym": "x"
-                                },
-                                "scnd": {
-                                  "tag": "nam",
-                                  "sym": "i"
-                                }
-                              },
-                              "scnd": {
-                                "tag": "nam",
-                                "sym": "j"
-                              }
-                            }
-                          },
-                          {
-                            "tag": "assmt",
-                            "sym": "j",
-                            "expr": {
-                              "tag": "binop",
-                              "sym": "+",
-                              "frst": {
-                                "tag": "nam",
-                                "sym": "j"
-                              },
-                              "scnd": {
-                                "tag": "lit",
-                                "val": 1
-                              }
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "tag": "assmt",
-                      "sym": "i",
-                      "expr": {
-                        "tag": "binop",
-                        "sym": "+",
-                        "frst": {
-                          "tag": "nam",
-                          "sym": "i"
-                        },
-                        "scnd": {
-                          "tag": "lit",
-                          "val": 1
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "tag": "nam",
-              "sym": "x"
-            }
-          ]
-        }
-      }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 2 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LDC (Int 0);
-      ASSIGN { frame_index = 0; value_index = 1 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 1 } };
-      LDC (Int 100);
-      BINOP LessThan;
-      JOF 41;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 1; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LDC (Int 100);
-      BINOP LessThan;
-      JOF 32;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LD { pos = { frame_index = 0; value_index = 1 } };
-      BINOP Add;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      BINOP Add;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LDC (Int 1);
-      BINOP Add;
-      ASSIGN { frame_index = 1; value_index = 0 };
-      POP;
-      GOTO 15;
-      LDC Undefined;
-      POP;
-      LD { pos = { frame_index = 0; value_index = 1 } };
-      LDC (Int 1);
-      BINOP Add;
-      ASSIGN { frame_index = 0; value_index = 1 };
-      EXIT_SCOPE;
-      POP;
-      GOTO 7;
-      LDC Undefined;
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "nested while loops with variable modification" expected
-    result
-
-let test_functions_with_while_loops () =
-  let json =
-    {|{
-        "tag": "blk",
-        "body": {
-          "tag": "seq",
-          "stmts": [
-            {
-              "tag": "fun",
-              "sym": "f",
-              "prms": [
-                { "name": "x" },
-                { "name": "y" }
-              ],
-              "body": {
-                "tag": "blk",
-                "body": {
-                  "tag": "seq",
-                  "stmts": [
-                    {
-                      "tag": "const",
-                      "sym": "z",
-                      "expr": {
-                        "tag": "lit",
-                        "val": 0
-                      },
-                      "declared_type": {
-                        "kind": "basic",
-                        "value": "int"
-                      }
-                    },
-                    {
-                      "tag": "while",
-                      "pred": {
-                        "tag": "binop",
-                        "sym": "<",
-                        "frst": {
-                          "tag": "nam",
-                          "sym": "z"
-                        },
-                        "scnd": {
-                          "tag": "lit",
-                          "val": 5
-                        }
-                      },
-                      "body": {
-                        "tag": "assmt",
-                        "sym": "z",
-                        "expr": {
-                          "tag": "binop",
-                          "sym": "+",
-                          "frst": {
-                            "tag": "nam",
-                            "sym": "z"
-                          },
-                          "scnd": {
-                            "tag": "lit",
-                            "val": 1
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "tag": "ret",
-                      "expr": {
-                        "tag": "lit",
-                        "val": 1
-                      }
-                    }
-                  ]
-                }
-              },
-              "declared_type": {
-                "kind": "function",
-                "ret": "int",
-                "prms": ["int", "int"]
-              }
-            },
-            {
-              "tag": "fun",
-              "sym": "k",
-              "prms": [
-                { "name": "x" },
-                { "name": "y" }
-              ],
-              "body": {
-                "tag": "blk",
-                "body": {
-                  "tag": "seq",
-                  "stmts": [
-                    {
-                      "tag": "const",
-                      "sym": "j",
-                      "expr": {
-                        "tag": "lit",
-                        "val": 0
-                      },
-                      "declared_type": {
-                        "kind": "basic",
-                        "value": "int"
-                      }
-                    },
-                    {
-                      "tag": "while",
-                      "pred": {
-                        "tag": "binop",
-                        "sym": ">",
-                        "frst": {
-                          "tag": "nam",
-                          "sym": "x"
-                        },
-                        "scnd": {
-                          "tag": "lit",
-                          "val": 4
-                        }
-                      },
-                      "body": {
-                        "tag": "seq",
-                        "stmts": [
-                          {
-                            "tag": "assmt",
-                            "sym": "y",
-                            "expr": {
-                              "tag": "binop",
-                              "sym": "+",
-                              "frst": {
-                                "tag": "nam",
-                                "sym": "y"
-                              },
-                              "scnd": {
-                                "tag": "lit",
-                                "val": 1
-                              }
-                            }
-                          },
-                          {
-                            "tag": "assmt",
-                            "sym": "x",
-                            "expr": {
-                              "tag": "binop",
-                              "sym": "+",
-                              "frst": {
-                                "tag": "nam",
-                                "sym": "x"
-                              },
-                              "scnd": {
-                                "tag": "lit",
-                                "val": 1
-                              }
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "tag": "ret",
-                      "expr": {
-                        "tag": "nam",
-                        "sym": "y"
-                      }
-                    }
-                  ]
-                }
-              },
-              "declared_type": {
-                "kind": "function",
-                "ret": "int",
-                "prms": ["int", "int"]
-              }
-            },
-            {
-              "tag": "app",
-              "fun": {
-                "tag": "nam",
-                "sym": "f"
-              },
-              "args": [
-                {
-                  "tag": "lit",
-                  "val": 33
-                },
-                {
-                  "tag": "lit",
-                  "val": 22
-                }
-              ]
-            }
-          ]
-        }
-      }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 2 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 24;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 2; value_index = 0 } };
-      LDC (Int 5);
-      BINOP LessThan;
-      JOF 17;
-      LD { pos = { frame_index = 2; value_index = 0 } };
-      LDC (Int 1);
-      BINOP Add;
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      GOTO 7;
-      LDC Undefined;
-      POP;
-      LDC (Int 1);
-      RESET;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LDF { arity = 2; addr = 28 };
-      GOTO 54;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LDC (Int 4);
-      BINOP GreaterThan;
-      JOF 47;
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      LDC (Int 1);
-      BINOP Add;
-      ASSIGN { frame_index = 1; value_index = 1 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LDC (Int 1);
-      BINOP Add;
-      ASSIGN { frame_index = 1; value_index = 0 };
-      POP;
-      GOTO 32;
-      LDC Undefined;
-      POP;
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      RESET;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 1 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 33);
-      LDC (Int 22);
-      CALL 2;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "functions with while loops" expected result
-
-let test_conditional_function_with_returns () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "seq",
-        "stmts": [
-          {
-            "tag": "fun",
-            "sym": "f",
-            "prms": [
-              { "name": "x" },
-              { "name": "y" }
-            ],
-            "body": {
-              "tag": "cond",
-              "pred": {
-                "tag": "binop",
-                "sym": "<",
-                "frst": { "tag": "nam", "sym": "y" },
-                "scnd": { "tag": "lit", "val": 0 }
-              },
-              "cons": {
-                "tag": "blk",
-                "body": {
-                  "tag": "seq",
-                  "stmts": [
-                    {
-                      "tag": "const",
-                      "sym": "z",
-                      "expr": { "tag": "lit", "val": 0 },
-                      "declared_type": {
-                        "kind": "basic",
-                        "value": "int"
-                      }
-                    },
-                    {
-                      "tag": "ret",
-                      "expr": {
-                        "tag": "binop",
-                        "sym": "+",
-                        "frst": { "tag": "nam", "sym": "x" },
-                        "scnd": { "tag": "nam", "sym": "y" }
-                      }
-                    }
-                  ]
-                }
-              },
-              "alt": {
-                "tag": "blk",
-                "body": {
-                  "tag": "seq",
-                  "stmts": [
-                    {
-                      "tag": "const",
-                      "sym": "z",
-                      "expr": { "tag": "lit", "val": 3 },
-                      "declared_type": {
-                        "kind": "basic",
-                        "value": "int"
-                      }
-                    },
-                    {
-                      "tag": "ret",
-                      "expr": {
-                        "tag": "binop",
-                        "sym": "-",
-                        "frst": { "tag": "nam", "sym": "x" },
-                        "scnd": { "tag": "nam", "sym": "y" }
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            "declared_type": {
-              "kind": "function",
-              "ret": "int",
-              "prms": ["int", "int"]
-            }
-          },
-          {
-            "tag": "app",
-            "fun": { "tag": "nam", "sym": "f" },
-            "args": [
-              { "tag": "lit", "val": 33 },
-              { "tag": "lit", "val": 22 }
-            ]
-          }
-        ]
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 28;
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      LDC (Int 0);
-      BINOP LessThan;
-      JOF 17;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Add;
-      RESET;
-      EXIT_SCOPE;
-      GOTO 26;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 3);
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Subtract;
-      RESET;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 33);
-      LDC (Int 22);
-      CALL 2;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "conditional function with returns in both branches" expected
-    result
-
-let test_2_conditional_function () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "seq",
-        "stmts": [
-          {
-            "tag": "fun",
-            "sym": "f",
-            "prms": [
-              { "name": "x" },
-              { "name": "y" }
-            ],
-            "body": {
-              "tag": "blk",
-              "body": {
-                "tag": "seq",
-                "stmts": [
-                  {
-                    "tag": "const",
-                    "sym": "k",
-                    "expr": {
-                      "tag": "binop",
-                      "sym": "*",
-                      "frst": { "tag": "lit", "val": 3 },
-                      "scnd": { "tag": "nam", "sym": "x" }
-                    },
-                    "declared_type": {
-                      "kind": "basic",
-                      "value": "int"
-                    }
-                  },
-                  {
-                    "tag": "cond",
-                    "pred": {
-                      "tag": "binop",
-                      "sym": ">",
-                      "frst": { "tag": "nam", "sym": "x" },
-                      "scnd": { "tag": "lit", "val": 0 }
-                    },
-                    "cons": {
-                      "tag": "blk",
-                      "body": {
-                        "tag": "const",
-                        "sym": "m",
-                        "expr": { "tag": "lit", "val": 0 },
-                        "declared_type": {
-                          "kind": "basic",
-                          "value": "int"
-                        }
-                      }
-                    },
-                    "alt": {
-                      "tag": "blk",
-                      "body": {
-                        "tag": "const",
-                        "sym": "m",
-                        "expr": { "tag": "lit", "val": 1 },
-                        "declared_type": {
-                          "kind": "basic",
-                          "value": "int"
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "tag": "cond",
-                    "pred": {
-                      "tag": "binop",
-                      "sym": "<",
-                      "frst": { "tag": "nam", "sym": "y" },
-                      "scnd": { "tag": "lit", "val": 0 }
-                    },
-                    "cons": {
-                      "tag": "blk",
-                      "body": {
-                        "tag": "seq",
-                        "stmts": [
-                          {
-                            "tag": "const",
-                            "sym": "z",
-                            "expr": { "tag": "lit", "val": 0 },
-                            "declared_type": {
-                              "kind": "basic",
-                              "value": "int"
-                            }
-                          },
-                          {
-                            "tag": "ret",
-                            "expr": {
-                              "tag": "binop",
-                              "sym": "+",
-                              "frst": { "tag": "nam", "sym": "x" },
-                              "scnd": { "tag": "nam", "sym": "y" }
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    "alt": {
-                      "tag": "blk",
-                      "body": {
-                        "tag": "seq",
-                        "stmts": [
-                          {
-                            "tag": "const",
-                            "sym": "z",
-                            "expr": { "tag": "lit", "val": 3 },
-                            "declared_type": {
-                              "kind": "basic",
-                              "value": "int"
-                            }
-                          },
-                          {
-                            "tag": "ret",
-                            "expr": {
-                              "tag": "binop",
-                              "sym": "-",
-                              "frst": { "tag": "nam", "sym": "x" },
-                              "scnd": { "tag": "nam", "sym": "y" }
-                            }
-                          }
-                        ]
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            "declared_type": {
-              "kind": "function",
-              "ret": "int",
-              "prms": ["int", "int"]
-            }
-          },
-          {
-            "tag": "app",
-            "fun": { "tag": "nam", "sym": "f" },
-            "args": [
-              { "tag": "lit", "val": 33 },
-              { "tag": "lit", "val": 22 }
-            ]
-          }
-        ]
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 49;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 3);
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      BINOP Multiply;
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LDC (Int 0);
-      BINOP GreaterThan;
-      JOF 18;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      EXIT_SCOPE;
-      GOTO 22;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 1);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      EXIT_SCOPE;
-      POP;
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      LDC (Int 0);
-      BINOP LessThan;
-      JOF 37;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Add;
-      RESET;
-      EXIT_SCOPE;
-      GOTO 46;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 3);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Subtract;
-      RESET;
-      EXIT_SCOPE;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 33);
-      LDC (Int 22);
-      CALL 2;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list
-    "complex conditional function with multiple blocks and returns" expected
-    result
-
-let test_nested_conditional_function () =
-  let json =
-    {|{
-      "tag": "blk",
-      "body": {
-        "tag": "seq",
-        "stmts": [
-          {
-            "tag": "fun",
-            "sym": "f",
-            "prms": [
-              { "name": "x" },
-              { "name": "y" }
-            ],
-            "body": {
-              "tag": "blk",
-              "body": {
-                "tag": "seq",
-                "stmts": [
-                  {
-                    "tag": "const",
-                    "sym": "k",
-                    "expr": {
-                      "tag": "binop",
-                      "sym": "*",
-                      "frst": { "tag": "lit", "val": 3 },
-                      "scnd": { "tag": "nam", "sym": "x" }
-                    },
-                    "declared_type": {
-                      "kind": "basic",
-                      "value": "int"
-                    }
-                  },
-                  {
-                    "tag": "cond",
-                    "pred": {
-                      "tag": "binop",
-                      "sym": ">",
-                      "frst": { "tag": "nam", "sym": "x" },
-                      "scnd": { "tag": "lit", "val": 0 }
-                    },
-                    "cons": {
-                      "tag": "blk",
-                      "body": {
-                        "tag": "const",
-                        "sym": "m",
-                        "expr": { "tag": "lit", "val": 0 },
-                        "declared_type": {
-                          "kind": "basic",
-                          "value": "int"
-                        }
-                      }
-                    },
-                    "alt": {
-                      "tag": "seq",
-                      "stmts": [
-                        {
-                          "tag": "cond",
-                          "pred": {
-                            "tag": "binop",
-                            "sym": ">",
-                            "frst": { "tag": "nam", "sym": "x" },
-                            "scnd": {
-                              "tag": "unop",
-                              "sym": "UnaryNegation",
-                              "frst": { "tag": "lit", "val": 3 }
-                            }
-                          },
-                          "cons": {
-                            "tag": "blk",
-                            "body": {
-                              "tag": "seq",
-                              "stmts": [
-                                {
-                                  "tag": "const",
-                                  "sym": "m",
-                                  "expr": { "tag": "lit", "val": 3 },
-                                  "declared_type": {
-                                    "kind": "basic",
-                                    "value": "int"
-                                  }
-                                },
-                                {
-                                  "tag": "const",
-                                  "sym": "n",
-                                  "expr": { "tag": "lit", "val": 1 },
-                                  "declared_type": {
-                                    "kind": "basic",
-                                    "value": "int"
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          "alt": {
-                            "tag": "blk",
-                            "body": {
-                              "tag": "const",
-                              "sym": "m",
-                              "expr": { "tag": "lit", "val": 5 },
-                              "declared_type": {
-                                "kind": "basic",
-                                "value": "int"
-                              }
-                            }
-                          }
-                        },
-                        {
-                          "tag": "ret",
-                          "expr": { "tag": "lit", "val": 10 }
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "tag": "const",
-                    "sym": "j",
-                    "expr": { "tag": "lit", "val": 0 },
-                    "declared_type": {
-                      "kind": "basic",
-                      "value": "int"
-                    }
-                  },
-                  {
-                    "tag": "cond",
-                    "pred": {
-                      "tag": "binop",
-                      "sym": "<",
-                      "frst": { "tag": "nam", "sym": "y" },
-                      "scnd": { "tag": "lit", "val": 0 }
-                    },
-                    "cons": {
-                      "tag": "blk",
-                      "body": {
-                        "tag": "seq",
-                        "stmts": [
-                          {
-                            "tag": "const",
-                            "sym": "z",
-                            "expr": { "tag": "lit", "val": 0 },
-                            "declared_type": {
-                              "kind": "basic",
-                              "value": "int"
-                            }
-                          },
-                          {
-                            "tag": "ret",
-                            "expr": {
-                              "tag": "binop",
-                              "sym": "+",
-                              "frst": { "tag": "nam", "sym": "x" },
-                              "scnd": { "tag": "nam", "sym": "y" }
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    "alt": {
-                      "tag": "blk",
-                      "body": {
-                        "tag": "seq",
-                        "stmts": [
-                          {
-                            "tag": "const",
-                            "sym": "z",
-                            "expr": { "tag": "lit", "val": 3 },
-                            "declared_type": {
-                              "kind": "basic",
-                              "value": "int"
-                            }
-                          },
-                          {
-                            "tag": "ret",
-                            "expr": {
-                              "tag": "binop",
-                              "sym": "-",
-                              "frst": { "tag": "nam", "sym": "x" },
-                              "scnd": { "tag": "nam", "sym": "y" }
-                            }
-                          }
-                        ]
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            "declared_type": {
-              "kind": "function",
-              "ret": "int",
-              "prms": ["int", "int"]
-            }
-          },
-          {
-            "tag": "app",
-            "fun": { "tag": "nam", "sym": "f" },
-            "args": [
-              { "tag": "lit", "val": 33 },
-              { "tag": "lit", "val": 22 }
-            ]
-          }
-        ]
-      }
-    }|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 1 };
-      LDF { arity = 2; addr = 3 };
-      GOTO 68;
-      ENTER_SCOPE { num = 2 };
-      LDC (Int 3);
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      BINOP Multiply;
-      ASSIGN { frame_index = 2; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LDC (Int 0);
-      BINOP GreaterThan;
-      JOF 18;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      EXIT_SCOPE;
-      GOTO 22;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 1);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      EXIT_SCOPE;
-      POP;
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      LDC (Int 0);
-      BINOP LessThan;
-      JOF 37;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 0);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Add;
-      RESET;
-      EXIT_SCOPE;
-      GOTO 46;
-      ENTER_SCOPE { num = 1 };
-      LDC (Int 3);
-      ASSIGN { frame_index = 3; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 1 } };
-      BINOP Subtract;
-      RESET;
-      EXIT_SCOPE;
-      EXIT_SCOPE;
-      LDC Undefined;
-      RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 33);
-      LDC (Int 22);
-      CALL 2;
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list
-    "nested conditional function with multiple blocks and returns" expected
-    result
-
-let test_borrow_variable () =
-  let json =
-    {|{
-  "tag": "blk",
-  "body": {
-    "tag": "seq",
-    "stmts": [
-      {
-        "tag": "let",
-        "sym": "x",
-        "is_mutable": false,
-        "expr": {"tag": "lit", "val": "hello"},
-        "declared_type": {"kind": "basic", "value": "string"}
-      },
-      {
-        "tag": "let",
-        "sym": "y",
-        "is_mutable": false,
-        "expr": {
-          "tag": "BorrowExpr",
-          "mutable": false,
-          "expr": {"tag": "nam", "sym": "x"}
-        },
-        "declared_type": {
-          "kind": "ref",
-          "is_mutable": false,
-          "value": "string"
-        }
-      }
-    ]
-  }
-}|}
-  in
-  let result = compile_program json in
-  let expected =
-    [
-      ENTER_SCOPE { num = 2 };
-      LDC (String "hello");
-      ASSIGN { frame_index = 0; value_index = 0 };
-      POP;
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      BORROW;
-      ASSIGN { frame_index = 0; value_index = 1 };
-      EXIT_SCOPE;
-      DONE;
-    ]
-  in
-  check_instr_list "load variable x" expected result
-
-let test_var_decl () =
-  let json = {|{
-    "type": "Program",
-    "statements": [
-      {
-        "type": "Block",
-        "statements": [
-          {
-            "type": "VarDecl",
-            "name": "x",
-            "value": {
-              "type": "Literal",
-              "value": 42
-            }
-          }
-        ]
-      }
-    ]
-  }|} in
-  let result = compile_program json in
-  let expected = [ ENTER_SCOPE { num = 1 }; LDC (Int 42); ASSIGN { frame_index = 0; value_index = 0 }; EXIT_SCOPE; DONE ] in
-  check_instr_list "var decl" expected result *)
 
 let test_factorial () =
   let json =
@@ -2216,7 +27,8 @@ let test_factorial () =
             "paramType": {
               "type": "BasicType",
               "name": "i32"
-            }
+            },
+            "isMutable": false
           }
         ],
         "returnType": {
@@ -2296,7 +108,7 @@ let test_factorial () =
         "args": [
           {
             "type": "Literal",
-            "value": 5
+            "value": 4
           }
         ]
       }
@@ -2307,42 +119,593 @@ let test_factorial () =
   let expected =
     [
       ENTER_SCOPE { num = 1 };
-      (* Function factorial *)
       LDF { arity = 1; addr = 3 };
-      GOTO 20;
-      (* Function body *)
+      GOTO 26;
       ENTER_SCOPE { num = 0 };
-      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 2; value_index = 0 } };
       LDC (Int 0);
       BINOP Equal;
-      JOF 12;
+      JOF 13;
+      ENTER_SCOPE { num = 0 };
       LDC (Int 1);
       RESET;
       EXIT_SCOPE;
-      GOTO 19;
+      GOTO 23;
+      ENTER_SCOPE { num = 0 };
+      LD { pos = { frame_index = 2; value_index = 0 } };
       LD { pos = { frame_index = 1; value_index = 0 } };
-      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 2; value_index = 0 } };
       LDC (Int 1);
       BINOP Subtract;
-      LD { pos = { frame_index = 0; value_index = 0 } };
       CALL 1;
       BINOP Multiply;
       RESET;
       EXIT_SCOPE;
+      EXIT_SCOPE;
       LDC Undefined;
       RESET;
-      ASSIGN { frame_index = 0; value_index = 0 };
+      ASSIGN { frame_index = 1; value_index = 0 };
       POP;
-      (* Call factorial(5) *)
-      LD { pos = { frame_index = 0; value_index = 0 } };
-      LDC (Int 5);
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LDC (Int 4);
       CALL 1;
-      FREE { pos = { frame_index = 0; value_index = 0 }; to_free = true };
       EXIT_SCOPE;
       DONE;
     ]
   in
   check_instr_list "factorial function with recursive call" expected result
+
+let test_ownership_transfer () =
+  let json =
+    {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "FnDecl",
+        "name": "take_ownership",
+        "params": [
+          {
+            "type": "Param",
+            "name": "s",
+            "paramType": {
+              "type": "BasicType",
+              "name": "String"
+            },
+            "isMutable": false
+          }
+        ],
+        "returnType": {
+          "type": "BasicType",
+          "name": "String"
+        },
+        "body": {
+          "type": "Block",
+          "statements": [
+            {
+              "type": "ReturnExpr",
+              "expr": {
+                "type": "IdentExpr",
+                "name": "s"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "FnDecl",
+        "name": "main",
+        "params": [],
+        "returnType": null,
+        "body": {
+          "type": "Block",
+          "statements": [
+            {
+              "type": "LetDecl",
+              "name": "s",
+              "value": {
+                "type": "Literal",
+                "value": "hello"
+              },
+              "declaredType": {
+                "type": "BasicType",
+                "name": "String"
+              },
+              "isMutable": false
+            },
+            {
+              "type": "LetDecl",
+              "name": "x",
+              "value": {
+                "type": "FunctionCall",
+                "name": "take_ownership",
+                "args": [
+                  {
+                    "type": "IdentExpr",
+                    "name": "s"
+                  }
+                ]
+              },
+              "declaredType": {
+                "type": "BasicType",
+                "name": "String"
+              },
+              "isMutable": false
+            },
+            {
+              "type": "MacroCall",
+              "name": "println",
+              "args": [
+                {
+                  "type": "IdentExpr",
+                  "name": "x"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 2 };
+      LDF { arity = 1; addr = 3 };
+      GOTO 9;
+      ENTER_SCOPE { num = 0 };
+      LD { pos = { frame_index = 2; value_index = 0 } };
+      RESET;
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 1; value_index = 0 };
+      POP;
+      LDF { arity = 0; addr = 13 };
+      GOTO 30;
+      ENTER_SCOPE { num = 2 };
+      LDC (String "hello");
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      CALL 1;
+      ASSIGN { frame_index = 3; value_index = 1 };
+      POP;
+      LD { pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 3; value_index = 1 } };
+      CALL 1;
+      FREE { pos = { frame_index = 3; value_index = 1 }; to_free = true };
+      FREE { pos = { frame_index = 3; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 1; value_index = 1 };
+      LD { pos = { frame_index = 1; value_index = 1 } };
+      CALL 0;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "ownership transfer of string value" expected result
+
+let test_while_loop_increment () =
+  let json =
+    {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "FnDecl",
+        "name": "main",
+        "params": [],
+        "returnType": null,
+        "body": {
+          "type": "Block",
+          "statements": [
+            {
+              "type": "LetDecl",
+              "name": "x",
+              "value": {
+                "type": "Literal",
+                "value": 0
+              },
+              "declaredType": {
+                "type": "BasicType",
+                "name": "i32"
+              },
+              "isMutable": true
+            },
+            {
+              "type": "WhileLoop",
+              "condition": {
+                "type": "BinaryExpr",
+                "left": {
+                  "type": "IdentExpr",
+                  "name": "x"
+                },
+                "operator": "<",
+                "right": {
+                  "type": "Literal",
+                  "value": 10
+                }
+              },
+              "body": {
+                "type": "Block",
+                "statements": [
+                  {
+                    "type": "AssignmentStmt",
+                    "name": "x",
+                    "value": {
+                      "type": "BinaryExpr",
+                      "left": {
+                        "type": "IdentExpr",
+                        "name": "x"
+                      },
+                      "operator": "+",
+                      "right": {
+                        "type": "Literal",
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 0; addr = 3 };
+      GOTO 24;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      LDC (Int 10);
+      BINOP LessThan;
+      JOF 19;
+      ENTER_SCOPE { num = 0 };
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      LDC (Int 1);
+      BINOP Add;
+      ASSIGN { frame_index = 3; value_index = 0 };
+      EXIT_SCOPE;
+      POP;
+      GOTO 7;
+      LDC Undefined;
+      FREE { pos = { frame_index = 3; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 1; value_index = 0 };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      CALL 0;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "while loop incrementing mutable variable" expected result
+
+let test_if_else_mutable () =
+  let json =
+    {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "FnDecl",
+        "name": "main",
+        "params": [],
+        "returnType": null,
+        "body": {
+          "type": "Block",
+          "statements": [
+            {
+              "type": "LetDecl",
+              "name": "x",
+              "value": {
+                "type": "Literal",
+                "value": 0
+              },
+              "declaredType": {
+                "type": "BasicType",
+                "name": "i32"
+              },
+              "isMutable": true
+            },
+            {
+              "type": "IfExpr",
+              "condition": {
+                "type": "BinaryExpr",
+                "left": {
+                  "type": "IdentExpr",
+                  "name": "x"
+                },
+                "operator": "<",
+                "right": {
+                  "type": "Literal",
+                  "value": 10
+                }
+              },
+              "thenBranch": {
+                "type": "Block",
+                "statements": [
+                  {
+                    "type": "AssignmentStmt",
+                    "name": "x",
+                    "value": {
+                      "type": "BinaryExpr",
+                      "left": {
+                        "type": "IdentExpr",
+                        "name": "x"
+                      },
+                      "operator": "+",
+                      "right": {
+                        "type": "Literal",
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "elseBranch": {
+                "type": "Block",
+                "statements": [
+                  {
+                    "type": "AssignmentStmt",
+                    "name": "x",
+                    "value": {
+                      "type": "BinaryExpr",
+                      "left": {
+                        "type": "IdentExpr",
+                        "name": "x"
+                      },
+                      "operator": "-",
+                      "right": {
+                        "type": "Literal",
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "MacroCall",
+              "name": "println",
+              "args": [
+                {
+                  "type": "IdentExpr",
+                  "name": "x"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 0; addr = 3 };
+      GOTO 32;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 0);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      LDC (Int 10);
+      BINOP LessThan;
+      JOF 18;
+      ENTER_SCOPE { num = 0 };
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      LDC (Int 1);
+      BINOP Add;
+      ASSIGN { frame_index = 3; value_index = 0 };
+      EXIT_SCOPE;
+      GOTO 24;
+      ENTER_SCOPE { num = 0 };
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      LDC (Int 1);
+      BINOP Subtract;
+      ASSIGN { frame_index = 3; value_index = 0 };
+      EXIT_SCOPE;
+      POP;
+      LD { pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      CALL 1;
+      FREE { pos = { frame_index = 3; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 1; value_index = 0 };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      CALL 0;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "if-else modifying mutable variable" expected result
+
+let test_basic_arithmetic () =
+  let json =
+    {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "FnDecl",
+        "name": "main",
+        "params": [],
+        "returnType": null,
+        "body": {
+          "type": "Block",
+          "statements": [
+            {
+              "type": "LetDecl",
+              "name": "x",
+              "value": {
+                "type": "Literal",
+                "value": 11
+              },
+              "declaredType": {
+                "type": "BasicType",
+                "name": "i32"
+              },
+              "isMutable": false
+            },
+            {
+              "type": "MacroCall",
+              "name": "println",
+              "args": [
+                {
+                  "type": "IdentExpr",
+                  "name": "x"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+    }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 0; addr = 3 };
+      GOTO 14;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 11);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      LD { pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      CALL 1;
+      FREE { pos = { frame_index = 3; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 1; value_index = 0 };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      CALL 0;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "basic arithmetic operations" expected result
+
+
+let test_nested_blocks () =
+  let json =
+    {|{
+    "type": "Program",
+    "statements": [
+      {
+        "type": "FnDecl",
+        "name": "main",
+        "params": [],
+        "returnType": null,
+        "body": {
+          "type": "Block",
+          "statements": [
+            {
+              "type": "LetDecl",
+              "name": "x",
+              "value": {
+                "type": "Literal",
+                "value": 1
+              },
+              "declaredType": {
+                "type": "BasicType",
+                "name": "i32"
+              },
+              "isMutable": false
+            },
+            {
+              "type": "Block",
+              "statements": [
+                {
+                  "type": "LetDecl",
+                  "name": "y",
+                  "value": {
+                    "type": "BinaryExpr",
+                    "left": {
+                      "type": "IdentExpr",
+                      "name": "x"
+                    },
+                    "operator": "+",
+                    "right": {
+                      "type": "Literal",
+                      "value": 2
+                    }
+                  },
+                  "declaredType": {
+                    "type": "BasicType",
+                    "name": "i32"
+                  },
+                  "isMutable": false
+                },
+                {
+                  "type": "MacroCall",
+                  "name": "println",
+                  "args": [
+                    {
+                      "type": "IdentExpr",
+                      "name": "y"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }|}
+  in
+  let result = compile_program json in
+  let expected =
+    [
+      ENTER_SCOPE { num = 1 };
+      LDF { arity = 0; addr = 3 };
+      GOTO 22;
+      ENTER_SCOPE { num = 1 };
+      LDC (Int 1);
+      ASSIGN { frame_index = 3; value_index = 0 };
+      POP;
+      ENTER_SCOPE { num = 1 };
+      LD { pos = { frame_index = 3; value_index = 0 } };
+      LDC (Int 2);
+      BINOP Add;
+      ASSIGN { frame_index = 4; value_index = 0 };
+      POP;
+      LD { pos = { frame_index = 0; value_index = 0 } };
+      LD { pos = { frame_index = 4; value_index = 0 } };
+      CALL 1;
+      FREE { pos = { frame_index = 4; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      FREE { pos = { frame_index = 3; value_index = 0 }; to_free = true };
+      EXIT_SCOPE;
+      LDC Undefined;
+      RESET;
+      ASSIGN { frame_index = 1; value_index = 0 };
+      LD { pos = { frame_index = 1; value_index = 0 } };
+      CALL 0;
+      EXIT_SCOPE;
+      DONE;
+    ]
+  in
+  check_instr_list "nested blocks with variable scoping" expected result
 
 (* ---------- Run tests ---------- *)
 
@@ -2352,39 +715,11 @@ let () =
     [
       ( "compiler",
         [
-          (* test_case "Literal int" `Quick test_literal_int;
-          test_case "test_literal_immut_borrow" `Quick test_literal_immut_borrow;
-          test_case "Literal string" `Quick test_literal_string;
-          test_case "Binop +" `Quick test_binop_add;
-          test_case "Sequence of two expressions" `Quick test_seq_two_exprs;
-          test_case "Block with let" `Quick test_blk_with_let;
-          test_case "Load variable" `Quick test_ld_variable;
-          test_case "Unary minus" `Quick test_unary_minus;
-          test_case "Unary not" `Quick test_unary_not;
-          test_case "Function with no parameters" `Quick test_function_no_params;
-          test_case "Function with parameters" `Quick test_function_with_params;
-          test_case "function with binop parameters" `Quick
-            test_function_with_binop;
-          test_case "function with block and const" `Quick
-            test_function_with_block_and_const;
-          test_case "function application" `Quick test_function_application;
-          test_case "nested function calls with tail call" `Quick
-            test_nested_function_calls;
-          test_case "while loop" `Quick test_while_loop;
-          test_case "assignment and while loop" `Quick test_assignment_and_while;
-          test_case "while with const" `Quick test_while_with_const;
-          test_case "nested while loops" `Quick test_nested_while_loops;
-          test_case "functions with while loops" `Quick
-            test_functions_with_while_loops;
-          test_case "conditional function with assignment" `Quick
-            test_conditional_function;
-          test_case "conditional function with returns" `Quick
-            test_conditional_function_with_returns;
-          test_case "2 conditional functions" `Quick test_2_conditional_function;
-          test_case "nested conditional function" `Quick
-            test_nested_conditional_function;
-          test_case "test_borrow_variable" `Quick test_borrow_variable;
-          test_case "var decl" `Quick test_var_decl; *)
           test_case "factorial function" `Quick test_factorial;
+          test_case "ownership transfer" `Quick test_ownership_transfer;
+          test_case "while loop increment" `Quick test_while_loop_increment;
+          test_case "if-else mutable" `Quick test_if_else_mutable;
+          test_case "basic arithmetic" `Quick test_basic_arithmetic;
+          test_case "nested blocks" `Quick test_nested_blocks;
         ] );
     ]

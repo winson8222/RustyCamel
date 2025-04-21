@@ -32,7 +32,7 @@ class RustAstVisitor
   implements RustVisitor<any>
 {
   visitProgram(ctx: any): any {
-    console.log("Visiting Program");
+    
     return {
       type: "Program",
       statements: ctx.statement().map((stmt: any) => this.visit(stmt)),
@@ -61,7 +61,7 @@ class RustAstVisitor
   }
 
   visitAssignment(ctx: any): any {
-    console.log("Visiting Assignment Statement");
+    
     return {
       type: "AssignmentStmt",
       name: ctx.IDENTIFIER().getText(),
@@ -70,7 +70,7 @@ class RustAstVisitor
   }
 
   visitAssignmentStmt(ctx: AssignmentStmtContext): any {
-    console.log("Visiting AssignmentStmt");
+
     return {
       type: "AssignmentStmt",
       name: ctx.IDENTIFIER().getText(),
@@ -85,8 +85,7 @@ class RustAstVisitor
       );
     }
 
-    // Does not handle this case: let ref x = 10;
-    console.log("Visiting Let Declaration");
+
     return {
       type: "LetDecl",
       name: ctx.IDENTIFIER().getText(),
@@ -97,7 +96,7 @@ class RustAstVisitor
   }
 
   visitFnDecl(ctx: any): any {
-    console.log("Visiting Function Declaration");
+    
     if (!ctx.returnType()) {
       console.log("Warning: No return type specified for function implicitly means it returns ()");
     }
@@ -112,12 +111,12 @@ class RustAstVisitor
   }
 
   visitParamList(ctx: any): any {
-    console.log("Visiting Parameter List");
+
     return ctx.param().map((param: any) => this.visit(param));
   }
 
   visitParam(ctx: any): any {
-    console.log("Visiting Parameter");
+
     return {
       type: "Param",
       name: ctx.IDENTIFIER().getText(),
@@ -128,12 +127,12 @@ class RustAstVisitor
 
 
   visitReturnType(ctx: any): any {
-    console.log("Visiting Return Type");
+    
     return this.visit(ctx.typeExpr());
   }
 
   visitWhileLoop(ctx: any): any {
-    console.log("Visiting While Loop");
+ 
     return {
       type: "WhileLoop",
       condition: this.visit(ctx.expr()),
@@ -142,7 +141,7 @@ class RustAstVisitor
   }
 
   visitBlock(ctx: any): any {
-    console.log("Visiting Block");
+  
 
     const statements = ctx.statement().map((stmt: any) => this.visit(stmt));
 
@@ -153,7 +152,7 @@ class RustAstVisitor
   }
 
   visitReturnExpr(ctx: any): any {
-    console.log("Visiting Return Expression");
+ 
 
     return {
       type: "ReturnExpr",
@@ -162,7 +161,7 @@ class RustAstVisitor
   }
 
   visitIfExpr(ctx: IfExprContext): any {
-    console.log("Visiting If Expression");
+
     return {
       type: "IfExpr",
       condition: this.visit(ctx.expr()),
@@ -172,13 +171,12 @@ class RustAstVisitor
   }
 
   visitExpr(ctx: any): any {
-    console.log("Visiting Expression");
 
     return this.visit(ctx.exprBinary());
   }
 
   visitBinaryExpr(ctx: any): any {
-    console.log("Visiting Binary Expression");
+   
     if (ctx.exprUnary().length === 1) {
       return this.visit(ctx.exprUnary(0));
     }
@@ -200,7 +198,7 @@ class RustAstVisitor
   }
 
   visitExprUnary(ctx: any): any {
-    console.log("Visiting Unary Expression");
+
     if (ctx instanceof UnaryNegationContext) {
       return {
         type: "UnaryNegation",
@@ -224,7 +222,7 @@ class RustAstVisitor
   }
 
   visitExprAtom(ctx: any): any {
-    console.log("Visiting Expression Atom");
+
     if (ctx instanceof FunctionCallContext) {
       return {
         type: "FunctionCall",
@@ -242,13 +240,14 @@ class RustAstVisitor
     } else if (ctx instanceof LiteralExprContext) {
       return this.visit(ctx.literal());
     } else if (ctx instanceof IdentExprContext) {
-      console.log("Visiting Ident Expression");
+    
       return {
         type: "IdentExpr",
         name: ctx.IDENTIFIER().getText(),
       };
     } else if (ctx instanceof DerefExprContext) {
-      console.log("Visiting Deref Expression");
+
+
       return {
         type: "DerefExpr",
         expr: this.visit(ctx.expr()),
@@ -258,7 +257,7 @@ class RustAstVisitor
   }
 
   visitIdentExpr(ctx: IdentExprContext): any {
-    console.log("Visiting Identifier Expression");
+  
     return {
       type: "IdentExpr",
       name: ctx.IDENTIFIER().getText(),
@@ -266,7 +265,7 @@ class RustAstVisitor
   }
 
   visitDerefExpr(ctx: DerefExprContext): any {
-    console.log("Visiting Deref Expression");
+
     return {
       type: "DerefExpr",
       expr: this.visit(ctx.expr()),
@@ -274,18 +273,17 @@ class RustAstVisitor
   }
 
   visitUnaryToAtom(ctx: UnaryToAtomContext): any {
-    console.log("Visiting UnaryToAtom");
-    console.log("ctx.exprAtom():", ctx.exprAtom());
+
     return this.visit(ctx.exprAtom());
   }
 
   visitArgList(ctx: any): any {
-    console.log("Visiting Argument List");
+    
     return ctx.expr().map((expr: any) => this.visit(expr));
   }
 
   visitRefType(ctx: any): any {
-    console.log("Visiting RefType");
+  
     return {
       type: "RefType",
       isMutable: ctx.MUT() !== null,
@@ -294,7 +292,7 @@ class RustAstVisitor
   }
 
   visitBasicType(ctx: any): any {
-    console.log("Visiting BasicType");
+ 
     return {
       type: "BasicType",
       name: ctx.IDENTIFIER().getText(),
@@ -302,7 +300,7 @@ class RustAstVisitor
   }
 
   visitLiteral(ctx: any): any {
-    console.log("Visiting Literal");
+ 
     const text = ctx.getText();
     let value: any = text;
 
@@ -323,7 +321,7 @@ class RustAstVisitor
   }
 
   visitUnaryNegation(ctx: UnaryNegationContext): any {
-    console.log("Visiting Unary Negation");
+ 
     return {
       type: "UnaryNegation",
       expr: this.visit(ctx.exprUnary()),
@@ -331,7 +329,7 @@ class RustAstVisitor
   }
 
   visitUnaryNot(ctx: UnaryNotContext): any {
-    console.log("Visiting Unary Not");
+ 
     return {
       type: "UnaryNot",
       expr: this.visit(ctx.exprUnary()),
@@ -339,7 +337,7 @@ class RustAstVisitor
   }
 
   visitBorrowExpr(ctx: BorrowExprContext): any {
-    console.log("Visiting Borrow Expression");
+   
     return {
       type: "BorrowExpr",
       isMutable: ctx.MUT() !== null,
@@ -348,7 +346,7 @@ class RustAstVisitor
   }
 
   visitFunctionCall(ctx: FunctionCallContext): any {
-    console.log("Visiting Function Call");
+
     return {
       type: "FunctionCall",
       name: ctx.IDENTIFIER().getText(),
@@ -357,7 +355,7 @@ class RustAstVisitor
   }
 
   visitMacroCall(ctx: MacroCallContext): any {
-    console.log("Visiting Macro Call");
+  
     return {
       type: "MacroCall",
       name: ctx.IDENTIFIER().getText(),
@@ -366,12 +364,12 @@ class RustAstVisitor
   }
 
   visitParensExpr(ctx: ParensExprContext): any {
-    console.log("Visiting Parenthesized Expression");
+
     return this.visit(ctx.expr());
   }
 
   visitLiteralExpr(ctx: LiteralExprContext): any {
-    console.log("Visiting Literal Expression");
+
     return this.visit(ctx.literal());
   }
 
