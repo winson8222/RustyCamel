@@ -131,6 +131,8 @@ let debug_print_bytes state byte_addr count =
   Printf.printf "\n"
 
 let heap_allocate state ~size ~tag =
+  (* Printf.printf "Allocating %d bytes for tag %s\n" size
+    (string_of_node_tag tag); *)
   if size > state.config.node_size then
     failwith
       ("Node size must be less than equal "
@@ -188,10 +190,10 @@ let heap_set_env_val_addr_at_pos state ~env_addr ~frame_index ~val_index
   let frame_addr =
     heap_get_child_as_int state ~address:env_addr ~child_index:frame_index
   in
-  Printf.printf "Setting value at frame %d, position %d to address %d\n"
+  (* Printf.printf "Setting value at frame %d, position %d to address %d\n"
     frame_addr val_index val_addr;
   Printf.printf "Setting value at frame %d, position %d to address %d\n"
-    frame_addr val_index val_addr;
+    frame_addr val_index val_addr; *)
   (* Set the value at the specified index in the frame *)
   ignore
     (heap_set_child state ~address:frame_addr ~child_index:val_index
@@ -330,7 +332,7 @@ let heap_free state addr =
   (* 1. Get the current free pointer *)
   let current_free = !(state.free) in
 
-  Printf.printf "Freed address: %d\n" addr;
+  (* Printf.printf "Freed address: %d\n" addr; *)
 
   (* change the tag of the node to unassigned *)
   heap_set_tag state addr Unassigned_tag;
@@ -413,7 +415,7 @@ let heap_allocate_builtin state ~builtin_id =
 
 let heap_allocate_builtin_frame state =
   (* print the builtin id *)
-  Printf.printf "Allocating builtin frame\n";
+  (* Printf.printf "Allocating builtin frame\n"; *)
   let builtins = Builtins.all_builtins () in
   let frame_addr =
     heap_allocate_frame state ~num_values:(List.length builtins)

@@ -236,8 +236,8 @@ let execute_instruction state instr =
   let os = !(state.os) in
 
   (* print the instruction *)
-  Printf.printf "Executing instruction: %s\n"
-    (Compiler.string_of_instruction instr);
+  (* Printf.printf "Executing instruction: %s\n"
+    (Compiler.string_of_instruction instr); *)
 
   (* Printf.printf "OS: ["; *)
   (* List.iter (fun addr -> Printf.printf "%d; " addr) os; *)
@@ -261,6 +261,7 @@ let execute_instruction state instr =
 
       (* Printf.printf "]\n"; *)
       (* Printf.printf "num: %d\n" num; *)
+
       let new_frame_addr = Heap.heap_allocate_frame heap ~num_values:num in
       Heap.heap_set_frame_children_to_unassigned heap ~frame_addr:new_frame_addr
         ~num_children:num;
@@ -268,11 +269,19 @@ let execute_instruction state instr =
       (* print the new frame address *)
       state.env_addr :=
         Heap.heap_env_extend heap ~env_addr:!(state.env_addr) ~new_frame_addr;
+
       Ok VUndefined
+
       (* The value is not actually used. Only to signal that there's no error *)
   | EXIT_SCOPE ->
+
       let blockframe_addr = List.hd !(state.rts) in
+
+
       state.env_addr := Heap.heap_get_blockframe_env heap blockframe_addr;
+      state.rts := List.tl !(state.rts);
+
+
       Ok VUndefined
   | LDC lit_value ->
       (* Printf.printf "LDC: %s\n" (Types.show_lit_value lit_value); *)
@@ -302,7 +311,7 @@ let execute_instruction state instr =
       in
 
       (* print the value address *)
-      Printf.printf "LD value_addr: %d\n" value_addr;
+      (* Printf.printf "LD value_addr: %d\n" value_addr; *)
       (* print the value address *)
       state.os := value_addr :: !(state.os);
       Ok VUndefined
@@ -542,6 +551,9 @@ let run state instrs =
         Printf.printf "instr[%d]: %s\n" i
           (Compiler.string_of_instruction instr))
       instrs; *)
+(* 
+    Printf.printf "The size of the rts is %d\n"
+      (List.length !(state.rts)); *)
 
     match List.nth_opt instrs pc with
     | None -> Error (TypeError (Printf.sprintf "Invalid program counter:%d" pc))

@@ -27,7 +27,6 @@ module Make (K : Hashtbl.HashedType) : LRU with type key = K.t = struct
         Queue.clear lru.order;
         Queue.transfer temp lru.order;
         Queue.add key lru.order;
-        Printf.printf "String retrieved: %s\n" (String.escaped (Obj.magic key));
         Some v
     | None -> None
 
@@ -40,17 +39,13 @@ module Make (K : Hashtbl.HashedType) : LRU with type key = K.t = struct
         lru.order;
       Queue.clear lru.order;
       Queue.transfer temp lru.order;
-      Queue.add key lru.order;
-      Printf.printf "String updated: %s\n" (String.escaped (Obj.magic key)))
+      Queue.add key lru.order)
     else (
       if H.length lru.table >= lru.max_size then (
         let oldest_key = Queue.take lru.order in
-        H.remove lru.table oldest_key;
-        Printf.printf "String removed: %s\n"
-          (String.escaped (Obj.magic oldest_key)));
+        H.remove lru.table oldest_key);
       H.add lru.table key value;
-      Queue.add key lru.order;
-      Printf.printf "String stored: %s\n" (String.escaped (Obj.magic key)))
+      Queue.add key lru.order)
 
   let length lru = H.length lru.table
 end
