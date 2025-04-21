@@ -22,6 +22,7 @@ cd vm
 opam switch create . 4.14.0  
 eval $(opam env)
 ```
+More information can be found [here](https://ocaml.org/docs/opam-switch-introduction).
 
 3. **Install OCaml dependencies:**
 ```bash
