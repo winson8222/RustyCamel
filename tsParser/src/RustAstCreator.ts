@@ -122,6 +122,7 @@ class RustAstVisitor
     };
   }
 
+
   visitReturnType(ctx: any): any {
     console.log("Visiting Return Type");
     return this.visit(ctx.typeExpr());
@@ -247,7 +248,7 @@ class RustAstVisitor
       return {
         type: "DerefExpr",
         expr: this.visit(ctx.expr()),
-      };
+      } 
     }
     return null;
   }
@@ -397,4 +398,5 @@ export class RustAstCreator {
     const content = await readFile(filePath, "utf-8");
     return this.createAst(content);
   }
+
 }
