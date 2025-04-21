@@ -139,30 +139,39 @@ let rec type_ast ast_node state : tc_type =
       eval stmts
   | Fun { body; declared_type; prms; _ } -> (
       match declared_type with
-      | Types.TFunction { ret; prms = param_types } ->
-          if List.length prms <> List.length param_types then
-            failwith "Mismatched parameters and types";
-          let param_decls =
-            List.map2 (fun name prm_type -> (name, prm_type)) prms param_types
-          in
-          let extended_state = extend_env state in
-          put_decls_in_table param_decls extended_state.te;
-          let body_tc = type_ast body extended_state in
-          (match body_tc with
-          | Ret actual_ret ->
-              if are_types_compatible actual_ret ret then declared_type
-              else
-                failwith
-                  ("Function should return " ^ Types.show_value_type ret
-                 ^ " but returns "
-                  ^ Types.show_value_type actual_ret)
-          | Value _ ->
-              if are_types_compatible ret Types.TUndefined then declared_type
-              else
-                failwith
-                  ("Missing return in function body. Declared return type: "
-                 ^ Types.show_value_type ret))
-          |> fun typ -> Value typ
+      | Types.TFunction { ret; prms = param_types } -> (
+          match ret with
+          | TRef _ ->
+              failwith
+                "Return of reference not allowed. Making a new borrow at the \
+                 parent scope achieves the same outcome."
+          | _ ->
+              if List.length prms <> List.length param_types then
+                failwith "Mismatched parameters and types";
+              let param_decls =
+                List.map2
+                  (fun name prm_type -> (name, prm_type))
+                  prms param_types
+              in
+              let extended_state = extend_env state in
+              put_decls_in_table param_decls extended_state.te;
+              let body_tc = type_ast body extended_state in
+              (match body_tc with
+              | Ret actual_ret ->
+                  if are_types_compatible actual_ret ret then declared_type
+                  else
+                    failwith
+                      ("Function should return " ^ Types.show_value_type ret
+                     ^ " but returns "
+                      ^ Types.show_value_type actual_ret)
+              | Value _ ->
+                  if are_types_compatible ret Types.TUndefined then
+                    declared_type
+                  else
+                    failwith
+                      ("Missing return in function body. Declared return type: "
+                     ^ Types.show_value_type ret))
+              |> fun typ -> Value typ)
       | _ -> failwith "Expected function type in Fun declaration")
   | Ret expr -> (
       match type_ast expr state with
@@ -268,8 +277,6 @@ let rec type_ast ast_node state : tc_type =
           failwith "Only one branch returns in conditional")
   | Assign { sym; expr } -> (
       (* check if sym is mutable *)
-      (* print the sym namae and type *)
-      Printf.printf "sym: %s\n" sym;
       let _ =
         match lookup_sym sym state with
         | Some (Types.TRef { is_mutable; _ }, _) ->

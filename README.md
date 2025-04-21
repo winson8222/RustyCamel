@@ -127,23 +127,16 @@ Note:
   2.2. Move via function application
   Example 2.2.1: 
   ```
-  fn f(s: &mut String) -> &mut String {
+  fn f(s:  String) -> String {
     return s;
   }
 
-  let mut x: &mut String = "hello";
-  let y: &mut String = f(x)
-  let z: &mut String = f(x) // Invalid
+  let mut x: String = "hello";
+  let y: String = f(x)
+  let z: String = f(x) // Invalid
   ```
 
-  2.3. Move parameter (non-ref / ref) out of function via return statement
-  ```
-  fn f(s: &String) -> &String {
-    return s;
-  }
-  ```
-
-  2.4. Move non-ref variable out of function via return statement
+  2.3. Move non-ref value out of function via return statement
   ```
   fn f() {
     let s : String = "hello";
@@ -151,7 +144,7 @@ Note:
   }
   ```
 
-  2.5. Move reference to local variable via return statement (Invalid)
+  2.5. Move reference via return statement (Invalid)
   ```
   fn f() {
     let s : String = "hello";

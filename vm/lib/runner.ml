@@ -66,9 +66,9 @@ let create () =
   initial_state
 
 let rec vm_value_of_address heap addr =
-  let tag = Heap.heap_get_tag heap addr |> Heap.string_of_node_tag in
-  Printf.printf "vm_value_of_address: %d\n" addr;
-  Printf.printf "tag: %s\n" tag;
+  (* let tag = Heap.heap_get_tag heap addr |> Heap.string_of_node_tag in *)
+  (* Printf.printf "vm_value_of_address: %d\n" addr; *)
+  (* Printf.printf "tag: %s\n" tag; *)
   match Heap.heap_get_tag heap addr with
   | Number_tag ->
       let n = Heap.heap_get_number_value heap addr in

@@ -138,7 +138,7 @@ let heap_allocate state ~size ~tag =
   else if !(state.free) = -1 then failwith "Heap ran out of memory"
   else
     let addr = !(state.free) in
-    Printf.printf "Allocated address: %d\n" addr;
+    (* Printf.printf "Allocated address: %d\n" addr; *)
     heap_set_tag state addr tag;
     heap_set_size state addr size;
     state.free := Float.to_int (heap_get state addr);

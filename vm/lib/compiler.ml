@@ -59,7 +59,7 @@ let get_compile_time_environment_pos sym ce =
         in
         match maybe_sym_index with
         | Some sym_index ->
-            Printf.printf "found in frame %d\n" cur_frame_index;
+            (* Printf.printf "found in frame %d\n" cur_frame_index; *)
             { frame_index = n - 1 - cur_frame_index; value_index = sym_index }
         | None -> helper sym tl_frames (cur_frame_index + 1))
   in
