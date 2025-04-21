@@ -236,9 +236,13 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
         | Nam sym -> sym
         | _ -> failwith "Function should be a name"
       in
-      let app_state = { state with is_in = Some (App { fun_sym }) } in
-      let _ =
-        List.fold_left
+      if Builtins.is_builtin_name fun_sym then
+        let _ = List.fold_left (fun acc_state arg -> check_ownership_aux arg acc_state) state args in
+        state
+      else
+        let app_state = { state with is_in = Some (App { fun_sym }) } in
+        let _ =
+          List.fold_left
           (fun acc_state arg -> check_ownership_aux arg acc_state)
           app_state args
       in
@@ -351,7 +355,10 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       let sym_status =
         match lookup_symbol_status sym state with
         | Some Owned -> Owned
-        | _ -> failwith ("Cannot assign to undeclared variable: " ^ sym)
+        | Some ImmutablyBorrowed -> failwith "Cannot assign to immutably borrowed variable"
+        | Some MutablyBorrowed -> failwith "Cannot assign to mutably borrowed variable"
+        | Some Moved -> failwith "Cannot assign to moved variable"
+        | None -> failwith ("Cannot assign to undeclared variable: " ^ sym)
       in
       let _ = handle_var_acc sym ~sym_status state in
       check_ownership_aux expr { state with is_in = Some Let }
