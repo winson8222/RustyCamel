@@ -18,8 +18,6 @@ eval $(opam env)
 ```
 2. **Create and enter a local OPAM switch (recommended):**
 ```bash
-Copy
-Edit
 cd vm
 opam switch create . 4.14.0  
 eval $(opam env)
@@ -27,7 +25,6 @@ eval $(opam env)
 
 3. **Install OCaml dependencies:**
 ```bash
-cd vm
 opam install . --deps-only -y
 ```
 
