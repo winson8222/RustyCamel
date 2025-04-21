@@ -570,5 +570,8 @@ let run state instrs =
                 if instr = DONE then Ok res else run_helper state
             | _ -> if instr = DONE then Ok res else run_helper state)
         | Error e -> Error e (* Early exit in case of error *))
+
   in
-  run_helper state
+  let result = run_helper state in
+  Heap.get_heap_usage state.heap;
+  result

@@ -93,3 +93,4 @@ val heap_get_builtin_id : t -> int -> int
 val string_of_node_tag : node_tag -> string
 val heap_allocate_frame : t -> num_values:int -> int
 val pretty_print_heap : t -> unit
+val get_heap_usage : t -> unit

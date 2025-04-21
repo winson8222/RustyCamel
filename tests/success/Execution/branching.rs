@@ -19,6 +19,6 @@ fn branch2() {
     println!("bran2");
 }
 
-
+// to demonstrate branching and while loop combination
 
 

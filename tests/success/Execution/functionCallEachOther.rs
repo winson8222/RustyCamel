@@ -8,3 +8,5 @@ fn add_one(x: i32) -> i32 {
 }
 
 add_one(5);
+
+// check for function calling each other

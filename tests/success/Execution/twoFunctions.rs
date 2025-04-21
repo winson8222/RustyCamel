@@ -17,6 +17,12 @@ fn while_loop(mut n: i32) -> i32 {
 }
 
 
-let mut x: i32 = while_loop(0);
-x = plus_one(x);
-x = plus_one(x);
+fn main() {
+    let mut x: i32 = while_loop(0);
+    x = plus_one(x);
+    x = plus_one(x);
+
+    println!(x);
+}
+
+// show nested while loops and function calls

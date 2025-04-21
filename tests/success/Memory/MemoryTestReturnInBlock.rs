@@ -11,4 +11,9 @@ fn declare_consts(n: i32) -> i32 {
 }
 
 
-declare_consts((3-6));
+declare_consts(3);
+declare_consts(-1);
+
+
+// case to check in a conditional block, different const declared in each block will be freed
+// differently without affecting other blocks' variables (No double free)

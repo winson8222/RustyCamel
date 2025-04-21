@@ -493,6 +493,18 @@ let pretty_print_heap state =
   in
   print_node 0
 
+let get_heap_usage state =
+  let total_nodes = heap_size_words / state.config.node_size in
+  let rec count_free_nodes addr acc =
+    if addr = -1 then acc
+    else
+      let next_free = Float.to_int (heap_get state addr) in
+      count_free_nodes next_free (acc + 1)
+  in
+  let free_nodes = count_free_nodes !(state.free) 0 in
+  let used_nodes = total_nodes - free_nodes in
+  Printf.printf "Heap usage: %d/%d\n" used_nodes total_nodes
+
 let create () =
   let state =
     {

@@ -45,6 +45,11 @@ let rec set_existing_sym_ownership_in_lowest_frame sym new_status state =
           set_existing_sym_ownership_in_lowest_frame sym new_status parent
       | None -> failwith "Can't set sym that doesn't exist in sym table")
 
+let check_if_sym_exists_in_cur_frame sym state =
+  match Hashtbl.find_opt state.sym_table sym with
+  | Some _ -> true
+  | None -> false
+
 let set_sym_ownership_in_cur_frame ~sym ~new_status ~state =
   let declared_type = lookup_symbol_type ~sym state in
   Hashtbl.replace state.sym_table sym
@@ -220,12 +225,16 @@ let rec check_ownership_aux (typed_ast : Ast.typed_ast) state : t =
       | Some bk -> handle_var_borrow sym ~sym_status ~borrow_kind:bk state)
   | Let { sym; expr; declared_type; _ } | Const { sym; expr; declared_type; _ }
     ->
+      (* check if declared in the same scope *)
+      if check_if_sym_exists_in_cur_frame sym state then (
+        failwith (Printf.sprintf "Symbol %s already declared in this scope" sym)
+      ) else (
       let new_state =
         check_ownership_aux expr { state with is_in = Some Let }
       in
       Hashtbl.add new_state.sym_table sym
         { ownership = Owned; typ = declared_type };
-      new_state
+      new_state)
   | Block body ->
       let new_state = extend_scope state in
       let _ = check_ownership_aux body new_state in

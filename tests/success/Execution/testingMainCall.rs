@@ -17,9 +17,6 @@ fn main() {
    let z: String = manyWords();
 
    println!(z);
-
-
-
 }
 
 

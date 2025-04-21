@@ -7,3 +7,5 @@ fn factorial(n: i32) -> i32 {
 }
 
 factorial(4);
+
+// to demonstrate recursive function call

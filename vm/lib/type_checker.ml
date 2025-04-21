@@ -114,6 +114,8 @@ let rec type_ast ast_node state : tc_type =
       | Some (t, _) -> Value t
       | None -> failwith ("Unbound symbol: " ^ sym))
   | Let { declared_type; expr; _ } -> (
+     (* check if declared in the same scope *)
+
       let expr_type = type_ast expr state in
       match expr_type with
       | Value actual ->
