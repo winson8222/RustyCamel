@@ -16,14 +16,22 @@ Before running the project, make sure you have the following installed:
 opam init -y
 eval $(opam env)
 ```
+2. **Create and enter a local OPAM switch (recommended):**
+```bash
+Copy
+Edit
+cd vm
+opam switch create . 4.14.0  
+eval $(opam env)
+```
 
-2. **Install OCaml dependencies:**
+3. **Install OCaml dependencies:**
 ```bash
 cd vm
 opam install . --deps-only -y
 ```
 
-3. **Install Node.js dependencies:**
+4. **Install Node.js dependencies:**
 ```bash
 cd ../tsParser
 yarn install
