@@ -1,13 +1,43 @@
 # RustyCamel—A Rust Sublanguage Project
 
 ## How to run the project
-To set up the project for the first time, ensure you have [`node >= 18`](https://nodejs.org/en/download) and [`opam`](https://opam.ocaml.org/doc/Install.html) installed. This step should only be done once.
+## Prerequisites
 
-After the initial setup, there are two main scripts to interact with: 
-1. [`build.sh`](/build.sh)
-- Builds `tsParser` and `vm` code. 
-2. [`run.sh <file_path>`](/run.sh)
-- Parses the rust code given by the argument and executes the code.
+Before running the project, make sure you have the following installed:
+
+- [Node.js ≥ 18](https://nodejs.org/en/download) – required to run the Rust parser (powered by Tree-sitter).
+- [OPAM](https://opam.ocaml.org/doc/Install.html) – OCaml’s package manager.
+
+## One-Time Setup
+
+1. **Initialize OPAM** (if this is your first time using it):
+
+```bash
+opam init -y
+eval $(opam env)
+```
+
+2. **Install OCaml dependencies:**
+```bash
+cd vm
+opam install . --deps-only -y
+```
+
+3. **Install Node.js dependencies:**
+```bash
+cd ../tsParser
+yarn install
+cd ..
+```
+
+## Building the Project
+To build the full pipeline (TypeScript parser + OCaml VM), run: 
+[`build.sh`](/build.sh)
+
+
+## Running the Pipeline
+Once built, run a Rust source file end-to-end using:
+[`run.sh <path/to/code.rs>`](/run.sh)
 
 
 ## Project Structure
@@ -26,5 +56,5 @@ The process:
 - VM executes the compiled code
 
 
-## Rust Sublanguage Specification
+## Language Specification
 See [`tsParser/README.md](/tsParser/README.md)
