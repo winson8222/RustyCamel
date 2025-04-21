@@ -13,8 +13,7 @@ const parseRustToJson = async (inputPath: string, outputPath: string) => {
     console.log(`Output written to: ${outputPath}`);
     return true;
   } catch (error) {
-    console.error("Error parsing Rust code:", error);
-    return false;
+    throw new Error("Failed to parse Rust code. Please check the file path and format.");
   }
 };
 
