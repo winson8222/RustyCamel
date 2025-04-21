@@ -293,7 +293,9 @@ let execute_instruction state instr =
       let val_addr = List.hd !(state.os) in
       (* Printf.printf "val: %s val_addr: %d\n"
         (show_vm_value (vm_value_of_address heap val_addr))
-        val_addr; *)
+        (* val_addr; *)
+      Printf.printf "typeof val_addr: %s\n"
+        (Heap.string_of_node_tag (Heap.heap_get_tag heap val_addr)); *)
       Heap.heap_set_env_val_addr_at_pos heap ~env_addr
         ~frame_index:pos.frame_index ~val_index:pos.value_index ~val_addr;
       Ok VUndefined

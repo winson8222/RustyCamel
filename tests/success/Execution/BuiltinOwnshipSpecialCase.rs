@@ -14,8 +14,8 @@ fn main() {
     let mut y: String = "world";
 
     {
-        let mut x: String = "hello";
-        let mut y: String = "world";
+        let mut x: String = "helloIn";
+        let mut y: String = "worldIn";
 
         println!(x);
         println!(y);

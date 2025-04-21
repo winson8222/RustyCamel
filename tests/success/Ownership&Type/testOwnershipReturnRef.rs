@@ -7,8 +7,6 @@ fn main() {
 
     let y: &String = borrow_string(&x);
 
-    x;
-
     println!(*y);
 
 }
