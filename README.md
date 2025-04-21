@@ -28,14 +28,4 @@ The process:
 
 
 ## Rust Sublanguage Specification
-### Syntax
-Note: Only explicit returns in the following format are supported:
-`return <expr>;`
-
-## Types
-- i32
-- f64
-- String
-- bool
-- &<`type`>
-Note: All Let declarations and Function declarations must be typed explicitly. 
+See [`tsParser/README.md](/tsParser/README.md)
