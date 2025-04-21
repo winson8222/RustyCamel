@@ -98,6 +98,10 @@ class RustAstVisitor
 
   visitFnDecl(ctx: any): any {
     console.log("Visiting Function Declaration");
+    if (!ctx.returnType()) {
+      console.log("Warning: No return type specified for function implicitly means it returns ()");
+    }
+  
     return {
       type: "FnDecl",
       name: ctx.IDENTIFIER().getText(),
