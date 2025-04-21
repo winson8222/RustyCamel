@@ -16,7 +16,6 @@ RustyCamel/
 ├── test.rs              # Your Rust source code
 ├── tsParser/            # TypeScript-based Rust parser
 ├── vm/                  # OCaml virtual machine
-└── setup.sh 
 └── build.sh 
 └── run.sh 
 ```
