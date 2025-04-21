@@ -13,4 +13,5 @@ fn main() {
 
     borrow_string(&x);
     x;
+    s; // this should fail because s is moved to x
 }
